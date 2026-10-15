@@ -9,6 +9,8 @@ interface OfferingSelectorProps {
   needMatkul: number;
   needProyek: number;
   isSubmitting: boolean;
+  isRefreshingQuota?: boolean;
+  onRefreshQuota?: () => void;
   onToggleOffering: (offering: Offering) => void;
   onSubmitSelection: () => void;
   onLogout: () => void;
@@ -21,6 +23,8 @@ export function OfferingSelector({
   needMatkul,
   needProyek,
   isSubmitting,
+  isRefreshingQuota,
+  onRefreshQuota,
   onToggleOffering,
   onSubmitSelection,
   onLogout,
@@ -84,7 +88,24 @@ export function OfferingSelector({
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          {onRefreshQuota && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onRefreshQuota}
+              disabled={isRefreshingQuota}
+              style={{ fontSize: "0.85rem", padding: "0.5rem 0.75rem" }}
+              title="Perbarui data kuota terkini"
+            >
+              {isRefreshingQuota ? (
+                <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
+              ) : (
+                "↻ Kuota"
+              )}
+            </button>
+          )}
+
           <button
             type="button"
             className="btn btn-secondary"

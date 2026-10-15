@@ -17,6 +17,7 @@ import { MasterScheduleImport } from "@/components/admin/MasterScheduleImport";
 import { StudentImport } from "@/components/admin/StudentImport";
 import { AccessRequestsList } from "@/components/admin/AccessRequestsList";
 import { ResetDataModal } from "@/components/admin/ResetDataModal";
+import { AdminModal, AdminModalState, AdminModalType } from "@/components/admin/AdminModal";
 
 type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "batal_reset";
 
@@ -33,7 +34,6 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   // Data Dashboard
   const [activeTab, setActiveTab] = useState<AdminTab>("offerings");
@@ -43,9 +43,45 @@ export default function AdminPage() {
   const [pendaftar, setPendaftar] = useState<PendaftarStudentItem[]>([]);
   const [requests, setRequests] = useState<AdminPengajuanItem[]>([]);
   const [kelasList, setKelasList] = useState<string[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Modal Dialog Interaktif Admin
+  const [adminModal, setAdminModal] = useState<AdminModalState>({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+
+  const closeModal = useCallback(() => {
+    setAdminModal((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const showAdminPopup = useCallback(
+    (
+      type: AdminModalType,
+      title: string,
+      message: string,
+      details?: { label: string; value: string }[],
+      onConfirm?: () => void
+    ) => {
+      setAdminModal({
+        isOpen: true,
+        type,
+        title,
+        message,
+        details,
+        onConfirm,
+        confirmText: type === "confirm" || type === "danger" ? "Ya, Lanjutkan" : undefined,
+        cancelText: "Batal",
+      });
+    },
+    []
+  );
 
   // Muat data dashboard admin
   const loadAdminData = useCallback(async () => {
+    setIsRefreshing(true);
     try {
       // 1. Status sistem
       const { data: stData } = await supabase.rpc("admin_status");
@@ -119,6 +155,8 @@ export default function AdminPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal memuat data admin.";
       setActionError(msg);
+    } finally {
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -145,6 +183,16 @@ export default function AdminPage() {
       subscription.unsubscribe();
     };
   }, [loadAdminData]);
+
+  // Polling data admin otomatis setiap 10 detik saat admin sedang login
+  useEffect(() => {
+    if (sessionUser) {
+      const timer = setInterval(() => {
+        void loadAdminData();
+      }, 10000);
+      return () => clearInterval(timer);
+    }
+  }, [sessionUser, loadAdminData]);
 
   // Handler Login Admin
   const handleLogin = async (e: React.FormEvent) => {
@@ -178,31 +226,41 @@ export default function AdminPage() {
     setSessionUser(null);
   };
 
-  // Handler Toggle Portal
-  const handleTogglePortal = async () => {
+  // Handler Toggle Portal dengan Custom Interactive Modal
+  const handleTogglePortal = () => {
     const nextState = !portalOpen;
-    const confirmMsg = nextState
-      ? "Apakah Anda yakin ingin MEMBUKA portal pemilihan untuk mahasiswa?"
-      : "Apakah Anda yakin ingin MENUTUP portal pemilihan?";
-    if (!confirm(confirmMsg)) return;
-
-    try {
-      const { data, error } = await supabase.rpc("admin_toggle_portal", { p_buka: nextState });
-      if (error) {
-        alert("Gagal mengubah status portal: " + error.message);
-        return;
+    showAdminPopup(
+      nextState ? "confirm" : "danger",
+      nextState ? "Buka Portal Pemilihan" : "Tutup Portal Pemilihan",
+      nextState
+        ? "Apakah Anda yakin ingin MEMBUKA portal pemilihan? Mahasiswa dapat langsung masuk dan memilih mata kuliah."
+        : "Apakah Anda yakin ingin MENUTUP portal pemilihan? Mahasiswa baru tidak akan dapat mendaftar.",
+      undefined,
+      async () => {
+        try {
+          const { data, error } = await supabase.rpc("admin_toggle_portal", { p_buka: nextState });
+          if (error) {
+            showAdminPopup("danger", "Gagal Mengubah Portal", error.message);
+            return;
+          }
+          const res = data as { ok?: boolean; error?: string } | null;
+          if (res?.ok) {
+            setPortalOpen(nextState);
+            loadAdminData();
+            showAdminPopup(
+              "success",
+              "Status Portal Diperbarui",
+              nextState ? "Portal pemilihan mahasiswa berhasil DIBUKA." : "Portal pemilihan berhasil DITUTUP."
+            );
+          } else {
+            showAdminPopup("danger", "Gagal", res?.error || "Gagal mengubah portal.");
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
+          showAdminPopup("danger", "Kesalahan", msg);
+        }
       }
-      const res = data as { ok?: boolean; error?: string } | null;
-      if (res?.ok) {
-        setPortalOpen(nextState);
-        loadAdminData();
-      } else {
-        alert(res?.error || "Gagal mengubah portal.");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
-      alert(msg);
-    }
+    );
   };
 
   // Handler Kuota
@@ -212,10 +270,11 @@ export default function AdminPage() {
       p_kuota: newKuota,
     });
     if (error) {
-      alert("Gagal mengubah kuota: " + error.message);
+      showAdminPopup("danger", "Gagal Mengubah Kuota", error.message);
       return;
     }
     loadAdminData();
+    showAdminPopup("success", "Kuota Diperbarui", `Kapasitas kuota berhasil diubah menjadi ${newKuota}.`);
   };
 
   // Handler Upsert Offering
@@ -234,21 +293,22 @@ export default function AdminPage() {
       p_kuota: kuota,
     });
     if (error) {
-      alert("Gagal menyimpan pilihan: " + error.message);
+      showAdminPopup("danger", "Gagal Menyimpan", error.message);
       return;
     }
     loadAdminData();
+    showAdminPopup("success", "Berhasil", `Pilihan "${nama}" berhasil disimpan.`);
   };
 
   // Handler Delete Offering
   const handleDeleteOffering = async (id: number) => {
-    if (!confirm("Hapus mata kuliah / proyek ini?")) return;
     const { error } = await supabase.rpc("admin_delete_offering", { p_id: id });
     if (error) {
-      alert("Gagal menghapus: " + error.message);
+      showAdminPopup("danger", "Gagal Menghapus", error.message);
       return;
     }
     loadAdminData();
+    showAdminPopup("success", "Berhasil", "Mata kuliah pilihan berhasil dihapus.");
   };
 
   // Handler Add Schedule
@@ -267,17 +327,18 @@ export default function AdminPage() {
       p_ruang: ruang,
     });
     if (error) {
-      alert("Gagal menambah jadwal: " + error.message);
+      showAdminPopup("danger", "Gagal Menambah Jadwal", error.message);
       return;
     }
     loadAdminData();
+    showAdminPopup("success", "Jadwal Disimpan", `Jadwal ${hari} (${jamMulai} - ${jamSelesai}) berhasil ditambahkan.`);
   };
 
   // Handler Delete Schedule
   const handleDeleteSchedule = async (scheduleId: number) => {
     const { error } = await supabase.rpc("admin_hapus_jadwal", { p_schedule_id: scheduleId });
     if (error) {
-      alert("Gagal menghapus jadwal: " + error.message);
+      showAdminPopup("danger", "Gagal Menghapus Jadwal", error.message);
       return;
     }
     loadAdminData();
@@ -287,21 +348,22 @@ export default function AdminPage() {
   const handleApproveRequest = async (id: number) => {
     const { error } = await supabase.rpc("admin_setujui_pengajuan", { p_id: id });
     if (error) {
-      alert("Gagal menyetujui pengajuan: " + error.message);
+      showAdminPopup("danger", "Gagal Menyetujui", error.message);
       return;
     }
     loadAdminData();
+    showAdminPopup("success", "Pengajuan Disetujui", "Mahasiswa bersangkutan kini dapat login dan mendaftar.");
   };
 
   // Handler Batalkan Pendaftaran Per NIM
   const handleBatalDaftar = async (nim: string) => {
     const { error } = await supabase.rpc("admin_batal_daftar", { p_nim: nim });
     if (error) {
-      alert("Gagal membatalkan: " + error.message);
+      showAdminPopup("danger", "Gagal Membatalkan", error.message);
       return;
     }
-    alert(`Pendaftaran NIM ${nim} berhasil dibatalkan.`);
     loadAdminData();
+    showAdminPopup("success", "Pendaftaran Dibatalkan", `Pendaftaran untuk NIM ${nim} berhasil dibatalkan dan kuota dikembalikan.`);
   };
 
   // Handler Reset Data Uji Coba
@@ -310,7 +372,7 @@ export default function AdminPage() {
       p_confirm_code: confirmCode,
     });
     if (error) {
-      alert("Gagal mereset: " + error.message);
+      showAdminPopup("danger", "Gagal Mereset Data Uji", error.message);
       return;
     }
     interface ResetResponse {
@@ -323,21 +385,24 @@ export default function AdminPage() {
     }
     const res = data as ResetResponse | null;
     if (res?.ok) {
-      alert(
-        `Reset data uji sukses! (${res.pendaftaran_dihapus || 0} pendaftaran, ${
-          res.antrian_dihapus || 0
-        } antrian, ${res.mahasiswa_dummy_dihapus || 0} mahasiswa dummy dibersihkan).`
-      );
       loadAdminData();
+      showAdminPopup(
+        "success",
+        "Pembersihan Data Selesai",
+        `Data uji coba dibersihkan: ${res.pendaftaran_dihapus || 0} pendaftaran, ${
+          res.antrian_dihapus || 0
+        } antrian, dan ${res.mahasiswa_dummy_dihapus || 0} mahasiswa dummy.`
+      );
     } else {
-      alert(res?.error || "Gagal mereset data uji.");
+      showAdminPopup("danger", "Gagal Reset", res?.error || "Gagal mereset data uji.");
     }
   };
 
   if (checkingAuth) {
     return (
       <div className="container" style={{ textAlign: "center", paddingTop: "5rem" }}>
-        <p>Memeriksa sesi administrator...</p>
+        <div className="spinner spinner-primary spinner-lg" style={{ marginBottom: "1rem" }} />
+        <p style={{ color: "var(--text-muted)" }}>Memeriksa sesi administrator...</p>
       </div>
     );
   }
@@ -363,13 +428,10 @@ export default function AdminPage() {
         status={status}
         onTogglePortal={handleTogglePortal}
         onLogout={handleLogout}
+        onRefresh={loadAdminData}
+        isRefreshing={isRefreshing}
       />
 
-      {actionSuccess && (
-        <div className="alert alert-success" style={{ marginBottom: "1rem" }}>
-          <span>✓ {actionSuccess}</span>
-        </div>
-      )}
 
       {actionError && (
         <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
@@ -464,8 +526,8 @@ export default function AdminPage() {
             loadAdminData();
             return (data as { inserted: number }) || { inserted: 0 };
           }}
-          onSuccess={(msg) => setActionSuccess(msg)}
-          onError={(err) => setActionError(err)}
+          onSuccess={(msg) => showAdminPopup("success", "Impor Berhasil", msg)}
+          onError={(err) => showAdminPopup("danger", "Impor Gagal", err)}
         />
       )}
 
@@ -478,8 +540,8 @@ export default function AdminPage() {
             loadAdminData();
             return (data as { inserted: number; updated: number }) || { inserted: 0, updated: 0 };
           }}
-          onSuccess={(msg) => setActionSuccess(msg)}
-          onError={(err) => setActionError(err)}
+          onSuccess={(msg) => showAdminPopup("success", "Impor Berhasil", msg)}
+          onError={(err) => showAdminPopup("danger", "Impor Gagal", err)}
         />
       )}
 
@@ -494,6 +556,8 @@ export default function AdminPage() {
           onResetDataUji={handleResetDataUji}
         />
       )}
+
+      <AdminModal modal={adminModal} onClose={closeModal} />
     </div>
   );
 }

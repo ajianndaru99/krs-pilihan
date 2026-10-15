@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -94,10 +93,9 @@ export default function BuktiPage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleBackToHome = () => {
     if (typeof window !== "undefined") {
-      sessionStorage.removeItem("nim");
-      sessionStorage.removeItem("token");
+      sessionStorage.clear();
       router.push("/");
     }
   };
@@ -105,7 +103,8 @@ export default function BuktiPage() {
   if (loading) {
     return (
       <div className="container" style={{ textAlign: "center", paddingTop: "5rem" }}>
-        <p>Memuat bukti pendaftaran...</p>
+        <div className="spinner spinner-primary spinner-lg" style={{ marginBottom: "1rem" }} />
+        <p style={{ color: "var(--text-muted)" }}>Memuat bukti pendaftaran...</p>
       </div>
     );
   }
@@ -121,9 +120,9 @@ export default function BuktiPage() {
             Data sesi tidak ditemukan di peramban ini. Pastikan Anda telah melakukan verifikasi NIM dan mendaftar di
             halaman utama.
           </p>
-          <Link href="/" className="btn btn-primary btn-block">
-            Kembali ke Halaman Utama
-          </Link>
+          <button type="button" className="btn btn-primary btn-block" onClick={handleBackToHome}>
+            Kembali ke Halaman Awal
+          </button>
         </div>
       </div>
     );
@@ -139,9 +138,9 @@ export default function BuktiPage() {
           <div className="alert alert-danger" style={{ textAlign: "left" }}>
             <span>⚠️ {errorMessage}</span>
           </div>
-          <Link href="/" className="btn btn-primary btn-block">
-            Kembali ke Halaman Utama
-          </Link>
+          <button type="button" className="btn btn-primary btn-block" onClick={handleBackToHome}>
+            Kembali ke Halaman Awal
+          </button>
         </div>
       </div>
     );
@@ -165,14 +164,14 @@ export default function BuktiPage() {
           gap: "1rem",
         }}
       >
-        <Link href="/" className="btn btn-secondary">
-          ← Beranda
-        </Link>
+        <button type="button" className="btn btn-secondary" onClick={handleBackToHome}>
+          ← Halaman Awal
+        </button>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button type="button" className="btn btn-primary" onClick={handlePrint}>
             🖨️ Cetak Bukti (A4 / PDF)
           </button>
-          <button type="button" className="btn btn-danger" onClick={handleLogout}>
+          <button type="button" className="btn btn-danger" onClick={handleBackToHome}>
             Keluar
           </button>
         </div>

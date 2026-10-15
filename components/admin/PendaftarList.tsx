@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { PendaftarStudentItem } from "@/lib/types";
+import { AdminModal, AdminModalState } from "@/components/admin/AdminModal";
 
 interface PendaftarListProps {
   pendaftar: PendaftarStudentItem[];
@@ -12,6 +13,12 @@ interface PendaftarListProps {
 export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
+  const [modal, setModal] = useState<AdminModalState>({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
 
   const filtered = pendaftar.filter((item) => {
     const matchSearch =
@@ -23,7 +30,12 @@ export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
 
   const handleExportExcel = () => {
     if (pendaftar.length === 0) {
-      alert("Belum ada data pendaftar yang dapat diekspor.");
+      setModal({
+        isOpen: true,
+        type: "warning",
+        title: "Data Masih Kosong",
+        message: "Belum ada data pendaftar yang dapat diekspor ke file Excel.",
+      });
       return;
     }
 
@@ -153,6 +165,11 @@ export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
           </tbody>
         </table>
       </div>
+
+      <AdminModal
+        modal={modal}
+        onClose={() => setModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

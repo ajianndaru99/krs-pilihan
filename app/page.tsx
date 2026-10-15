@@ -18,7 +18,7 @@ const QUEUE_POLL_INTERVAL_MS = 10000;
 export default function StudentPage() {
   const router = useRouter();
 
-  // Lazy Initializers untuk menghindari set-state-in-effect
+  // Lazy Initializers untuk sinkronisasi sesi peramban
   const [nim, setNim] = useState<string>(() => {
     if (typeof window !== "undefined") return sessionStorage.getItem("nim") || "";
     return "";
@@ -51,6 +51,7 @@ export default function StudentPage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshingQuota, setIsRefreshingQuota] = useState(false);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [showAjukanModal, setShowAjukanModal] = useState(false);
 
@@ -64,6 +65,7 @@ export default function StudentPage() {
 
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionEndTimeRef = useRef<number | null>(null);
+  const isExitingRef = useRef(false);
 
   const closeModal = useCallback(() => {
     setModalDialog((prev) => ({ ...prev, isOpen: false }));
@@ -93,28 +95,41 @@ export default function StudentPage() {
 
   // Fetch Offerings (didefinisikan sebelum checkQueueStatus)
   const fetchOfferings = useCallback(
-    async (curNim: string, curToken: string) => {
-      setLoading(true);
+    async (curNim: string, curToken: string, isSilent = false) => {
+      if (isExitingRef.current) return;
+      if (!isSilent) setLoading(true);
+      else setIsRefreshingQuota(true);
+
       try {
         const { data, error } = await supabase.rpc("list_offerings", {
           p_nim: curNim,
           p_token: curToken,
         });
+
+        if (isExitingRef.current) return;
+
         if (error) {
-          showPopup("danger", "Gagal Memuat Pilihan", error.message);
+          if (!isSilent) showPopup("danger", "Gagal Memuat Pilihan", error.message);
           return;
         }
+
         const res = (data as { ok?: boolean; error?: string; pilihan?: Offering[] }) || {};
         if (res.ok === false) {
-          showPopup("danger", "Akses Pilihan Ditolak", res.error || "Gagal memuat mata kuliah.");
+          if (!isSilent) {
+            showPopup("danger", "Akses Pilihan Ditolak", res.error || "Gagal memuat mata kuliah.");
+          }
           return;
         }
+
         setOfferings(res.pilihan || []);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Terjadi kesalahan jaringan.";
-        showPopup("danger", "Kesalahan Jaringan", msg);
+        if (!isSilent) {
+          const msg = err instanceof Error ? err.message : "Terjadi kesalahan jaringan.";
+          showPopup("danger", "Kesalahan Jaringan", msg);
+        }
       } finally {
-        setLoading(false);
+        if (!isSilent) setLoading(false);
+        else setIsRefreshingQuota(false);
       }
     },
     [showPopup]
@@ -123,11 +138,16 @@ export default function StudentPage() {
   // Polling status antrian
   const checkQueueStatus = useCallback(
     async (curNim: string, curToken: string) => {
+      if (isExitingRef.current) return;
+      if (typeof window !== "undefined" && !sessionStorage.getItem("token")) return;
+
       try {
         const { data, error } = await supabase.rpc("queue_status", {
           p_nim: curNim,
           p_token: curToken,
         });
+
+        if (isExitingRef.current) return;
         if (error) return;
 
         interface QueueStatusResponse {
@@ -142,7 +162,15 @@ export default function StudentPage() {
         }
 
         const res = (data as QueueStatusResponse) || {};
-        if (res.ok === false) return;
+        if (res.ok === false) {
+          // Token tidak lagi valid (misal reset admin), kembalikan ke login
+          sessionStorage.removeItem("nim");
+          sessionStorage.removeItem("token");
+          setPhase("login");
+          setNim("");
+          setToken("");
+          return;
+        }
 
         setQueueState(res.state || "");
         setQueueNumber(res.nomor ?? null);
@@ -171,6 +199,7 @@ export default function StudentPage() {
   // Setup interval polling saat fase queue
   useEffect(() => {
     if (phase === "queue" && nim && token) {
+      isExitingRef.current = false;
       const runPoll = () => {
         void checkQueueStatus(nim, token);
       };
@@ -181,6 +210,16 @@ export default function StudentPage() {
       };
     }
   }, [phase, nim, token, checkQueueStatus]);
+
+  // Polling kuota otomatis setiap 10 detik saat fase select
+  useEffect(() => {
+    if (phase === "select" && nim && token) {
+      const quotaInterval = setInterval(() => {
+        void fetchOfferings(nim, token, true);
+      }, 10000);
+      return () => clearInterval(quotaInterval);
+    }
+  }, [phase, nim, token, fetchOfferings]);
 
   // Hitung mundur sesi aktif saat fase select
   useEffect(() => {
@@ -256,6 +295,7 @@ export default function StudentPage() {
   const handleJoinQueue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nim.trim() || !pin.trim()) return;
+    isExitingRef.current = false;
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc("join_queue", {
@@ -379,15 +419,33 @@ export default function StudentPage() {
     );
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("nim");
-    sessionStorage.removeItem("token");
-    setPhase("login");
-    setNim("");
-    setToken("");
-    setPin("");
-    setStudentInfo(null);
-    setSelectedIds([]);
+  // Handler: Keluar / Logout dengan Konfirmasi & Bersihkan State Secara Tuntas
+  const handleRequestExit = () => {
+    showPopup(
+      "confirm",
+      "Konfirmasi Keluar",
+      "Apakah Anda yakin ingin keluar dari portal pemilihan? Sesi antrian Anda akan dihentikan dan Anda akan kembali ke halaman awal.",
+      undefined,
+      () => {
+        isExitingRef.current = true;
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+        sessionStorage.clear();
+        setPhase("login");
+        setNim("");
+        setToken("");
+        setPin("");
+        setStudentInfo(null);
+        setSelectedIds([]);
+        setOfferings([]);
+        setQueueState("");
+        setQueueNumber(null);
+        setQueuePosition(null);
+        setRemainingSeconds(null);
+      }
+    );
   };
 
   return (
@@ -422,7 +480,7 @@ export default function StudentPage() {
           estMinutes={estMinutes}
           canRequeue={canRequeue}
           onRequeue={() => handleJoinQueue({ preventDefault: () => {} } as React.FormEvent)}
-          onExit={handleLogout}
+          onExit={handleRequestExit}
         />
       )}
 
@@ -434,9 +492,11 @@ export default function StudentPage() {
           needMatkul={NEED_MATKUL}
           needProyek={NEED_PROYEK}
           isSubmitting={isSubmitting}
+          isRefreshingQuota={isRefreshingQuota}
+          onRefreshQuota={() => fetchOfferings(nim, token, true)}
           onToggleOffering={handleToggleOffering}
           onSubmitSelection={handleSubmitSelection}
-          onLogout={handleLogout}
+          onLogout={handleRequestExit}
         />
       )}
 

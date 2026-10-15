@@ -17,14 +17,18 @@ export function ResetDataModal({
   const [loadingBatal, setLoadingBatal] = useState(false);
   const [loadingReset, setLoadingReset] = useState(false);
   const [confirmInput, setConfirmInput] = useState("");
+  const [resetError, setResetError] = useState<string | null>(null);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
+  const [showConfirmBatal, setShowConfirmBatal] = useState(false);
 
-  const handleBatalDaftarSubmit = async (e: React.FormEvent) => {
+  const handleBatalClick = (e: React.FormEvent) => {
     e.preventDefault();
     if (!batalNim.trim()) return;
-    if (!confirm(`Batalkan pendaftaran untuk NIM ${batalNim.trim()}? Kuota akan dikembalikan.`)) {
-      return;
-    }
+    setShowConfirmBatal(true);
+  };
+
+  const handleExecuteBatal = async () => {
+    setShowConfirmBatal(false);
     setLoadingBatal(true);
     try {
       await onBatalDaftar(batalNim.trim());
@@ -36,8 +40,9 @@ export function ResetDataModal({
 
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setResetError(null);
     if (confirmInput.trim() !== "RESET-DATA-UJI-SEKARANG") {
-      alert("Kode konfirmasi salah! Ketik 'RESET-DATA-UJI-SEKARANG' persis.");
+      setResetError("Kode konfirmasi salah. Ketik persis 'RESET-DATA-UJI-SEKARANG'.");
       return;
     }
     setLoadingReset(true);
@@ -61,7 +66,7 @@ export function ResetDataModal({
           Batalkan pendaftaran untuk satu mahasiswa jika ada kesalahan pemilihan. Kursi kuota akan otomatis kembali.
         </p>
 
-        <form onSubmit={handleBatalDaftarSubmit}>
+        <form onSubmit={handleBatalClick}>
           <div className="form-group">
             <label className="form-label">Masukkan NIM Mahasiswa</label>
             <input
@@ -78,10 +83,17 @@ export function ResetDataModal({
           <button
             type="submit"
             className="btn btn-secondary"
-            style={{ width: "100%", color: "var(--danger)" }}
+            style={{ width: "100%", color: "var(--danger)", display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem" }}
             disabled={loadingBatal || !batalNim.trim()}
           >
-            {loadingBatal ? "Membatalkan..." : "Batalkan Pendaftaran Mahasiswa"}
+            {loadingBatal ? (
+              <>
+                <span className="spinner spinner-primary" />
+                <span>Membatalkan...</span>
+              </>
+            ) : (
+              "Batalkan Pendaftaran Mahasiswa"
+            )}
           </button>
         </form>
       </div>
@@ -118,12 +130,54 @@ export function ResetDataModal({
             type="button"
             className="btn btn-danger"
             style={{ width: "100%" }}
-            onClick={() => setShowConfirmReset(true)}
+            onClick={() => {
+              setResetError(null);
+              setConfirmInput("");
+              setShowConfirmReset(true);
+            }}
           >
             Bersihkan Seluruh Data Uji Coba →
           </button>
         )}
       </div>
+
+      {/* Modal Konfirmasi Batal NIM */}
+      {showConfirmBatal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            padding: "1rem",
+            animation: "fadeIn 0.15s ease-out",
+          }}
+        >
+          <div className="card" style={{ width: "100%", maxWidth: 440, padding: "1.75rem", backgroundColor: "#fff" }}>
+            <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--danger)", marginBottom: "0.5rem" }}>
+              ❓ Konfirmasi Pembatalan
+            </h3>
+            <p style={{ fontSize: "0.9rem", color: "var(--text-main)", marginBottom: "1.25rem" }}>
+              Apakah Anda yakin ingin membatalkan pendaftaran untuk NIM <strong>{batalNim.trim()}</strong>? Kursi kuota
+              akan otomatis dikembalikan ke mata kuliah terkait.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowConfirmBatal(false)}>
+                Batal
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleExecuteBatal}>
+                Ya, Batalkan Pendaftaran
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Dialog Konfirmasi Reset Data Uji */}
       {showConfirmReset && (
@@ -138,8 +192,9 @@ export function ResetDataModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            zIndex: 99999,
             padding: "1rem",
+            animation: "fadeIn 0.15s ease-out",
           }}
         >
           <div className="card" style={{ width: "100%", maxWidth: 480, padding: "2rem", backgroundColor: "#fff" }}>
@@ -150,6 +205,12 @@ export function ResetDataModal({
               Tindakan ini tidak dapat dibatalkan. Seluruh pendaftaran simulasi akan dihapus, dan kuota akan kembali
               penuh.
             </p>
+
+            {resetError && (
+              <div className="alert alert-danger" style={{ marginBottom: "1rem", fontSize: "0.85rem" }}>
+                <span>⚠️ {resetError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleResetSubmit}>
               <div className="form-group">
@@ -180,8 +241,16 @@ export function ResetDataModal({
                   type="submit"
                   className="btn btn-danger"
                   disabled={loadingReset || confirmInput.trim() !== "RESET-DATA-UJI-SEKARANG"}
+                  style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
                 >
-                  {loadingReset ? "Membersihkan..." : "Konfirmasi Reset Bersih"}
+                  {loadingReset ? (
+                    <>
+                      <span className="spinner" />
+                      <span>Membersihkan...</span>
+                    </>
+                  ) : (
+                    "Konfirmasi Reset Bersih"
+                  )}
                 </button>
               </div>
             </form>

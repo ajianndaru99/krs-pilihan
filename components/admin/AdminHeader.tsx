@@ -7,6 +7,8 @@ interface AdminHeaderProps {
   status: AdminSystemStatus | null;
   onTogglePortal: () => void;
   onLogout: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function AdminHeader({
@@ -14,6 +16,8 @@ export function AdminHeader({
   status,
   onTogglePortal,
   onLogout,
+  onRefresh,
+  isRefreshing,
 }: AdminHeaderProps) {
   return (
     <header
@@ -53,6 +57,29 @@ export function AdminHeader({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="btn btn-secondary"
+            style={{ fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem" }}
+            disabled={isRefreshing}
+            title="Perbarui data kuota & antrian sekarang"
+          >
+            {isRefreshing ? (
+              <>
+                <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
+                <span>Memperbarui...</span>
+              </>
+            ) : (
+              <>
+                <span>↻</span>
+                <span>Refresh Data</span>
+              </>
+            )}
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onTogglePortal}

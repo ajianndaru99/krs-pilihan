@@ -35,7 +35,7 @@ export function OfferingManager({
   const [search, setSearch] = useState("");
   const [filterJenis, setFilterJenis] = useState<"all" | "matkul" | "proyek">("all");
 
-  // Modal State
+  // Upsert Modal State
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [nama, setNama] = useState("");
@@ -43,12 +43,22 @@ export function OfferingManager({
   const [jenis, setJenis] = useState<"matkul" | "proyek">("matkul");
   const [kuota, setKuota] = useState(30);
 
+  // Quick Kuota Modal State
+  const [kuotaModalItem, setKuotaModalItem] = useState<Offering | null>(null);
+  const [newKuotaInput, setNewKuotaInput] = useState<number>(30);
+  const [savingKuota, setSavingKuota] = useState(false);
+
+  // Delete Offering Modal State
+  const [offeringToDelete, setOfferingToDelete] = useState<Offering | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Schedule Modal
   const [activeOfferingForSchedule, setActiveOfferingForSchedule] = useState<Offering | null>(null);
   const [schedHari, setSchedHari] = useState("Senin");
   const [schedMulai, setSchedMulai] = useState("08:00");
   const [schedSelesai, setSchedSelesai] = useState("09:40");
   const [schedRuang, setSchedRuang] = useState("");
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   const filtered = offerings.filter((o) => {
     const matchSearch =
@@ -83,17 +93,46 @@ export function OfferingManager({
     setShowModal(false);
   };
 
+  const handleSaveQuickKuota = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kuotaModalItem || newKuotaInput <= 0) return;
+    setSavingKuota(true);
+    try {
+      await onUpdateKuota(kuotaModalItem.id, newKuotaInput);
+      setKuotaModalItem(null);
+    } finally {
+      setSavingKuota(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!offeringToDelete) return;
+    setDeleting(true);
+    try {
+      await onDeleteOffering(offeringToDelete.id);
+      setOfferingToDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleAddScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeOfferingForSchedule) return;
-    await onAddSchedule(
-      activeOfferingForSchedule.id,
-      schedHari,
-      schedMulai,
-      schedSelesai,
-      schedRuang.trim()
-    );
-    setSchedRuang("");
+    setSavingSchedule(true);
+    try {
+      await onAddSchedule(
+        activeOfferingForSchedule.id,
+        schedHari,
+        schedMulai,
+        schedSelesai,
+        schedRuang.trim()
+      );
+      setSchedRuang("");
+      setActiveOfferingForSchedule(null);
+    } finally {
+      setSavingSchedule(false);
+    }
   };
 
   return (
@@ -233,11 +272,8 @@ export function OfferingManager({
                 className="btn btn-secondary"
                 style={{ flex: 1, fontSize: "0.8rem" }}
                 onClick={() => {
-                  const val = prompt(`Ubah kuota ${item.nama}:`, String(item.kuota));
-                  if (val) {
-                    const n = parseInt(val, 10);
-                    if (!isNaN(n) && n > 0) void onUpdateKuota(item.id, n);
-                  }
+                  setKuotaModalItem(item);
+                  setNewKuotaInput(item.kuota);
                 }}
               >
                 Kuota
@@ -254,7 +290,7 @@ export function OfferingManager({
                 type="button"
                 className="btn btn-secondary"
                 style={{ color: "var(--danger)", fontSize: "0.8rem" }}
-                onClick={() => onDeleteOffering(item.id)}
+                onClick={() => setOfferingToDelete(item)}
               >
                 Hapus
               </button>
@@ -262,6 +298,113 @@ export function OfferingManager({
           </div>
         ))}
       </div>
+
+      {/* Modal Quick Edit Kuota */}
+      {kuotaModalItem && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            padding: "1rem",
+            animation: "fadeIn 0.15s ease-out",
+          }}
+        >
+          <div className="card" style={{ width: "100%", maxWidth: 400, padding: "1.75rem", backgroundColor: "#fff" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.35rem" }}>
+              ✏️ Ubah Kuota Kursi
+            </h3>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+              {kuotaModalItem.nama} (Terisi saat ini: {kuotaModalItem.terisi})
+            </p>
+
+            <form onSubmit={handleSaveQuickKuota}>
+              <div className="form-group">
+                <label className="form-label">Kapasitas Kuota Baru</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  min={1}
+                  value={newKuotaInput}
+                  onChange={(e) => setNewKuotaInput(parseInt(e.target.value, 10) || 1)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.25rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setKuotaModalItem(null)}
+                  disabled={savingKuota}
+                >
+                  Batal
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={savingKuota}>
+                  {savingKuota ? "Menyimpan..." : "Simpan Kuota"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirm Delete Offering */}
+      {offeringToDelete && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            padding: "1rem",
+            animation: "fadeIn 0.15s ease-out",
+          }}
+        >
+          <div className="card" style={{ width: "100%", maxWidth: 440, padding: "1.75rem", backgroundColor: "#fff" }}>
+            <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--danger)", marginBottom: "0.5rem" }}>
+              ⛔ Hapus Pilihan
+            </h3>
+            <p style={{ fontSize: "0.9rem", color: "var(--text-main)", marginBottom: "1.25rem" }}>
+              Apakah Anda yakin ingin menghapus <strong>{offeringToDelete.nama}</strong> beserta seluruh jadwal
+              perkuliahannya?
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setOfferingToDelete(null)}
+                disabled={deleting}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Menghapus..." : "Ya, Hapus Pilihan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Upsert Offering */}
       {showModal && (
@@ -276,8 +419,9 @@ export function OfferingManager({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            zIndex: 99999,
             padding: "1rem",
+            animation: "fadeIn 0.15s ease-out",
           }}
         >
           <div className="card" style={{ width: "100%", maxWidth: 480, padding: "1.75rem", backgroundColor: "#fff" }}>
@@ -359,8 +503,9 @@ export function OfferingManager({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            zIndex: 99999,
             padding: "1rem",
+            animation: "fadeIn 0.15s ease-out",
           }}
         >
           <div className="card" style={{ width: "100%", maxWidth: 440, padding: "1.75rem", backgroundColor: "#fff" }}>
@@ -423,11 +568,16 @@ export function OfferingManager({
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.25rem" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setActiveOfferingForSchedule(null)}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setActiveOfferingForSchedule(null)}
+                  disabled={savingSchedule}
+                >
                   Tutup
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Simpan Jadwal
+                <button type="submit" className="btn btn-primary" disabled={savingSchedule}>
+                  {savingSchedule ? "Menyimpan..." : "Simpan Jadwal"}
                 </button>
               </div>
             </form>
