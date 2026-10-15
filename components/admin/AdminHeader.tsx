@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { AdminSystemStatus } from "@/lib/types";
 
 interface AdminHeaderProps {
@@ -33,13 +34,23 @@ export function AdminHeader({
         alignItems: "center",
         gap: "1rem",
         backgroundColor: "#ffffff",
+        borderTop: "4px solid var(--primary)",
       }}
     >
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-          <h1 style={{ fontSize: "1.35rem", fontWeight: 800, margin: 0 }}>
-            Dashboard Admin KRS
-          </h1>
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <Image
+          src="/logo-instiper.png"
+          alt="Logo INSTIPER"
+          width={52}
+          height={52}
+          priority
+          style={{ objectFit: "contain", flexShrink: 0 }}
+        />
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+            <h1 style={{ fontSize: "1.3rem", fontWeight: 800, margin: 0 }}>
+              Dashboard Admin KRS
+            </h1>
           <span
             style={{
               fontSize: "0.75rem",
@@ -67,8 +78,9 @@ export function AdminHeader({
           </span>
         </div>
         <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-          Kelola kuota, master jadwal fakultas, mahasiswa, antrian, dan unduh data pendaftaran.
+          Institut Pertanian STIPER — Fakultas Pertanian
         </p>
+      </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>

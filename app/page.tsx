@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { Offering, StudentInfo, ModalDialogState } from "@/lib/types";
 import { findClashBetweenOfferings } from "@/lib/schedule-conflict";
@@ -453,11 +454,44 @@ export default function StudentPage() {
 
   return (
     <div className="container" style={{ maxWidth: 1080 }}>
-      <header className="header-banner" style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 800 }}>Sistem Pemilihan Mata Kuliah Pilihan</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
-          Fakultas Pertanian — Portal Resmi Pemilihan KRS Semester Berjalan
-        </p>
+      <header
+        className="header-banner"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "1.25rem",
+          marginBottom: "2rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <Image
+          src="/logo-instiper.png"
+          alt="Logo INSTIPER"
+          width={68}
+          height={68}
+          priority
+          style={{ objectFit: "contain", flexShrink: 0 }}
+        />
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <div
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              color: "var(--primary)",
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              marginBottom: "0.2rem",
+            }}
+          >
+            Institut Pertanian STIPER Yogyakarta • Fakultas Pertanian
+          </div>
+          <h1 style={{ fontSize: "1.45rem", fontWeight: 800, color: "var(--text-main)", margin: 0, letterSpacing: "-0.02em" }}>
+            Sistem Pemilihan Mata Kuliah Pilihan
+          </h1>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem", margin: 0 }}>
+            Portal Resmi Pendaftaran Mata Kuliah & Proyek Pilihan Semester Berjalan
+          </p>
+        </div>
       </header>
 
       {phase === "login" && (
@@ -513,6 +547,24 @@ export default function StudentPage() {
         onSuccess={(msg) => showPopup("info", "Pengajuan Terkirim", msg)}
         onError={(err) => showPopup("danger", "Pengajuan Gagal", err)}
       />
+
+      <footer
+        style={{
+          marginTop: "3rem",
+          paddingTop: "1.5rem",
+          borderTop: "1px solid var(--border-color)",
+          textAlign: "center",
+          fontSize: "0.8rem",
+          color: "var(--text-muted)",
+        }}
+      >
+        <p>
+          Institut Pertanian STIPER (INSTIPER) Yogyakarta — Fakultas Pertanian
+        </p>
+        <p style={{ fontSize: "0.75rem", color: "var(--text-light)", marginTop: "0.25rem" }}>
+          Sistem Informasi Pemilihan KRS Pilihan & Proyek Semester
+        </p>
+      </footer>
     </div>
   );
 }

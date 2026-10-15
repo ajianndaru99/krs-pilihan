@@ -574,6 +574,24 @@ export default function AdminPage() {
       )}
 
       <AdminModal modal={adminModal} onClose={closeModal} />
+
+      <footer
+        style={{
+          marginTop: "3rem",
+          paddingTop: "1.5rem",
+          borderTop: "1px solid var(--border-color)",
+          textAlign: "center",
+          fontSize: "0.8rem",
+          color: "var(--text-muted)",
+        }}
+      >
+        <p>
+          Institut Pertanian STIPER (INSTIPER) Yogyakarta — Fakultas Pertanian
+        </p>
+        <p style={{ fontSize: "0.75rem", color: "var(--text-light)", marginTop: "0.25rem" }}>
+          Panel Manajemen Administrator KRS Semester Berjalan
+        </p>
+      </footer>
     </div>
   );
 }

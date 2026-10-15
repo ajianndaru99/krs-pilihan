@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 interface BuktiData {
@@ -187,22 +188,39 @@ export default function BuktiPage() {
           borderRadius: 8,
         }}
       >
-        {/* Kop Surat */}
+        {/* Kop Surat Resmi Institusi */}
         <div
           style={{
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            gap: "1.25rem",
             borderBottom: "3px double #0f172a",
-            paddingBottom: "1rem",
+            paddingBottom: "1.25rem",
             marginBottom: "1.5rem",
           }}
         >
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            FAKULTAS PERTANIAN
-          </h2>
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, color: "#334155" }}>
-            TANDA BUKTI PEMILIHAN MATA KULIAH PILIHAN DAN PROYEK
-          </h3>
-          <p style={{ fontSize: "0.8rem", color: "#64748b" }}>Tahun Akademik Berjalan</p>
+          <Image
+            src="/logo-instiper.png"
+            alt="Logo INSTIPER"
+            width={84}
+            height={84}
+            priority
+            style={{ objectFit: "contain", flexShrink: 0 }}
+          />
+          <div style={{ flex: 1, textAlign: "center" }}>
+            <h2 style={{ fontSize: "1.15rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", margin: 0, color: "#0f172a" }}>
+              INSTITUT PERTANIAN STIPER YOGYAKARTA
+            </h2>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", margin: "0.2rem 0" }}>
+              FAKULTAS PERTANIAN
+            </h3>
+            <h4 style={{ fontSize: "0.95rem", fontWeight: 600, color: "#334155", margin: 0 }}>
+              TANDA BUKTI PEMILIHAN MATA KULIAH PILIHAN DAN PROYEK
+            </h4>
+            <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0.25rem 0 0 0" }}>
+              Tahun Akademik Berjalan — Dokumen Registrasi Elektronik Sah
+            </p>
+          </div>
         </div>
 
         {/* Data Mahasiswa */}

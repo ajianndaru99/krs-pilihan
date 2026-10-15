@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { StudentInfo } from "@/lib/types";
 
 interface CheckNimCardProps {
@@ -28,12 +29,23 @@ export function CheckNimCard({
   onOpenAjukanModal,
 }: CheckNimCardProps) {
   return (
-    <div className="card" style={{ maxWidth: 540, margin: "2rem auto" }}>
+    <div className="card" style={{ maxWidth: 540, margin: "2rem auto", borderTop: "4px solid var(--primary)", padding: "2rem" }}>
       <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
-        <h2 className="card-title" style={{ justifyContent: "center", fontSize: "1.35rem" }}>
+        <Image
+          src="/logo-instiper.png"
+          alt="Logo INSTIPER"
+          width={64}
+          height={64}
+          priority
+          style={{ objectFit: "contain", margin: "0 auto 0.75rem" }}
+        />
+        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--primary)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          Institut Pertanian STIPER Yogyakarta
+        </div>
+        <h2 className="card-title" style={{ justifyContent: "center", fontSize: "1.3rem", marginTop: "0.25rem" }}>
           Verifikasi Mahasiswa
         </h2>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "0.25rem" }}>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
           Masukkan Nomor Induk Mahasiswa (NIM) Anda untuk masuk ke sistem pemilihan KRS.
         </p>
       </div>

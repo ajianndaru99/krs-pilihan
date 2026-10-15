@@ -18,24 +18,25 @@
   --color-bone: #f8fafc;
   --color-paper: #ffffff;
 
-  /* Aliases for UI components */
+  /* Aliases for UI components — INSTIPER Green Theme */
   --bg-primary: #f8fafc;
   --bg-surface: #ffffff;
   --bg-subtle: #f1f5f9;
   --border-color: #e2e8f0;
-  --border-focus: #14b8a6;
-  --text-main: #1d242f;
-  --text-body: #111827;
-  --text-muted: #6b7280;
-  --text-light: #9ca3af;
+  --border-focus: #15803d;
+  --text-main: #0f172a;
+  --text-body: #1e293b;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
   
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
-  --primary-light: #f0fdfa;
-  --primary-border: #ccfbf1;
+  --primary: #15803d;
+  --primary-hover: #166534;
+  --primary-light: #f0fdf4;
+  --primary-border: #bbf7d0;
+  --accent-gold: #ca8a04;
   
-  --success: #059669;
-  --success-light: #ecfdf5;
+  --success: #15803d;
+  --success-light: #f0fdf4;
   --warning: #d97706;
   --warning-light: #fffbeb;
   --danger: #dc2626;
@@ -75,16 +76,16 @@ body {
   padding: 1.5rem 1rem;
 }
 
-/* Header Banner — Academic Workbench on Hairline Surface */
+/* Header Banner — Academic Portal Header */
 .header-banner {
-  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
-  color: var(--color-carbon-ink);
-  padding: 2rem 1.5rem;
+  background: #ffffff;
+  color: var(--text-main);
+  padding: 1.5rem 1.75rem;
   border: 1px solid var(--border-color);
+  border-top: 4px solid var(--primary);
   border-radius: var(--radius-md);
   margin-bottom: 1.75rem;
   box-shadow: var(--shadow-sm);
-  text-align: center;
   position: relative;
   overflow: hidden;
 }

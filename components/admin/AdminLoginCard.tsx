@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 interface AdminLoginCardProps {
   username: string;
   setUsername: (val: string) => void;
@@ -20,9 +22,20 @@ export function AdminLoginCard({
   onLogin,
 }: AdminLoginCardProps) {
   return (
-    <div className="card" style={{ maxWidth: 440, margin: "4rem auto", padding: "2rem" }}>
+    <div className="card" style={{ maxWidth: 440, margin: "4rem auto", padding: "2.25rem", borderTop: "4px solid var(--primary)" }}>
       <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
-        <h2 className="card-title" style={{ justifyContent: "center", fontSize: "1.35rem" }}>
+        <Image
+          src="/logo-instiper.png"
+          alt="Logo INSTIPER"
+          width={64}
+          height={64}
+          priority
+          style={{ objectFit: "contain", margin: "0 auto 0.75rem" }}
+        />
+        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--primary)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          Institut Pertanian STIPER Yogyakarta
+        </div>
+        <h2 className="card-title" style={{ justifyContent: "center", fontSize: "1.3rem", marginTop: "0.25rem" }}>
           Masuk Administrator
         </h2>
         <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
