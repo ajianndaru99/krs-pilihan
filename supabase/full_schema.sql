@@ -36,9 +36,15 @@ CREATE TABLE IF NOT EXISTS public.students (
 -- 1.3 Administrator
 CREATE TABLE IF NOT EXISTS public.admins (
     email TEXT PRIMARY KEY,
+    username TEXT UNIQUE,
     role TEXT NOT NULL DEFAULT 'admin',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Seed akun default admin (Username: admin)
+INSERT INTO public.admins (email, username)
+VALUES ('admin@admin.local', 'admin')
+ON CONFLICT (email) DO NOTHING;
 
 -- 1.4 Mata Kuliah & Proyek Pilihan
 CREATE TABLE IF NOT EXISTS public.offerings (
@@ -163,7 +169,7 @@ ON CONFLICT DO NOTHING;
 -- 3. FUNGSI LOGIKA BISNIS (SECURITY DEFINER RPC)
 -- ----------------------------------------------------------------------------
 
--- Helper Verifikasi Admin
+-- Helper Verifikasi Admin (Mendukung email atau username)
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -172,6 +178,10 @@ AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.admins
     WHERE email = auth.jwt() ->> 'email'
+       OR (username IS NOT NULL AND (
+            username = auth.jwt() ->> 'email'
+            OR username = split_part(auth.jwt() ->> 'email', '@', 1)
+          ))
   );
 $$;
 

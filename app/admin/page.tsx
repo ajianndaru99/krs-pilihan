@@ -41,7 +41,7 @@ interface AccessRequest {
 export default function AdminPage() {
   // Auth state
   const [session, setSession] = useState<any>(null);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -150,18 +150,23 @@ export default function AdminPage() {
     }
   }, [session, loadAdminData]);
 
-  // Handle Login
+  // Handle Login (Mendukung Username atau Email)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
     setActionError(null);
     try {
+      const cleanUsername = username.trim();
+      const normalizedEmail = cleanUsername.includes("@")
+        ? cleanUsername.toLowerCase()
+        : `${cleanUsername.toLowerCase()}@admin.local`;
+
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: normalizedEmail,
         password: password.trim(),
       });
       if (error) {
-        setActionError(error.message || "Login admin gagal. Periksa email dan password.");
+        setActionError("Login admin gagal. Periksa username dan password.");
       }
     } catch (err: any) {
       setActionError(err.message || "Terjadi kesalahan saat masuk.");
@@ -463,14 +468,15 @@ export default function AdminPage() {
 
           <form onSubmit={handleLogin}>
             <div className="form-group">
-              <label className="form-label">Email Admin</label>
+              <label className="form-label">Username Admin</label>
               <input
-                type="email"
+                type="text"
                 className="form-input"
-                placeholder="admin@instiper.ac.id"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
+                autoComplete="username"
               />
             </div>
 
@@ -511,7 +517,7 @@ export default function AdminPage() {
         <div>
           <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>Dashboard Administrator</h1>
           <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-            Login sebagai: <strong>{session?.user?.email}</strong>
+            Login sebagai: <strong>{session?.user?.email?.replace(/@admin\.local$/, "")}</strong>
           </p>
         </div>
 
