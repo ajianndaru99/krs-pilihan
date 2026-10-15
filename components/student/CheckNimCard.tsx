@@ -31,7 +31,7 @@ export function CheckNimCard({
     <div className="card" style={{ maxWidth: 540, margin: "2rem auto" }}>
       <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
         <h2 className="card-title" style={{ justifyContent: "center", fontSize: "1.35rem" }}>
-          🎓 Verifikasi Mahasiswa
+          Verifikasi Mahasiswa
         </h2>
         <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "0.25rem" }}>
           Masukkan Nomor Induk Mahasiswa (NIM) Anda untuk masuk ke sistem pemilihan KRS.

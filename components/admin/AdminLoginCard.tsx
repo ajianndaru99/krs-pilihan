@@ -23,7 +23,7 @@ export function AdminLoginCard({
     <div className="card" style={{ maxWidth: 440, margin: "4rem auto", padding: "2rem" }}>
       <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
         <h2 className="card-title" style={{ justifyContent: "center", fontSize: "1.35rem" }}>
-          🔐 Masuk Administrator
+          Masuk Administrator
         </h2>
         <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
           Panel Manajemen Pemilihan KRS Fakultas Pertanian
@@ -32,7 +32,7 @@ export function AdminLoginCard({
 
       {actionError && (
         <div className="alert alert-danger" style={{ marginBottom: "1.25rem", fontSize: "0.85rem" }}>
-          <span>⚠️ {actionError}</span>
+          <span>{actionError}</span>
         </div>
       )}
 

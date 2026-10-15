@@ -224,7 +224,7 @@ export function OfferingManager({
                 }}
               >
                 <div style={{ fontWeight: 600, color: "var(--text-muted)", marginBottom: "0.25rem" }}>
-                  📅 Jadwal Terplot:
+                  Jadwal Terplot:
                 </div>
                 {item.jadwal && item.jadwal.length > 0 ? (
                   item.jadwal.map((j: OfferingSchedule, idx: number) => (
@@ -319,7 +319,7 @@ export function OfferingManager({
         >
           <div className="card" style={{ width: "100%", maxWidth: 400, padding: "1.75rem", backgroundColor: "#fff" }}>
             <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.35rem" }}>
-              ✏️ Ubah Kuota Kursi
+              Ubah Kuota Kursi
             </h3>
             <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
               {kuotaModalItem.nama} (Terisi saat ini: {kuotaModalItem.terisi})
@@ -377,7 +377,7 @@ export function OfferingManager({
         >
           <div className="card" style={{ width: "100%", maxWidth: 440, padding: "1.75rem", backgroundColor: "#fff" }}>
             <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--danger)", marginBottom: "0.5rem" }}>
-              ⛔ Hapus Pilihan
+              Hapus Pilihan
             </h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-main)", marginBottom: "1.25rem" }}>
               Apakah Anda yakin ingin menghapus <strong>{offeringToDelete.nama}</strong> beserta seluruh jadwal

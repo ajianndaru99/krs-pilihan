@@ -20,11 +20,11 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
     return "var(--primary)";
   };
 
-  const getHeaderIcon = () => {
-    if (isDanger) return "⛔";
-    if (isWarning) return "⚠️";
-    if (isConfirm) return "❓";
-    return "ℹ️";
+  const getBadgeText = () => {
+    if (isDanger) return "PERHATIAN";
+    if (isWarning) return "PERINGATAN";
+    if (isConfirm) return "KONFIRMASI";
+    return "PEMBERITAHUAN";
   };
 
   return (
@@ -57,9 +57,26 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
           border: `1px solid ${getHeaderColor()}`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-          <span style={{ fontSize: "1.5rem" }}>{getHeaderIcon()}</span>
-          <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: getHeaderColor(), margin: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
+          <span
+            style={{
+              fontSize: "0.7rem",
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: isDanger
+                ? "var(--danger-light)"
+                : isWarning
+                ? "var(--warning-light)"
+                : "var(--bg-subtle)",
+              color: getHeaderColor(),
+              border: `1px solid ${getHeaderColor()}`,
+              letterSpacing: "0.04em",
+            }}
+          >
+            {getBadgeText()}
+          </span>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-main)", margin: 0 }}>
             {dialog.title}
           </h3>
         </div>

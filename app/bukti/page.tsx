@@ -136,7 +136,7 @@ export default function BuktiPage() {
             Peringatan
           </h2>
           <div className="alert alert-danger" style={{ textAlign: "left" }}>
-            <span>⚠️ {errorMessage}</span>
+            <span>{errorMessage}</span>
           </div>
           <button type="button" className="btn btn-primary btn-block" onClick={handleBackToHome}>
             Kembali ke Halaman Awal
@@ -169,7 +169,7 @@ export default function BuktiPage() {
         </button>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button type="button" className="btn btn-primary" onClick={handlePrint}>
-            🖨️ Cetak Bukti (A4 / PDF)
+            Cetak Bukti (A4 / PDF)
           </button>
           <button type="button" className="btn btn-danger" onClick={handleBackToHome}>
             Keluar

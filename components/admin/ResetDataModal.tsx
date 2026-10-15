@@ -60,7 +60,7 @@ export function ResetDataModal({
       {/* Kartu 1: Batalkan Pendaftaran NIM Tertentu */}
       <div className="card" style={{ padding: "1.75rem" }}>
         <h3 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0, color: "var(--text-body)" }}>
-          🔄 Batalkan Pendaftaran Per NIM
+          Batalkan Pendaftaran Per NIM
         </h3>
         <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem", marginBottom: "1.25rem" }}>
           Batalkan pendaftaran untuk satu mahasiswa jika ada kesalahan pemilihan. Kursi kuota akan otomatis kembali.
@@ -108,7 +108,7 @@ export function ResetDataModal({
         }}
       >
         <h3 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0, color: "var(--danger)" }}>
-          ⚠️ Pembersihan Data Uji Coba (Pra-Hari H)
+          Pembersihan Data Uji Coba (Pra-Hari H)
         </h3>
         <p style={{ color: "#7f1d1d", fontSize: "0.85rem", marginTop: "0.25rem", marginBottom: "1rem" }}>
           Gunakan tombol ini setelah simulasi selesai untuk membersihkan transaksi uji coba:
@@ -161,7 +161,7 @@ export function ResetDataModal({
         >
           <div className="card" style={{ width: "100%", maxWidth: 440, padding: "1.75rem", backgroundColor: "#fff" }}>
             <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "var(--danger)", marginBottom: "0.5rem" }}>
-              ❓ Konfirmasi Pembatalan
+              Konfirmasi Pembatalan
             </h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-main)", marginBottom: "1.25rem" }}>
               Apakah Anda yakin ingin membatalkan pendaftaran untuk NIM <strong>{batalNim.trim()}</strong>? Kursi kuota
@@ -199,7 +199,7 @@ export function ResetDataModal({
         >
           <div className="card" style={{ width: "100%", maxWidth: 480, padding: "2rem", backgroundColor: "#fff" }}>
             <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--danger)", marginBottom: "0.5rem" }}>
-              ⛔ Konfirmasi Reset Bersih Data Uji
+              Konfirmasi Reset Bersih Data Uji
             </h3>
             <p style={{ fontSize: "0.875rem", color: "var(--text-body)", marginBottom: "1rem" }}>
               Tindakan ini tidak dapat dibatalkan. Seluruh pendaftaran simulasi akan dihapus, dan kuota akan kembali
@@ -208,7 +208,7 @@ export function ResetDataModal({
 
             {resetError && (
               <div className="alert alert-danger" style={{ marginBottom: "1rem", fontSize: "0.85rem" }}>
-                <span>⚠️ {resetError}</span>
+                <span>{resetError}</span>
               </div>
             )}
 

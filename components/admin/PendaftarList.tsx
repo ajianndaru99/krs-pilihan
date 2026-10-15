@@ -76,7 +76,7 @@ export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
       >
         <div>
           <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>
-            📋 Data Mahasiswa Masuk ({filtered.length} Terpilih / Total {pendaftar.length})
+            Data Mahasiswa Masuk ({filtered.length} Terpilih / Total {pendaftar.length})
           </h2>
           <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
             Daftar seluruh mahasiswa yang telah menyelesaikan pemilihan KRS secara sah.
@@ -84,7 +84,7 @@ export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
         </div>
 
         <button type="button" className="btn btn-primary" onClick={handleExportExcel}>
-          📥 Ekspor Data ke Excel (.xlsx)
+          Ekspor ke Excel (.xlsx)
         </button>
       </div>
 

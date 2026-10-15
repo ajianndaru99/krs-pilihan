@@ -12,7 +12,7 @@ export function AccessRequestsList({ requests, onApprove }: AccessRequestsListPr
     <div className="card" style={{ padding: "1.5rem" }}>
       <div style={{ marginBottom: "1.25rem" }}>
         <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>
-          📩 Verifikasi Pengajuan Akses Mahasiswa ({requests.filter((r) => r.status === "pending").length} Menunggu)
+          Verifikasi Pengajuan Akses Mahasiswa ({requests.filter((r) => r.status === "pending").length} Menunggu)
         </h2>
         <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
           Mahasiswa yang belum terdaftar di sistem dapat mengajukan permohonan akses mandiri.
@@ -75,7 +75,7 @@ export function AccessRequestsList({ requests, onApprove }: AccessRequestsListPr
                         style={{ fontSize: "0.75rem", padding: "4px 8px" }}
                         onClick={() => onApprove(item.id)}
                       >
-                        ✓ Setujui
+                        Setujui
                       </button>
                     ) : (
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Selesai</span>

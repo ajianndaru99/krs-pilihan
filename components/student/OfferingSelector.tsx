@@ -101,7 +101,7 @@ export function OfferingSelector({
               {isRefreshingQuota ? (
                 <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
               ) : (
-                "↻ Kuota"
+                "Refresh Kuota"
               )}
             </button>
           )}
@@ -121,7 +121,7 @@ export function OfferingSelector({
             disabled={!isCompositionValid || isSubmitting}
             style={{ fontSize: "0.9rem", padding: "0.5rem 1.25rem" }}
           >
-            {isSubmitting ? "Menyimpan..." : "Simpan Pilihan Final →"}
+            {isSubmitting ? "Menyimpan..." : "Simpan Pilihan Final"}
           </button>
         </div>
       </div>
@@ -206,7 +206,7 @@ export function OfferingSelector({
                   }}
                 >
                   <div style={{ fontWeight: 600, color: "var(--text-muted)", marginBottom: "0.25rem" }}>
-                    📅 Jadwal Pertemuan:
+                    Jadwal Pertemuan:
                   </div>
                   {item.jadwal && item.jadwal.length > 0 ? (
                     item.jadwal.map((j, idx) => (
@@ -230,7 +230,7 @@ export function OfferingSelector({
                       marginBottom: "0.75rem",
                     }}
                   >
-                    ⚠️ Bentrok dengan jadwal kelas tetap Anda
+                    Bentrok dengan jadwal kelas tetap Anda
                   </div>
                 )}
               </div>
@@ -243,7 +243,7 @@ export function OfferingSelector({
                   className={isSelected ? "btn btn-primary" : "btn btn-secondary"}
                   style={{ width: "100%", justifyContent: "center" }}
                 >
-                  {isSelected ? "✓ Terpilih" : isFull ? "Kuota Penuh" : "+ Pilih"}
+                  {isSelected ? "Terpilih" : isFull ? "Kuota Penuh" : "Pilih"}
                 </button>
               </div>
             </div>

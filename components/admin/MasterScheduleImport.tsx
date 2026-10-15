@@ -193,7 +193,7 @@ export function MasterScheduleImport({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h3 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0 }}>
-            🏛️ Impor Master Jadwal Fakultas (1 Pintu)
+            Impor Master Jadwal Fakultas
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
             Cukup unggah 1 berkas master jadwal semesteran fakultas. Sistem akan otomatis memetakan jadwal kelas tetap
@@ -202,7 +202,7 @@ export function MasterScheduleImport({
         </div>
 
         <button type="button" className="btn btn-secondary" onClick={handleDownloadTemplate} style={{ fontSize: "0.85rem" }}>
-          📄 Unduh Template Master Jadwal (.xlsx)
+          Unduh Template (.xlsx)
         </button>
       </div>
 
@@ -229,7 +229,7 @@ export function MasterScheduleImport({
           className="btn btn-primary"
           style={{ cursor: loading ? "not-allowed" : "pointer", display: "inline-block" }}
         >
-          {loading ? "Memproses Master Jadwal..." : "📁 Pilih Berkas Master Jadwal Excel"}
+          {loading ? "Memproses Master Jadwal..." : "Pilih Berkas Master Jadwal Excel"}
         </label>
         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.75rem" }}>
           Mendukung format kolom: <strong>HARI, JAM (07.30-08.50), MATKUL, KELAS, RUANG, KUOTA</strong>

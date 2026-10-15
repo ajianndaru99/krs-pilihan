@@ -87,10 +87,7 @@ export function AdminHeader({
                 <span>Memperbarui...</span>
               </>
             ) : (
-              <>
-                <span>↻</span>
-                <span>Refresh Data</span>
-              </>
+              <span>Refresh Data</span>
             )}
           </button>
         )}

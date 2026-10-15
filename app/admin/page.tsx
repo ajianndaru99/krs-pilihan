@@ -451,7 +451,7 @@ export default function AdminPage() {
 
       {actionError && (
         <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
-          <span>⚠️ {actionError}</span>
+          <span>{actionError}</span>
         </div>
       )}
 
@@ -471,42 +471,42 @@ export default function AdminPage() {
           className={activeTab === "offerings" ? "btn btn-primary" : "btn btn-secondary"}
           onClick={() => setActiveTab("offerings")}
         >
-          📚 Kelola Pilihan & Kuota ({offerings.length})
+          Kelola Pilihan & Kuota ({offerings.length})
         </button>
         <button
           type="button"
           className={activeTab === "pendaftar" ? "btn btn-primary" : "btn btn-secondary"}
           onClick={() => setActiveTab("pendaftar")}
         >
-          📋 Mahasiswa Masuk ({pendaftar.length})
+          Mahasiswa Masuk ({pendaftar.length})
         </button>
         <button
           type="button"
           className={activeTab === "import_jadwal" ? "btn btn-primary" : "btn btn-secondary"}
           onClick={() => setActiveTab("import_jadwal")}
         >
-          🏛️ Impor Master Jadwal
+          Impor Master Jadwal
         </button>
         <button
           type="button"
           className={activeTab === "import_mahasiswa" ? "btn btn-primary" : "btn btn-secondary"}
           onClick={() => setActiveTab("import_mahasiswa")}
         >
-          👨‍🎓 Impor Data Mahasiswa
+          Impor Data Mahasiswa
         </button>
         <button
           type="button"
           className={activeTab === "pengajuan" ? "btn btn-primary" : "btn btn-secondary"}
           onClick={() => setActiveTab("pengajuan")}
         >
-          📩 Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})
+          Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})
         </button>
         <button
           type="button"
           className={activeTab === "batal_reset" ? "btn btn-danger" : "btn btn-secondary"}
           onClick={() => setActiveTab("batal_reset")}
         >
-          ⚙️ Batal & Reset Data
+          Batal & Reset Data
         </button>
       </div>
 

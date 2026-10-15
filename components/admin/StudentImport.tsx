@@ -73,7 +73,7 @@ export function StudentImport({ onImportStudents, onSuccess, onError }: StudentI
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h3 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0 }}>
-            👨‍🎓 Impor Data Mahasiswa (Deteksi Otomatis PDF-to-Excel)
+            Impor Data Mahasiswa
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
             Sistem secara cerdas mendeteksi kolom NIM dan Nama dari berkas Excel apa pun (termasuk hasil konversi PDF
@@ -82,7 +82,7 @@ export function StudentImport({ onImportStudents, onSuccess, onError }: StudentI
         </div>
 
         <button type="button" className="btn btn-secondary" onClick={handleDownloadTemplate} style={{ fontSize: "0.85rem" }}>
-          📄 Unduh Template Mahasiswa (.xlsx)
+          Unduh Template (.xlsx)
         </button>
       </div>
 
@@ -122,7 +122,7 @@ export function StudentImport({ onImportStudents, onSuccess, onError }: StudentI
           className="btn btn-primary"
           style={{ cursor: loading ? "not-allowed" : "pointer", display: "inline-block" }}
         >
-          {loading ? "Memproses Data Mahasiswa..." : "📁 Pilih Berkas Excel Mahasiswa"}
+          {loading ? "Memproses Data Mahasiswa..." : "Pilih Berkas Excel Mahasiswa"}
         </label>
         <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.75rem" }}>
           Format yang didukung: Excel biasa maupun Excel hasil convert dari PDF absensi/DHS.
