@@ -13,6 +13,7 @@ export interface RpcResponse<T = any> {
 }
 
 export interface OfferingSchedule {
+  id?: number;
   hari: string;
   jam_mulai: string;
   jam_selesai: string;

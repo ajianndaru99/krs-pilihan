@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
-import { supabase, Offering } from "@/lib/supabase";
+import { supabase, Offering, OfferingSchedule } from "@/lib/supabase";
 
 interface StudentImportRow {
   nim: string;
@@ -68,6 +68,19 @@ export default function AdminPage() {
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<"kuota" | "import" | "pengajuan" | "batal">("kuota");
   const [batalNim, setBatalNim] = useState("");
+
+  // Modal Offering (Tambah / Edit) State
+  const [showOfferingModal, setShowOfferingModal] = useState(false);
+  const [editingOfferingId, setEditingOfferingId] = useState<number | null>(null);
+  const [offeringNama, setOfferingNama] = useState("");
+  const [offeringJenis, setOfferingJenis] = useState<"matkul" | "proyek">("matkul");
+  const [offeringTopik, setOfferingTopik] = useState("");
+  const [offeringKuota, setOfferingKuota] = useState(30);
+  const [newJadwalHari, setNewJadwalHari] = useState("Senin");
+  const [newJadwalMulai, setNewJadwalMulai] = useState("08:00");
+  const [newJadwalSelesai, setNewJadwalSelesai] = useState("09:40");
+  const [newJadwalRuang, setNewJadwalRuang] = useState("");
+  const [editingOfferingJadwal, setEditingOfferingJadwal] = useState<OfferingSchedule[]>([]);
 
   // Check auth session on load
   useEffect(() => {
@@ -448,6 +461,221 @@ export default function AdminPage() {
     }
   };
 
+  // 4. Import Daftar Mata Kuliah & Proyek Pilihan Excel
+  const handleImportOfferings = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+      const items: any[] = [];
+
+      wb.SheetNames.forEach((sheetName) => {
+        const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+        rows.forEach((r) => {
+          const nama = r.Nama || r.nama || r["Nama Mata Kuliah"] || r["Mata Kuliah"] || r.Pilihan;
+          const jenis = r.Jenis || r.jenis || r.Tipe || "matkul";
+          const topik = r.Topik || r.topik || r.Bidang || "";
+          const kuota = r.Kuota || r.kuota || r.Kapasitas || 30;
+          const hari = r.Hari || r.hari;
+          const jamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai;
+          const jamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai;
+          const ruang = r.Ruang || r.ruang;
+
+          if (nama) {
+            items.push({
+              nama: String(nama).trim(),
+              jenis: String(jenis).toLowerCase().includes("proyek") ? "proyek" : "matkul",
+              topik: topik ? String(topik).trim() : undefined,
+              kuota: Number(kuota) || 30,
+              hari: hari ? String(hari).trim() : undefined,
+              jam_mulai: jamMulai ? String(jamMulai).trim() : undefined,
+              jam_selesai: jamSelesai ? String(jamSelesai).trim() : undefined,
+              ruang: ruang ? String(ruang).trim() : undefined,
+            });
+          }
+        });
+      });
+
+      if (items.length === 0) {
+        alert("Tidak ada baris data mata kuliah yang valid pada berkas Excel.");
+        return;
+      }
+
+      const { data, error } = await supabase.rpc("admin_import_offerings", {
+        p_offerings: items,
+      });
+
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data.error);
+
+      setActionSuccess(`Berhasil mengimpor ${data.imported_count || items.length} mata kuliah / proyek pilihan.`);
+      loadAdminData();
+    } catch (err: any) {
+      alert(err.message || "Gagal mengimpor daftar mata kuliah.");
+    } finally {
+      setLoading(false);
+      e.target.value = "";
+    }
+  };
+
+  // Unduh Contoh Template Excel untuk Mata Kuliah Pilihan
+  const handleDownloadOfferingTemplate = () => {
+    const sampleData = [
+      {
+        Nama: "Bioteknologi Pertanian",
+        Jenis: "matkul",
+        Topik: "Agronomi",
+        Kuota: 30,
+        Hari: "Senin",
+        "Jam Mulai": "08:00:00",
+        "Jam Selesai": "09:40:00",
+        Ruang: "R.301",
+      },
+      {
+        Nama: "Smart Farming & IoT",
+        Jenis: "matkul",
+        Topik: "Teknologi",
+        Kuota: 30,
+        Hari: "Selasa",
+        "Jam Mulai": "10:00:00",
+        "Jam Selesai": "11:40:00",
+        Ruang: "Lab Komputer",
+      },
+      {
+        Nama: "Proyek Inovasi Sawit Berkelanjutan",
+        Jenis: "proyek",
+        Topik: "Industri Sawit",
+        Kuota: 20,
+        Hari: "Rabu",
+        "Jam Mulai": "13:00:00",
+        "Jam Selesai": "15:30:00",
+        Ruang: "Workshop",
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Mata Kuliah Pilihan");
+    XLSX.writeFile(wb, "template_matkul_pilihan.xlsx");
+  };
+
+  // Buka Modal Tambah Pilihan Baru
+  const openAddOfferingModal = () => {
+    setEditingOfferingId(null);
+    setOfferingNama("");
+    setOfferingJenis("matkul");
+    setOfferingTopik("");
+    setOfferingKuota(30);
+    setNewJadwalHari("Senin");
+    setNewJadwalMulai("08:00");
+    setNewJadwalSelesai("09:40");
+    setNewJadwalRuang("");
+    setEditingOfferingJadwal([]);
+    setShowOfferingModal(true);
+  };
+
+  // Buka Modal Edit Pilihan
+  const openEditOfferingModal = (o: Offering) => {
+    setEditingOfferingId(o.id);
+    setOfferingNama(o.nama);
+    setOfferingJenis(o.jenis);
+    setOfferingTopik(o.topik || "");
+    setOfferingKuota(o.kuota);
+    setNewJadwalHari("Senin");
+    setNewJadwalMulai("08:00");
+    setNewJadwalSelesai("09:40");
+    setNewJadwalRuang("");
+    setEditingOfferingJadwal(o.jadwal || []);
+    setShowOfferingModal(true);
+  };
+
+  // Simpan Tambah / Edit Pilihan
+  const handleSaveOffering = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!offeringNama.trim()) {
+      alert("Nama mata kuliah / proyek wajib diisi.");
+      return;
+    }
+    setLoading(true);
+    setActionError(null);
+    try {
+      const { data, error } = await supabase.rpc("admin_upsert_offering", {
+        p_id: editingOfferingId,
+        p_nama: offeringNama.trim(),
+        p_jenis: offeringJenis,
+        p_topik: offeringTopik.trim() || null,
+        p_kuota: Number(offeringKuota) || 30,
+      });
+
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data.error);
+
+      const targetId = editingOfferingId || data.id;
+
+      // Jika memasukkan jadwal baru
+      if (newJadwalHari && newJadwalMulai && newJadwalSelesai && targetId && newJadwalRuang.trim() !== "") {
+        await supabase.rpc("admin_tambah_jadwal", {
+          p_offering_id: targetId,
+          p_hari: newJadwalHari,
+          p_jam_mulai: newJadwalMulai,
+          p_jam_selesai: newJadwalSelesai,
+          p_ruang: newJadwalRuang.trim() || null,
+        });
+      }
+
+      setShowOfferingModal(false);
+      setActionSuccess(
+        editingOfferingId
+          ? `Mata kuliah "${offeringNama}" berhasil diperbarui.`
+          : `Mata kuliah "${offeringNama}" berhasil ditambahkan.`
+      );
+      loadAdminData();
+    } catch (err: any) {
+      alert(err.message || "Gagal menyimpan mata kuliah.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hapus Pilihan
+  const handleDeleteOffering = async (id: number, nama: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    setLoading(true);
+    setActionError(null);
+    try {
+      const { data, error } = await supabase.rpc("admin_delete_offering", { p_id: id });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data.error);
+
+      setActionSuccess(`Mata kuliah "${nama}" berhasil dihapus.`);
+      loadAdminData();
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus mata kuliah.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hapus Jadwal dari Modal
+  const handleDeleteScheduleInModal = async (schedId: number) => {
+    if (!confirm("Hapus jadwal ini?")) return;
+    try {
+      const { data, error } = await supabase.rpc("admin_hapus_jadwal", { p_schedule_id: schedId });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data.error);
+
+      setEditingOfferingJadwal((prev) => prev.filter((s) => s.id !== schedId));
+      loadAdminData();
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus jadwal.");
+    }
+  };
+
   // Render Login Card if not authenticated
   if (!session) {
     return (
@@ -677,17 +905,40 @@ export default function AdminPage() {
       </div>
 
       {/* TAB 1: KELOLA KUOTA */}
+      {/* TAB 1: KELOLA KUOTA & PILIHAN */}
       {activeTab === "kuota" && (
         <div className="card">
-          <h3 className="card-title">Daftar Pilihan Mata Kuliah & Proyek</h3>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+            }}
+          >
+            <h3 className="card-title" style={{ margin: 0 }}>
+              Daftar Pilihan Mata Kuliah & Proyek ({offerings.length})
+            </h3>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openAddOfferingModal}
+              style={{ fontSize: "0.875rem", padding: "6px 14px" }}
+            >
+              + Tambah Pilihan Baru
+            </button>
+          </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
               <thead>
                 <tr style={{ backgroundColor: "var(--bg-subtle)", textAlign: "left" }}>
                   <th style={{ padding: "10px" }}>ID</th>
-                  <th style={{ padding: "10px" }}>Nama Mata Kuliah</th>
+                  <th style={{ padding: "10px" }}>Nama Mata Kuliah / Proyek</th>
                   <th style={{ padding: "10px" }}>Jenis</th>
                   <th style={{ padding: "10px" }}>Topik</th>
+                  <th style={{ padding: "10px" }}>Jadwal Kuliah</th>
                   <th style={{ padding: "10px", textAlign: "center" }}>Kuota</th>
                   <th style={{ padding: "10px", textAlign: "center" }}>Terisi</th>
                   <th style={{ padding: "10px", textAlign: "center" }}>Sisa</th>
@@ -695,36 +946,96 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {offerings.map((o) => (
-                  <tr key={o.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                    <td style={{ padding: "10px" }}>{o.id}</td>
-                    <td style={{ padding: "10px", fontWeight: 600 }}>{o.nama}</td>
-                    <td style={{ padding: "10px", textTransform: "capitalize" }}>{o.jenis}</td>
-                    <td style={{ padding: "10px" }}>{o.topik || "-"}</td>
-                    <td style={{ padding: "10px", textAlign: "center", fontWeight: 700 }}>{o.kuota}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{o.terisi}</td>
-                    <td
-                      style={{
-                        padding: "10px",
-                        textAlign: "center",
-                        fontWeight: 700,
-                        color: o.sisa <= 0 ? "var(--danger)" : "var(--success)",
-                      }}
-                    >
-                      {o.sisa}
-                    </td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: "4px 10px", fontSize: "0.8rem" }}
-                        onClick={() => handleUpdateQuota(o.id, o.kuota)}
-                      >
-                        Ubah Kuota
-                      </button>
+                {offerings.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                      Belum ada mata kuliah atau proyek pilihan. Silakan gunakan tombol &quot;+ Tambah Pilihan Baru&quot; atau impor dari menu Impor Data Excel.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  offerings.map((o) => (
+                    <tr key={o.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                      <td style={{ padding: "10px" }}>{o.id}</td>
+                      <td style={{ padding: "10px", fontWeight: 600 }}>{o.nama}</td>
+                      <td style={{ padding: "10px" }}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            backgroundColor: o.jenis === "proyek" ? "#e0e7ff" : "#f1f5f9",
+                            color: o.jenis === "proyek" ? "#3730a3" : "#334155",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {o.jenis}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px", color: "var(--text-muted)" }}>{o.topik || "-"}</td>
+                      <td style={{ padding: "10px" }}>
+                        {o.jadwal && o.jadwal.length > 0 ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            {o.jadwal.map((j, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  fontSize: "0.8rem",
+                                  backgroundColor: "var(--bg-subtle)",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  display: "inline-block",
+                                }}
+                              >
+                                <strong>{j.hari}</strong> {j.jam_mulai.slice(0, 5)}-{j.jam_selesai.slice(0, 5)}
+                                {j.ruang ? ` (${j.ruang})` : ""}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: "#d97706", fontSize: "0.8rem", fontWeight: 600 }}>
+                            ⚠️ Belum ada jadwal
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "10px", textAlign: "center", fontWeight: 700 }}>{o.kuota}</td>
+                      <td style={{ padding: "10px", textAlign: "center" }}>{o.terisi}</td>
+                      <td
+                        style={{
+                          padding: "10px",
+                          textAlign: "center",
+                          fontWeight: 700,
+                          color: o.sisa <= 0 ? "var(--danger)" : "var(--success)",
+                        }}
+                      >
+                        {o.sisa}
+                      </td>
+                      <td style={{ padding: "10px", textAlign: "center" }}>
+                        <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                            onClick={() => openEditOfferingModal(o)}
+                            title="Edit Mata Kuliah & Jadwal"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: "4px 8px", fontSize: "0.8rem", color: "var(--danger)" }}
+                            onClick={() => handleDeleteOffering(o.id, o.nama)}
+                            title="Hapus Mata Kuliah"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -734,12 +1045,36 @@ export default function AdminPage() {
       {/* TAB 2: IMPOR EXCEL */}
       {activeTab === "import" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
+          {/* Impor Mata Kuliah / Proyek Pilihan */}
+          <div className="card" style={{ border: "2px solid #3b82f6" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
+              <h3 className="card-title" style={{ margin: 0, color: "var(--primary)" }}>1. Impor Mata Kuliah & Proyek</h3>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ fontSize: "0.75rem", padding: "4px 10px" }}
+                onClick={handleDownloadOfferingTemplate}
+              >
+                📥 Unduh Template Excel
+              </button>
+            </div>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
+              Format Excel: Kolom <strong>Nama</strong>, <strong>Jenis</strong> (matkul/proyek), <strong>Topik</strong>, <strong>Kuota</strong>, serta opsional langsung menyertakan <strong>Hari</strong>, <strong>Jam Mulai</strong>, <strong>Jam Selesai</strong>, <strong>Ruang</strong>.
+            </p>
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              className="form-input"
+              onChange={handleImportOfferings}
+              disabled={loading}
+            />
+          </div>
+
           {/* Impor Mahasiswa */}
           <div className="card">
-            <h3 className="card-title">1. Impor Data Mahasiswa</h3>
+            <h3 className="card-title">2. Impor Data Mahasiswa</h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>NIM</strong>, <strong>Nama</strong>, dan opsional <strong>Kelas</strong> (atau
-              sheet per kelas).
+              Format Excel: Kolom <strong>NIM</strong>, <strong>Nama</strong>, dan opsional <strong>Kelas</strong> (atau sheet per kelas).
             </p>
             <input
               type="file"
@@ -752,7 +1087,7 @@ export default function AdminPage() {
 
           {/* Impor Jadwal Kelas Tetap */}
           <div className="card">
-            <h3 className="card-title">2. Impor Jadwal Kelas Tetap</h3>
+            <h3 className="card-title">3. Impor Jadwal Kelas Tetap</h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
               Format Excel: Kolom <strong>Kelas</strong>, <strong>Hari</strong>, <strong>Jam Mulai</strong>,{" "}
               <strong>Jam Selesai</strong>, <strong>Mata Kuliah</strong>.
@@ -768,7 +1103,7 @@ export default function AdminPage() {
 
           {/* Impor Jadwal Pilihan */}
           <div className="card">
-            <h3 className="card-title">3. Impor Jadwal Mata Kuliah Pilihan</h3>
+            <h3 className="card-title">4. Impor Jadwal Mata Kuliah Pilihan (Susulan)</h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
               Format Excel: Kolom <strong>ID / Nama Matkul</strong>, <strong>Hari</strong>,{" "}
               <strong>Jam Mulai</strong>, <strong>Jam Selesai</strong>, <strong>Ruang</strong>.
@@ -874,6 +1209,205 @@ export default function AdminPage() {
           >
             Batalkan Pendaftaran NIM Ini
           </button>
+        </div>
+      )}
+
+      {/* MODAL TAMBAH / EDIT MATA KULIAH */}
+      {showOfferingModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999,
+            padding: "1rem",
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: 550,
+              width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              margin: 0,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 className="card-title" style={{ margin: 0 }}>
+                {editingOfferingId ? "Edit Mata Kuliah / Proyek" : "Tambah Mata Kuliah / Proyek Baru"}
+              </h3>
+              <button
+                type="button"
+                style={{ background: "none", border: "none", fontSize: "1.25rem", cursor: "pointer" }}
+                onClick={() => setShowOfferingModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOffering}>
+              <div className="form-group">
+                <label className="form-label">Nama Mata Kuliah / Proyek *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Bioteknologi Pertanian"
+                  value={offeringNama}
+                  onChange={(e) => setOfferingNama(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div className="form-group">
+                  <label className="form-label">Jenis *</label>
+                  <select
+                    className="form-input"
+                    value={offeringJenis}
+                    onChange={(e) => setOfferingJenis(e.target.value as "matkul" | "proyek")}
+                  >
+                    <option value="matkul">Mata Kuliah</option>
+                    <option value="proyek">Proyek Pilihan</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Kuota Maksimal *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    value={offeringKuota}
+                    onChange={(e) => setOfferingKuota(Number(e.target.value))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Topik / Bidang Keilmuan (Opsional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Agronomi, Sosial Ekonomi, Teknologi"
+                  value={offeringTopik}
+                  onChange={(e) => setOfferingTopik(e.target.value)}
+                />
+              </div>
+
+              {/* Daftar Jadwal yang sudah ada (jika mode edit) */}
+              {editingOfferingId && editingOfferingJadwal.length > 0 && (
+                <div style={{ marginBottom: "1.25rem", padding: "0.75rem", backgroundColor: "var(--bg-subtle)", borderRadius: "6px" }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: "0.5rem" }}>
+                    Jadwal Terdaftar:
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {editingOfferingJadwal.map((j) => (
+                      <div
+                        key={j.id || Math.random()}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          backgroundColor: "#fff",
+                          padding: "6px 10px",
+                          borderRadius: "4px",
+                          fontSize: "0.85rem",
+                          border: "1px solid var(--border-color)",
+                        }}
+                      >
+                        <span>
+                          <strong>{j.hari}</strong> {j.jam_mulai.slice(0, 5)} - {j.jam_selesai.slice(0, 5)}
+                          {j.ruang ? ` (${j.ruang})` : ""}
+                        </span>
+                        {j.id && (
+                          <button
+                            type="button"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "var(--danger)",
+                              cursor: "pointer",
+                              fontSize: "0.8rem",
+                            }}
+                            onClick={() => handleDeleteScheduleInModal(j.id!)}
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Input Tambah Jadwal */}
+              <div style={{ border: "1px dashed var(--border-color)", padding: "0.75rem", borderRadius: "6px", marginBottom: "1.25rem" }}>
+                <div style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: "0.5rem" }}>
+                  {editingOfferingId ? "+ Tambah Jadwal untuk Pilihan Ini" : "Jadwal Kuliah Awal (Opsional)"}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: "0.8rem" }}>Hari</label>
+                    <select
+                      className="form-input"
+                      value={newJadwalHari}
+                      onChange={(e) => setNewJadwalHari(e.target.value)}
+                    >
+                      {["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"].map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: "0.8rem" }}>Ruang (Opsional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Contoh: R.204"
+                      value={newJadwalRuang}
+                      onChange={(e) => setNewJadwalRuang(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: "0.8rem" }}>Jam Mulai</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={newJadwalMulai}
+                      onChange={(e) => setNewJadwalMulai(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: "0.8rem" }}>Jam Selesai</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={newJadwalSelesai}
+                      onChange={(e) => setNewJadwalSelesai(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowOfferingModal(false)}
+                >
+                  Batal
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? "Menyimpan..." : "Simpan Pilihan"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
