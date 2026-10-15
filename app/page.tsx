@@ -654,24 +654,7 @@ export default function StudentPage() {
       {phase === "select" && (
         <div>
           {/* Sticky Session Bar */}
-          <div
-            style={{
-              position: "sticky",
-              top: 10,
-              zIndex: 100,
-              background: "var(--bg-surface)",
-              border: "2px solid var(--primary)",
-              borderRadius: "var(--radius-md)",
-              padding: "1rem 1.25rem",
-              marginBottom: "1.5rem",
-              boxShadow: "var(--shadow-lg)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "1rem",
-            }}
-          >
+          <div className="sticky-session-bar">
             <div>
               <span className="badge badge-success">Sesi Aktif</span>
               <span style={{ marginLeft: "0.75rem", fontWeight: 600 }}>
