@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistem Pemilihan Mata Kuliah Pilihan (KRS Pilihan)
 
-## Getting Started
+Aplikasi portal web pemilihan mata kuliah dan proyek pilihan berbasis Next.js App Router, PostgreSQL (Supabase), dan dideploy di Vercel.
 
-First, run the development server:
+---
 
+## Fitur Utama
+
+- **Antrian Mahasiswa**: Sistem antrian transaksi berbasis polling untuk menjaga integritas data saat mahasiswa mendaftar bersamaan.
+- **Validasi Jadwal & Kuota Otomatis**: Deteksi bentrok jadwal antar mata kuliah pilihan serta bentrok terhadap jadwal kelas tetap mahasiswa.
+- **Dashboard Administrator (`/admin`)**:
+  - Login menggunakan username dan password.
+  - Kontrol buka/tutup portal pemilihan.
+  - Impor berkas Excel untuk mata kuliah, jadwal kuliah, dan data mahasiswa.
+  - CRUD (Tambah, Ubah, Hapus) mata kuliah dan proyek pilihan langsung dari antarmuka.
+  - Manajemen kuota dan persetujuan pengajuan akses bagi mahasiswa.
+  - Ekspor hasil pendaftaran mahasiswa ke format Excel.
+- **Bukti Pendaftaran (`/bukti`)**: Tampilan dan pencetakan bukti registrasi yang dioptimalkan untuk ukuran kertas cetak standar (A4).
+
+---
+
+## Arsitektur Teknis
+
+- **Frontend**: Next.js 16 (App Router) + TypeScript + Vanilla CSS Design System.
+- **Backend**: PostgreSQL di Supabase (Semua logika kuota, antrian, dan transaksi dienkapsulasi dalam fungsi Database `SECURITY DEFINER` dengan Row Level Security aktif tanpa policy publik).
+- **Hosting**: Vercel (Front-end statis teroptimasi) + Supabase (Database & Auth).
+
+---
+
+## Persiapan & Menjalankan Lokal
+
+### 1. Salin Pengaturan Lingkungan
+Salin file `.env.example` menjadi `.env.local`:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
+Lalu isi `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` dengan kredensial Supabase Anda.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Jalankan Skrip Database
+Buka **SQL Editor** di dashboard Supabase dan jalankan isi dari:
+- `supabase/full_schema.sql` (Skema awal lengkap)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Pasang Dependensi & Jalankan
+```bash
+npm install
+npm run dev
+```
+Akses di browser pada `http://localhost:3000`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Perintah Pengujian & Verifikasi
 
-To learn more about Next.js, take a look at the following resources:
+| Perintah | Deskripsi |
+|---|---|
+| `npx tsc --noEmit` | Pemeriksaan tipe TypeScript mode strict |
+| `npm run build` | Pengujian build produksi Next.js |
+| `npm run test:db` | Suite uji otomatis database, keamanan RLS, dan aturan bisnis |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Panduan Hari H
+Untuk panduan langkah demi langkah saat hari pelaksanaan pemilihan mata kuliah, baca berkas [RUNBOOK.md](./RUNBOOK.md).
