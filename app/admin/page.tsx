@@ -57,6 +57,60 @@ interface RegisteredStudent {
   }[];
 }
 
+function normalizeHari(rawHari: any): string {
+  if (!rawHari) return "Senin";
+  const s = String(rawHari).trim().toLowerCase();
+  if (s.includes("senin")) return "Senin";
+  if (s.includes("selasa")) return "Selasa";
+  if (s.includes("rabu")) return "Rabu";
+  if (s.includes("kamis")) return "Kamis";
+  if (s.includes("jumat") || s.includes("jum'at")) return "Jumat";
+  if (s.includes("sabtu")) return "Sabtu";
+  if (s.includes("minggu")) return "Minggu";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function parseJamRange(
+  rawJam: any,
+  rawJamMulai?: any,
+  rawJamSelesai?: any
+): { jamMulai?: string; jamSelesai?: string } {
+  const formatTime = (t: string): string => {
+    let clean = t.trim().replace(".", ":");
+    if (/^\d{1,2}:\d{2}$/.test(clean)) {
+      const [h, m] = clean.split(":");
+      return `${h.padStart(2, "0")}:${m}:00`;
+    }
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(clean)) {
+      const [h, m, s] = clean.split(":");
+      return `${h.padStart(2, "0")}:${m}:${s}`;
+    }
+    return clean;
+  };
+
+  // Jika jam mulai dan selesai terpisah
+  if (rawJamMulai && rawJamSelesai) {
+    return {
+      jamMulai: formatTime(String(rawJamMulai)),
+      jamSelesai: formatTime(String(rawJamSelesai)),
+    };
+  }
+
+  // Jika dalam format rentang seperti "07.30-08.50" atau "07:30 - 08:50"
+  if (rawJam) {
+    const str = String(rawJam).trim();
+    const parts = str.split("-");
+    if (parts.length === 2) {
+      return {
+        jamMulai: formatTime(parts[0]),
+        jamSelesai: formatTime(parts[1]),
+      };
+    }
+  }
+
+  return { jamMulai: undefined, jamSelesai: undefined };
+}
+
 export default function AdminPage() {
   // Auth state
   const [session, setSession] = useState<any>(null);
@@ -155,13 +209,47 @@ export default function AdminPage() {
         setAccessRequests(reqData);
       }
 
-      // 4. Get Registered Students
+      // 4. Get Registered Students (dengan fallback otomatis ke admin_export_pendaftaran)
+      let studentsList: RegisteredStudent[] = [];
       const { data: regData, error: regErr } = await supabase.rpc("admin_list_pendaftar");
-      if (regErr) {
-        console.error("Gagal memuat data pendaftar:", regErr.message);
-      } else if (regData && Array.isArray(regData)) {
-        setRegisteredStudents(regData);
+
+      if (!regErr && regData && Array.isArray(regData)) {
+        studentsList = regData;
+      } else {
+        // Fallback: Gunakan admin_export_pendaftaran yang sudah ada di Supabase
+        const { data: expData, error: expErr } = await supabase.rpc("admin_export_pendaftaran");
+        if (!expErr && expData && Array.isArray(expData)) {
+          const studentMap = new Map<string, RegisteredStudent>();
+          expData.forEach((row: any) => {
+            const rawNim = row.NIM || row.nim;
+            if (!rawNim) return;
+            const nimStr = String(rawNim).trim();
+            if (!studentMap.has(nimStr)) {
+              studentMap.set(nimStr, {
+                nim: nimStr,
+                nama: row.Nama || row.nama || "-",
+                kelas: row.Kelas || row.kelas || null,
+                registered_at:
+                  row["Waktu Registrasi"] || row.waktu_registrasi || row.created_at || new Date().toISOString(),
+                pilihan: [],
+              });
+            }
+            const student = studentMap.get(nimStr)!;
+            const matkulName = row["Mata Kuliah / Proyek"] || row.matkul || row.nama_pilihan;
+            if (matkulName) {
+              student.pilihan.push({
+                id: row.id || Math.floor(Math.random() * 100000),
+                nama: matkulName,
+                jenis: row.Jenis || row.jenis || "matkul",
+                topik: row.Topik || row.topik || null,
+                jadwal: [],
+              });
+            }
+          });
+          studentsList = Array.from(studentMap.values());
+        }
       }
+      setRegisteredStudents(studentsList);
 
       // 5. Compute Warnings for Yellow Box
       const newWarnings: string[] = [];
@@ -372,7 +460,7 @@ export default function AdminPage() {
     }
   };
 
-  // Import Jadwal Kelas Excel
+  // Import Jadwal Kelas Excel (Mendukung format jadwal semesteran admin prodi & format Jam "07.30-08.50")
   const handleImportJadwalKelas = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -386,25 +474,34 @@ export default function AdminPage() {
       wb.SheetNames.forEach((sheetName) => {
         const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
         rows.forEach((r) => {
-          const kelas = r.Kelas || r.kelas || sheetName;
-          const hari = r.Hari || r.hari;
-          const jamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai;
-          const jamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai;
-          const matkul = r["Mata Kuliah"] || r.matkul || r.Matkul;
-          const ruang = r.Ruang || r.ruang;
+          const rawKelas = r.KELAS || r.Kelas || r.kelas || sheetName;
+          const rawHari = r.HARI || r.Hari || r.hari;
+          const rawJam = r.JAM || r.Jam || r.jam || r["Waktu"] || r["Jadwal"];
+          const rawJamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai || r["JAM MULAI"];
+          const rawJamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai || r["JAM SELESAI"];
+          const matkul = r.MATKUL || r.Matkul || r["Mata Kuliah"] || r.matkul || r["Nama Matkul"];
+          const ruang = r.RUANG || r.Ruang || r.ruang;
 
-          if (kelas && hari && jamMulai && jamSelesai) {
+          const { jamMulai, jamSelesai } = parseJamRange(rawJam, rawJamMulai, rawJamSelesai);
+          const hari = normalizeHari(rawHari);
+
+          if (rawKelas && rawHari && jamMulai && jamSelesai) {
             schedules.push({
-              kelas: String(kelas).trim(),
-              hari: String(hari).trim(),
-              jam_mulai: String(jamMulai).trim(),
-              jam_selesai: String(jamSelesai).trim(),
+              kelas: String(rawKelas).trim(),
+              hari,
+              jam_mulai: jamMulai,
+              jam_selesai: jamSelesai,
               matkul: matkul ? String(matkul).trim() : undefined,
               ruang: ruang ? String(ruang).trim() : undefined,
             });
           }
         });
       });
+
+      if (schedules.length === 0) {
+        alert("Tidak ada baris jadwal kelas yang valid. Pastikan kolom Hari, Jam (atau Jam Mulai/Selesai), dan Kelas terisi.");
+        return;
+      }
 
       const { data, error } = await supabase.rpc("admin_import_jadwal_kelas", {
         p_jadwal: schedules,
@@ -422,7 +519,7 @@ export default function AdminPage() {
     }
   };
 
-  // Import Jadwal Pilihan Excel
+  // Import Jadwal Pilihan Excel (Susulan)
   const handleImportJadwalPilihan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -437,24 +534,33 @@ export default function AdminPage() {
         const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
         rows.forEach((r) => {
           const offId = r.ID || r.id || r["Offering ID"];
-          const nama = r.Nama || r.nama || r["Nama Matkul"] || sheetName;
-          const hari = r.Hari || r.hari;
-          const jamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai;
-          const jamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai;
-          const ruang = r.Ruang || r.ruang;
+          const nama = r.Nama || r.nama || r["Nama Matkul"] || r.MATKUL || sheetName;
+          const rawHari = r.Hari || r.hari || r.HARI;
+          const rawJam = r.Jam || r.jam || r.JAM;
+          const rawJamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai;
+          const rawJamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai;
+          const ruang = r.Ruang || r.ruang || r.RUANG;
 
-          if ((offId || nama) && hari && jamMulai && jamSelesai) {
+          const { jamMulai, jamSelesai } = parseJamRange(rawJam, rawJamMulai, rawJamSelesai);
+          const hari = normalizeHari(rawHari);
+
+          if ((offId || nama) && rawHari && jamMulai && jamSelesai) {
             schedules.push({
               offering_id: offId ? Number(offId) : undefined,
               nama_pilihan: nama ? String(nama).trim() : undefined,
-              hari: String(hari).trim(),
-              jam_mulai: String(jamMulai).trim(),
-              jam_selesai: String(jamSelesai).trim(),
+              hari,
+              jam_mulai: jamMulai,
+              jam_selesai: jamSelesai,
               ruang: ruang ? String(ruang).trim() : undefined,
             });
           }
         });
       });
+
+      if (schedules.length === 0) {
+        alert("Tidak ditemukan baris jadwal pilihan yang valid.");
+        return;
+      }
 
       const { data, error } = await supabase.rpc("admin_import_jadwal_pilihan", {
         p_jadwal: schedules,
@@ -472,7 +578,7 @@ export default function AdminPage() {
     }
   };
 
-  // 4. Import Daftar Mata Kuliah & Proyek Pilihan Excel
+  // 4. Import Daftar Mata Kuliah & Proyek Pilihan Excel (Format Ringkas: Nama Matkul, Kelas, Kuota, Hari, Jam, Ruang)
   const handleImportOfferings = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -486,25 +592,55 @@ export default function AdminPage() {
       wb.SheetNames.forEach((sheetName) => {
         const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
         rows.forEach((r) => {
-          const nama = r.Nama || r.nama || r["Nama Mata Kuliah"] || r["Mata Kuliah"] || r.Pilihan;
-          const jenis = r.Jenis || r.jenis || r.Tipe || "matkul";
-          const topik = r.Topik || r.topik || r.Bidang || "";
-          const kuota = r.Kuota || r.kuota || r.Kapasitas || 30;
-          const hari = r.Hari || r.hari;
-          const jamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai;
-          const jamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai;
-          const ruang = r.Ruang || r.ruang;
+          const rawNama =
+            r["Nama Matkul"] ||
+            r.Nama ||
+            r.nama ||
+            r["Nama Mata Kuliah"] ||
+            r["Mata Kuliah"] ||
+            r.Matkul ||
+            r.MATKUL ||
+            r.Pilihan;
+          const rawKelas = r.Kelas || r.kelas || r.KELAS;
+          const rawKuota = r.Kuota || r.kuota || r.Kapasitas || r.KUOTA || 30;
+          const rawHari = r.Hari || r.hari || r.HARI;
+          const rawJam = r.Jam || r.jam || r.JAM || r["Waktu"] || r["Jadwal"];
+          const rawJamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai || r["JAM MULAI"];
+          const rawJamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai || r["JAM SELESAI"];
+          const rawRuang = r.Ruang || r.ruang || r.RUANG;
+          const rawJenis = r.Jenis || r.jenis || r.Tipe || "";
 
-          if (nama) {
+          if (rawNama) {
+            let nama = String(rawNama).trim();
+            // Jika ada kolom Kelas dan belum tercantum di nama, tambahkan akhiran (Kelas X)
+            if (rawKelas) {
+              const kelasStr = String(rawKelas).trim();
+              if (
+                kelasStr &&
+                !nama.toLowerCase().includes(`kelas ${kelasStr.toLowerCase()}`) &&
+                !nama.toLowerCase().endsWith(` ${kelasStr.toLowerCase()}`)
+              ) {
+                nama = `${nama} (Kelas ${kelasStr})`;
+              }
+            }
+
+            // Tentukan jenis: default 'matkul', jika ada kata 'proyek' jadi 'proyek'
+            const isProyek =
+              String(rawJenis).toLowerCase().includes("proyek") ||
+              nama.toLowerCase().includes("proyek");
+
+            const { jamMulai, jamSelesai } = parseJamRange(rawJam, rawJamMulai, rawJamSelesai);
+            const hari = rawHari ? normalizeHari(rawHari) : undefined;
+
             items.push({
-              nama: String(nama).trim(),
-              jenis: String(jenis).toLowerCase().includes("proyek") ? "proyek" : "matkul",
-              topik: topik ? String(topik).trim() : undefined,
-              kuota: Number(kuota) || 30,
-              hari: hari ? String(hari).trim() : undefined,
-              jam_mulai: jamMulai ? String(jamMulai).trim() : undefined,
-              jam_selesai: jamSelesai ? String(jamSelesai).trim() : undefined,
-              ruang: ruang ? String(ruang).trim() : undefined,
+              nama,
+              jenis: isProyek ? "proyek" : "matkul",
+              topik: r.Topik || r.topik || undefined,
+              kuota: Number(rawKuota) || 30,
+              hari,
+              jam_mulai: jamMulai,
+              jam_selesai: jamSelesai,
+              ruang: rawRuang ? String(rawRuang).trim() : undefined,
             });
           }
         });
@@ -532,37 +668,121 @@ export default function AdminPage() {
     }
   };
 
-  // Unduh Contoh Template Excel untuk Mata Kuliah Pilihan
+  // Unduh Template Excel untuk Data Mahasiswa
+  const handleDownloadStudentsTemplate = () => {
+    const sampleData = [
+      { NIM: "2110211001", Nama: "Ahmad Fauzi", Kelas: "SPKS G" },
+      { NIM: "2110211002", Nama: "Siti Nurhaliza", Kelas: "SPKS P" },
+      { NIM: "2110211003", Nama: "Budi Santoso", Kelas: "ANTAN A" },
+      { NIM: "2110211004", Nama: "Dewi Lestari", Kelas: "SPKS I" },
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Mahasiswa");
+    XLSX.writeFile(wb, "template_data_mahasiswa.xlsx");
+  };
+
+  // Unduh Template Excel untuk Jadwal Kelas Tetap (Format resmi seperti jadwal semesteran)
+  const handleDownloadJadwalKelasTemplate = () => {
+    const sampleData = [
+      {
+        HARI: "SENIN",
+        JAM: "07.30-08.50",
+        MATKUL: "Budaya Dasar dan Etika",
+        SKS: 1,
+        "DOSEN SEBELUM SISIPAN": "Dr. Idum Satya Santi, SP. MP",
+        "DOSEN SETELAH SISIPAN": "Jajang Agus Sonjaya, S.S., M.Hum.",
+        KELAS: "SPKS G",
+        RUANG: "D501",
+      },
+      {
+        HARI: "SENIN",
+        JAM: "07.30-08.50",
+        MATKUL: "Budaya Dasar dan Etika",
+        SKS: 1,
+        "DOSEN SEBELUM SISIPAN": "E. Nanik Kristalisasi. SP. MP",
+        "DOSEN SETELAH SISIPAN": "E. Nanik Kristalisasi. SP. MP",
+        KELAS: "SPKS P",
+        RUANG: "D505",
+      },
+      {
+        HARI: "SENIN",
+        JAM: "07.30-08.50",
+        MATKUL: "Dasar dasar Agroteknologi",
+        SKS: 2,
+        "DOSEN SEBELUM SISIPAN": "Ir. Ety Rosa Setyawati, M.Sc",
+        "DOSEN SETELAH SISIPAN": "Ir. Ety Rosa Setyawati, M.Sc",
+        KELAS: "SPKS I",
+        RUANG: "D502",
+      },
+      {
+        HARI: "SENIN",
+        JAM: "07.30-08.50",
+        MATKUL: "Matematika",
+        SKS: 1,
+        "DOSEN SEBELUM SISIPAN": "Dr. Tantri Swandari, S.Si, M.Sc.",
+        "DOSEN SETELAH SISIPAN": "Dr. Tantri Swandari, S.Si, M.Sc.",
+        KELAS: "ANTAN A",
+        RUANG: "D108",
+      },
+      {
+        HARI: "SELASA",
+        JAM: "09.00-10.40",
+        MATKUL: "Ekonomi Matematika",
+        SKS: 2,
+        "DOSEN SEBELUM SISIPAN": "Danik Nurjanah, S.P., M.Sc",
+        "DOSEN SETELAH SISIPAN": "Hernowo, SP., MP.",
+        KELAS: "SEA",
+        RUANG: "D506",
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Jadwal Kelas");
+    XLSX.writeFile(wb, "template_jadwal_kelas_tetap.xlsx");
+  };
+
+  // Unduh Contoh Template Excel untuk Mata Kuliah Pilihan (Format Baru: Nama Matkul, Kelas, Kuota, Hari, Jam, Ruang)
   const handleDownloadOfferingTemplate = () => {
     const sampleData = [
       {
-        Nama: "Bioteknologi Pertanian",
-        Jenis: "matkul",
-        Topik: "Agronomi",
+        "Nama Matkul": "Bioteknologi Pertanian",
+        Kelas: "A",
         Kuota: 30,
         Hari: "Senin",
-        "Jam Mulai": "08:00:00",
-        "Jam Selesai": "09:40:00",
-        Ruang: "R.301",
+        Jam: "07.30-08.50",
+        Ruang: "D501",
       },
       {
-        Nama: "Smart Farming & IoT",
-        Jenis: "matkul",
-        Topik: "Teknologi",
+        "Nama Matkul": "Bioteknologi Pertanian",
+        Kelas: "B",
         Kuota: 30,
         Hari: "Selasa",
-        "Jam Mulai": "10:00:00",
-        "Jam Selesai": "11:40:00",
+        Jam: "09.00-10.40",
+        Ruang: "D502",
+      },
+      {
+        "Nama Matkul": "Smart Farming & IoT",
+        Kelas: "A",
+        Kuota: 30,
+        Hari: "Rabu",
+        Jam: "10.00-11.40",
         Ruang: "Lab Komputer",
       },
       {
-        Nama: "Proyek Inovasi Sawit Berkelanjutan",
-        Jenis: "proyek",
-        Topik: "Industri Sawit",
+        "Nama Matkul": "Smart Farming & IoT",
+        Kelas: "B",
+        Kuota: 30,
+        Hari: "Kamis",
+        Jam: "13.00-14.40",
+        Ruang: "Lab Komputer",
+      },
+      {
+        "Nama Matkul": "Proyek Inovasi Sawit Berkelanjutan",
+        Kelas: "A",
         Kuota: 20,
-        Hari: "Rabu",
-        "Jam Mulai": "13:00:00",
-        "Jam Selesai": "15:30:00",
+        Hari: "Jumat",
+        Jam: "08.00-10.30",
         Ruang: "Workshop",
       },
     ];
@@ -1287,22 +1507,22 @@ export default function AdminPage() {
 
       {/* TAB 3: IMPOR EXCEL */}
       {activeTab === "import" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
-          {/* Impor Mata Kuliah / Proyek Pilihan */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
+          {/* 1. Impor Mata Kuliah / Proyek Pilihan */}
           <div className="card" style={{ border: "2px solid #3b82f6" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
-              <h3 className="card-title" style={{ margin: 0, color: "var(--primary)" }}>1. Impor Mata Kuliah & Proyek</h3>
+              <h3 className="card-title" style={{ margin: 0, color: "var(--primary)" }}>1. Impor Mata Kuliah Pilihan</h3>
               <button
                 type="button"
                 className="btn btn-secondary"
                 style={{ fontSize: "0.75rem", padding: "4px 10px" }}
                 onClick={handleDownloadOfferingTemplate}
               >
-                📥 Unduh Template Excel
+                📥 Unduh Template Matkul
               </button>
             </div>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>Nama</strong>, <strong>Jenis</strong> (matkul/proyek), <strong>Topik</strong>, <strong>Kuota</strong>, serta opsional langsung menyertakan <strong>Hari</strong>, <strong>Jam Mulai</strong>, <strong>Jam Selesai</strong>, <strong>Ruang</strong>.
+              Format Excel: Kolom <strong>Nama Matkul</strong>, <strong>Kelas</strong> (A, B, C, D), <strong>Kuota</strong> (kursi per kelas), <strong>Hari</strong>, <strong>Jam</strong> (format <code>07.30-08.50</code> atau terpisah jam mulai/selesai), dan <strong>Ruang</strong>. Tidak memerlukan kolom Jenis dan Topik.
             </p>
             <input
               type="file"
@@ -1313,11 +1533,21 @@ export default function AdminPage() {
             />
           </div>
 
-          {/* Impor Mahasiswa */}
+          {/* 2. Impor Mahasiswa */}
           <div className="card">
-            <h3 className="card-title">2. Impor Data Mahasiswa</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
+              <h3 className="card-title" style={{ margin: 0 }}>2. Impor Data Mahasiswa</h3>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ fontSize: "0.75rem", padding: "4px 10px" }}
+                onClick={handleDownloadStudentsTemplate}
+              >
+                📥 Unduh Template Mahasiswa
+              </button>
+            </div>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>NIM</strong>, <strong>Nama</strong>, dan opsional <strong>Kelas</strong> (atau sheet per kelas).
+              Format Excel: Kolom <strong>NIM</strong>, <strong>Nama</strong>, dan opsional <strong>Kelas</strong> (misal <code>SPKS G</code>, atau sheet per kelas).
             </p>
             <input
               type="file"
@@ -1328,12 +1558,21 @@ export default function AdminPage() {
             />
           </div>
 
-          {/* Impor Jadwal Kelas Tetap */}
+          {/* 3. Impor Jadwal Kelas Tetap */}
           <div className="card">
-            <h3 className="card-title">3. Impor Jadwal Kelas Tetap</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
+              <h3 className="card-title" style={{ margin: 0 }}>3. Impor Jadwal Kelas Tetap (Wajib)</h3>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ fontSize: "0.75rem", padding: "4px 10px" }}
+                onClick={handleDownloadJadwalKelasTemplate}
+              >
+                📥 Unduh Template Jadwal
+              </button>
+            </div>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>Kelas</strong>, <strong>Hari</strong>, <strong>Jam Mulai</strong>,{" "}
-              <strong>Jam Selesai</strong>, <strong>Mata Kuliah</strong>.
+              Format Excel: Mendukung 100% format berkas jadwal resmi prodi (kolom <strong>HARI</strong>, <strong>JAM</strong> <code>07.30-08.50</code>, <strong>MATKUL</strong>, <strong>KELAS</strong>, <strong>RUANG</strong>). Kolom tambahan (SKS, Dosen) diabaikan otomatis.
             </p>
             <input
               type="file"
@@ -1344,12 +1583,12 @@ export default function AdminPage() {
             />
           </div>
 
-          {/* Impor Jadwal Pilihan */}
+          {/* 4. Impor Jadwal Pilihan */}
           <div className="card">
-            <h3 className="card-title">4. Impor Jadwal Mata Kuliah Pilihan (Susulan)</h3>
+            <h3 className="card-title">4. Impor Jadwal Pilihan (Susulan)</h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>ID / Nama Matkul</strong>, <strong>Hari</strong>,{" "}
-              <strong>Jam Mulai</strong>, <strong>Jam Selesai</strong>, <strong>Ruang</strong>.
+              Format Excel: Kolom <strong>Nama Matkul</strong> (atau ID), <strong>Hari</strong>,{" "}
+              <strong>Jam</strong> (format <code>07.30-08.50</code> atau Jam Mulai/Selesai), dan <strong>Ruang</strong>.
             </p>
             <input
               type="file"
