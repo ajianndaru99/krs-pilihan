@@ -243,10 +243,12 @@ DECLARE
     v_student RECORD;
     v_token TEXT;
     v_state TEXT;
+    v_expires_at TIMESTAMPTZ;
     v_portal_open BOOLEAN;
     v_active_count INT;
     v_max_active INT;
     v_session_min INT;
+    v_sisa_detik INT := 0;
     v_now TIMESTAMPTZ := now();
 BEGIN
     SELECT portal_open, max_active, session_duration_minutes
@@ -272,18 +274,23 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Mahasiswa dengan NIM ini sudah menyelesaikan pendaftaran.');
     END IF;
 
-    SELECT token, state INTO v_token, v_state
+    -- Update sesi usang sebelum mengecek status antrian aktif
+    UPDATE public.queue
+    SET state = 'expired'
+    WHERE state = 'active' AND expires_at < v_now;
+
+    -- Cari antrian yang masih aktif atau waiting
+    SELECT token, state, expires_at INTO v_token, v_state, v_expires_at
     FROM public.queue
     WHERE nim = v_student.nim AND state IN ('waiting', 'active', 'menunggu_undian')
     ORDER BY entered_at DESC LIMIT 1;
 
     IF FOUND THEN
-        RETURN jsonb_build_object('ok', true, 'token', v_token, 'state', v_state);
+        v_sisa_detik := CASE WHEN v_state = 'active' AND v_expires_at IS NOT NULL
+            THEN GREATEST(0, EXTRACT(EPOCH FROM (v_expires_at - v_now))::INT)
+            ELSE 0 END;
+        RETURN jsonb_build_object('ok', true, 'token', v_token, 'state', v_state, 'sisa_detik', v_sisa_detik);
     END IF;
-
-    UPDATE public.queue
-    SET state = 'expired'
-    WHERE state = 'active' AND expires_at < v_now;
 
     SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active' AND expires_at >= v_now;
 
@@ -291,15 +298,17 @@ BEGIN
 
     IF v_active_count < v_max_active THEN
         v_state := 'active';
+        v_sisa_detik := v_session_min * 60;
         INSERT INTO public.queue (token, nim, state, activated_at, expires_at)
         VALUES (v_token, v_student.nim, 'active', v_now, v_now + (v_session_min || ' minutes')::interval);
     ELSE
         v_state := 'waiting';
+        v_sisa_detik := 0;
         INSERT INTO public.queue (token, nim, state)
         VALUES (v_token, v_student.nim, 'waiting');
     END IF;
 
-    RETURN jsonb_build_object('ok', true, 'token', v_token, 'state', v_state);
+    RETURN jsonb_build_object('ok', true, 'token', v_token, 'state', v_state, 'sisa_detik', v_sisa_detik);
 END;
 $$;
 
@@ -1156,6 +1165,56 @@ BEGIN
 END;
 $$;
 
+-- 4.14 Fungsi Admin: Daftar Mahasiswa yang Sudah Masuk / Selesai Mendaftar
+CREATE OR REPLACE FUNCTION public.admin_list_pendaftar()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    IF NOT public.is_admin() THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Akses ditolak: Hanya untuk admin.');
+    END IF;
+
+    RETURN (
+        SELECT COALESCE(jsonb_agg(
+            jsonb_build_object(
+                'nim', s.nim,
+                'nama', s.nama,
+                'kelas', s.kelas,
+                'registered_at', s.registered_at,
+                'pilihan', COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', o.id,
+                            'nama', o.nama,
+                            'jenis', o.jenis,
+                            'topik', o.topik,
+                            'jadwal', COALESCE((
+                                SELECT jsonb_agg(
+                                    jsonb_build_object(
+                                        'hari', sc.hari,
+                                        'jam_mulai', sc.jam_mulai::text,
+                                        'jam_selesai', sc.jam_selesai::text,
+                                        'ruang', sc.ruang
+                                    )
+                                ) FROM public.schedules sc WHERE sc.offering_id = o.id
+                            ), '[]'::jsonb)
+                        ) ORDER BY o.jenis, o.nama
+                    )
+                    FROM public.registrations r
+                    JOIN public.offerings o ON o.id = r.offering_id
+                    WHERE r.nim = s.nim
+                ), '[]'::jsonb)
+            ) ORDER BY s.registered_at DESC NULLS LAST, s.nim ASC
+        ), '[]'::jsonb)
+        FROM public.students s
+        WHERE s.registered_at IS NOT NULL
+           OR EXISTS (SELECT 1 FROM public.registrations r WHERE r.nim = s.nim)
+    );
+END;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 5. PERMISSION GRANTS (HANYA ANON & AUTHENTICATED VIA RPC)
 -- ----------------------------------------------------------------------------
@@ -1184,4 +1243,5 @@ GRANT EXECUTE ON FUNCTION public.admin_delete_offering(INT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_tambah_jadwal(INT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_hapus_jadwal(INT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_import_offerings(JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_pendaftar() TO authenticated;
 

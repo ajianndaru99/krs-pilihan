@@ -113,6 +113,13 @@ async function runTestSuite() {
     return "RPC admin_delete_offering berhasil dieksekusi oleh anon!";
   });
 
+  await assertTest("Admin RPC: admin_list_pendaftar() ditolak untuk role anon", async () => {
+    const { data, error } = await supabase.rpc("admin_list_pendaftar");
+    if (error) return true;
+    if (data && data.ok === false) return true;
+    return "RPC admin_list_pendaftar berhasil dieksekusi oleh anon!";
+  });
+
   // --------------------------------------------------------------------------
   // 3. ATURAN BISNIS MAHASISWA & PENDAFTARAN
   // --------------------------------------------------------------------------

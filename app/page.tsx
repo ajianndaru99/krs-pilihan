@@ -55,6 +55,27 @@ export default function StudentPage() {
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
+  // Interactive Modal Pop-up State
+  const [modalDialog, setModalDialog] = useState<{
+    isOpen: boolean;
+    type: "info" | "warning" | "danger" | "confirm";
+    title: string;
+    message: string;
+    details?: { label: string; value: string }[];
+    onConfirm?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    isOpen: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+
+  const closeModal = useCallback(() => {
+    setModalDialog((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
   // Ajukan Akses Modal State
   const [showAjukanModal, setShowAjukanModal] = useState(false);
   const [ajukanNim, setAjukanNim] = useState("");
@@ -70,6 +91,14 @@ export default function StudentPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionEndTimeRef = useRef<number | null>(null);
+
+  const startCountdown = useCallback((seconds: number) => {
+    if (seconds > 0) {
+      setRemainingSeconds(seconds);
+      sessionEndTimeRef.current = Date.now() + seconds * 1000;
+    }
+  }, []);
 
   // Read saved session storage on client mount
   useEffect(() => {
@@ -108,7 +137,9 @@ export default function StudentPage() {
         setQueueNumber(res.nomor ?? null);
         setQueuePosition(res.posisi ?? null);
         setEstMinutes(res.estimasi_menit ?? null);
-        setRemainingSeconds(res.sisa_detik ?? null);
+        if (typeof res.sisa_detik === "number" && res.sisa_detik > 0) {
+          startCountdown(res.sisa_detik);
+        }
         setCanRequeue(res.bisa_antri_lagi !== false);
 
         if (res.state === "active") {
@@ -121,7 +152,7 @@ export default function StudentPage() {
         setErrorMessage(err.message || "Kesalahan jaringan saat polling antrian.");
       }
     },
-    [router]
+    [router, startCountdown]
   );
 
   // Setup 10-second polling during queue phase
@@ -139,23 +170,23 @@ export default function StudentPage() {
     }
   }, [phase, nim, token, checkQueueStatus]);
 
-  // Handle countdown timer for active selection session
+  // Handle stable countdown timer for active selection session
   useEffect(() => {
-    if (phase === "select" && remainingSeconds !== null && remainingSeconds > 0) {
-      const countdown = setInterval(() => {
-        setRemainingSeconds((prev) => {
-          if (prev === null || prev <= 1) {
-            clearInterval(countdown);
-            setPhase("queue");
-            setQueueState("expired");
-            return 0;
-          }
-          return prev - 1;
-        });
+    if (phase === "select") {
+      const timer = setInterval(() => {
+        if (!sessionEndTimeRef.current) return;
+        const diff = Math.max(0, Math.ceil((sessionEndTimeRef.current - Date.now()) / 1000));
+        setRemainingSeconds(diff);
+        if (diff <= 0) {
+          clearInterval(timer);
+          setPhase("queue");
+          setQueueState("expired");
+          setErrorMessage("Sesi pemilihan Anda telah kedaluwarsa. Silakan antri kembali.");
+        }
       }, 1000);
-      return () => clearInterval(countdown);
+      return () => clearInterval(timer);
     }
-  }, [phase, remainingSeconds]);
+  }, [phase]);
 
   // Fetch Offerings when active
   const fetchOfferings = async (curNim: string, curToken: string) => {
@@ -254,7 +285,10 @@ export default function StudentPage() {
 
       if (res.state === "active") {
         setPhase("select");
+        const initSec = res.sisa_detik && res.sisa_detik > 0 ? res.sisa_detik : 300;
+        startCountdown(initSec);
         fetchOfferings(nim.trim(), newToken);
+        checkQueueStatus(nim.trim(), newToken);
       } else {
         setPhase("queue");
         checkQueueStatus(nim.trim(), newToken);
@@ -275,13 +309,41 @@ export default function StudentPage() {
 
     // Check quota
     if (offering.sisa <= 0) {
-      alert("Kuota untuk pilihan ini sudah habis.");
+      setModalDialog({
+        isOpen: true,
+        type: "warning",
+        title: "Kuota Pilihan Habis",
+        message: `Kuota untuk "${offering.nama}" sudah penuh (0 kursi tersisa). Silakan pilih mata kuliah lainnya.`,
+        details: [
+          { label: "Mata Kuliah", value: offering.nama },
+          { label: "Kuota Maksimal", value: `${offering.kuota} Mahasiswa` },
+        ],
+      });
       return;
     }
 
     // Check class schedule conflict (from server database)
     if (offering.bentrok) {
-      alert("Pilihan ini bentrok dengan jadwal kelas tetap Anda.");
+      setModalDialog({
+        isOpen: true,
+        type: "danger",
+        title: "Bentrok Jadwal Kuliah Tetap",
+        message: `Mata kuliah "${offering.nama}" tidak dapat dipilih karena jadwal perkuliahannya bentrok dengan jadwal kelas tetap Anda (${studentInfo?.kelas || "Kelas Mahasiswa"}).`,
+        details: [
+          { label: "Pilihan", value: offering.nama },
+          {
+            label: "Jadwal",
+            value:
+              offering.jadwal
+                ?.map(
+                  (j) =>
+                    `${j.hari}, ${j.jam_mulai.slice(0, 5)}-${j.jam_selesai.slice(0, 5)} (${j.ruang || "-"})`
+                )
+                .join("; ") || "-",
+          },
+          { label: "Aturan", value: "Sistem menolak pemilihan yang bertabrakan dengan jadwal kuliah wajib kelas." },
+        ],
+      });
       return;
     }
 
@@ -290,12 +352,22 @@ export default function StudentPage() {
     const proyekCount = selectedOfferings.filter((o) => o.jenis === "proyek").length;
 
     if (offering.jenis === "matkul" && matkulCount >= NEED_MATKUL) {
-      alert(`Anda hanya dapat memilih maksimal ${NEED_MATKUL} mata kuliah.`);
+      setModalDialog({
+        isOpen: true,
+        type: "info",
+        title: "Batas Mata Kuliah Tercapai",
+        message: `Anda sudah memilih batas maksimal ${NEED_MATKUL} mata kuliah pilihan. Hapus centang pada salah satu mata kuliah terlebih dahulu jika ingin mengganti pilihan.`,
+      });
       return;
     }
 
     if (offering.jenis === "proyek" && proyekCount >= NEED_PROYEK) {
-      alert(`Anda hanya dapat memilih maksimal ${NEED_PROYEK} proyek.`);
+      setModalDialog({
+        isOpen: true,
+        type: "info",
+        title: "Batas Proyek Tercapai",
+        message: `Anda sudah memilih batas maksimal ${NEED_PROYEK} proyek mandiri. Hapus centang pada proyek yang dipilih jika ingin mengganti.`,
+      });
       return;
     }
 
@@ -304,7 +376,16 @@ export default function StudentPage() {
       (o) => o.topik && offering.topik && o.topik.trim().toLowerCase() === offering.topik.trim().toLowerCase()
     );
     if (duplicateTopic) {
-      alert(`Anda tidak dapat memilih lebih dari satu mata kuliah dengan topik '${offering.topik}'.`);
+      setModalDialog({
+        isOpen: true,
+        type: "warning",
+        title: "Topik Mata Kuliah Kembar",
+        message: `Anda sudah memilih mata kuliah lain dengan topik "${offering.topik}". Kebijakan kurikulum mewajibkan setiap mata kuliah pilihan berasal dari bidang topik yang berbeda.`,
+        details: [
+          { label: "Topik Terpilih", value: offering.topik },
+          { label: "Mata Kuliah", value: offering.nama },
+        ],
+      });
       return;
     }
 
@@ -313,9 +394,22 @@ export default function StudentPage() {
       for (const jNew of offering.jadwal || []) {
         for (const jSel of selected.jadwal || []) {
           if (isTimeClash(jNew, jSel)) {
-            alert(
-              `Jadwal bentrok dengan '${selected.nama}' pada ${jNew.hari} (${jNew.jam_mulai} - ${jNew.jam_selesai}).`
-            );
+            setModalDialog({
+              isOpen: true,
+              type: "danger",
+              title: "Bentrok Antar Pilihan",
+              message: `Jadwal mata kuliah "${offering.nama}" bertabrakan waktu dengan pilihan Anda sebelumnya: "${selected.nama}".`,
+              details: [
+                {
+                  label: "Pilihan Baru",
+                  value: `${offering.nama} (${jNew.hari} ${jNew.jam_mulai.slice(0, 5)}-${jNew.jam_selesai.slice(0, 5)})`,
+                },
+                {
+                  label: "Pilihan Sebelumnya",
+                  value: `${selected.nama} (${jSel.hari} ${jSel.jam_mulai.slice(0, 5)}-${jSel.jam_selesai.slice(0, 5)})`,
+                },
+              ],
+            });
             return;
           }
         }
@@ -325,21 +419,46 @@ export default function StudentPage() {
     setSelectedIds([...selectedIds, offering.id]);
   };
 
-  // Step 5: Submit Registration
-  const handleSubmitRegistration = async () => {
+  // Step 5: Submit Registration with Dialog Confirmation
+  const handleSubmitRegistration = () => {
     const selectedOfferings = offerings.filter((o) => selectedIds.includes(o.id));
     const matkulCount = selectedOfferings.filter((o) => o.jenis === "matkul").length;
     const proyekCount = selectedOfferings.filter((o) => o.jenis === "proyek").length;
 
     if (matkulCount !== NEED_MATKUL || proyekCount !== NEED_PROYEK) {
-      alert(`Syarat pendaftaran belum lengkap: Wajib ${NEED_MATKUL} Matkul dan ${NEED_PROYEK} Proyek.`);
+      setModalDialog({
+        isOpen: true,
+        type: "warning",
+        title: "Syarat Pilihan Belum Lengkap",
+        message: `Pendaftaran belum dapat dikirim. Anda wajib memilih tepat ${NEED_MATKUL} Mata Kuliah Pilihan dan ${NEED_PROYEK} Proyek Mandiri.`,
+        details: [
+          { label: "Mata Kuliah Terpilih", value: `${matkulCount} / ${NEED_MATKUL}` },
+          { label: "Proyek Terpilih", value: `${proyekCount} / ${NEED_PROYEK}` },
+        ],
+      });
       return;
     }
 
-    if (!confirm("Pastikan pilihan Anda sudah benar. Pilihan yang sudah dikirim tidak dapat diubah sendiri. Lanjutkan?")) {
-      return;
-    }
+    setModalDialog({
+      isOpen: true,
+      type: "confirm",
+      title: "Konfirmasi Finalisasi KRS Pilihan",
+      message:
+        "Pastikan seluruh kombinasi mata kuliah pilihan di bawah ini sudah benar. Setelah dikirim, data akan dikunci ke sistem dan Anda langsung diarahkan ke bukti resmi.",
+      details: selectedOfferings.map((o) => ({
+        label: o.jenis === "proyek" ? "Proyek" : "Matkul",
+        value: `${o.nama} — ${
+          o.jadwal?.map((j) => `${j.hari} ${j.jam_mulai.slice(0, 5)}-${j.jam_selesai.slice(0, 5)}`).join(", ") ||
+          "Jadwal Terdaftar"
+        }`,
+      })),
+      confirmText: "Ya, Kirim Pendaftaran",
+      cancelText: "Periksa Kembali",
+      onConfirm: executeSubmitRegistration,
+    });
+  };
 
+  const executeSubmitRegistration = async () => {
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
@@ -655,26 +774,27 @@ export default function StudentPage() {
         <div>
           {/* Sticky Session Bar */}
           <div className="sticky-session-bar">
-            <div>
+            <div className="sticky-top-row">
               <span className="badge badge-success">Sesi Aktif</span>
-              <span style={{ marginLeft: "0.75rem", fontWeight: 600 }}>
-                Pilihan: {matkulCount}/{NEED_MATKUL} Matkul | {proyekCount}/{NEED_PROYEK} Proyek
-              </span>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
               {remainingSeconds !== null && (
                 <div
                   style={{
                     fontWeight: 700,
                     color: remainingSeconds < 60 ? "var(--danger)" : "var(--primary)",
                     fontSize: "0.95rem",
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   ⏱️ Sisa Waktu: {Math.floor(remainingSeconds / 60)}:
                   {String(remainingSeconds % 60).padStart(2, "0")}
                 </div>
               )}
+            </div>
+
+            <div className="sticky-bottom-row">
+              <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                Pilihan: {matkulCount}/{NEED_MATKUL} Matkul • {proyekCount}/{NEED_PROYEK} Proyek
+              </span>
 
               <button
                 type="button"
@@ -946,6 +1066,94 @@ export default function StudentPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Hairline Modal Pop-up (Konfirmasi, Peringatan Bentrok & Kuota) */}
+      {modalDialog.isOpen && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {modalDialog.type === "danger" && "⚠️ "}
+                {modalDialog.type === "warning" && "⚡ "}
+                {modalDialog.type === "info" && "ℹ️ "}
+                {modalDialog.type === "confirm" && "📋 "}
+                {modalDialog.title}
+              </h3>
+              <button
+                type="button"
+                onClick={closeModal}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "1.25rem",
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                }}
+                aria-label="Tutup"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: modalDialog.details ? "0.85rem" : 0 }}>
+                {modalDialog.message}
+              </p>
+              {modalDialog.details && (
+                <div
+                  style={{
+                    backgroundColor: "var(--color-bone)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "0.75rem 0.85rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.45rem",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  {modalDialog.details.map((d, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>{d.label}:</span>
+                      <strong style={{ color: "var(--color-carbon-ink)", textAlign: "right" }}>{d.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              {modalDialog.type === "confirm" ? (
+                <>
+                  <button type="button" className="btn btn-secondary" onClick={closeModal}>
+                    {modalDialog.cancelText || "Batal / Kembali"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      closeModal();
+                      modalDialog.onConfirm?.();
+                    }}
+                  >
+                    {modalDialog.confirmText || "Konfirmasi"}
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={closeModal}>
+                  Mengerti
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

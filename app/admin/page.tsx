@@ -38,6 +38,25 @@ interface AccessRequest {
   created_at: string;
 }
 
+interface RegisteredStudent {
+  nim: string;
+  nama: string;
+  kelas?: string | null;
+  registered_at: string;
+  pilihan: {
+    id: number;
+    nama: string;
+    jenis: string;
+    topik?: string | null;
+    jadwal?: {
+      hari: string;
+      jam_mulai: string;
+      jam_selesai: string;
+      ruang?: string | null;
+    }[];
+  }[];
+}
+
 export default function AdminPage() {
   // Auth state
   const [session, setSession] = useState<any>(null);
@@ -49,6 +68,9 @@ export default function AdminPage() {
   const [portalOpen, setPortalOpen] = useState(false);
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
+  const [registeredStudents, setRegisteredStudents] = useState<RegisteredStudent[]>([]);
+  const [searchPendaftar, setSearchPendaftar] = useState("");
+  const [filterKelasPendaftar, setFilterKelasPendaftar] = useState("all");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [stats, setStats] = useState<{
     totalStudents: number;
@@ -66,7 +88,7 @@ export default function AdminPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   // Active sub-tab
-  const [activeTab, setActiveTab] = useState<"kuota" | "import" | "pengajuan" | "batal">("kuota");
+  const [activeTab, setActiveTab] = useState<"kuota" | "pendaftar" | "import" | "pengajuan" | "batal">("kuota");
   const [batalNim, setBatalNim] = useState("");
 
   // Modal Offering (Tambah / Edit) State
@@ -133,7 +155,15 @@ export default function AdminPage() {
         setAccessRequests(reqData);
       }
 
-      // 4. Compute Warnings for Yellow Box
+      // 4. Get Registered Students
+      const { data: regData, error: regErr } = await supabase.rpc("admin_list_pendaftar");
+      if (regErr) {
+        console.error("Gagal memuat data pendaftar:", regErr.message);
+      } else if (regData && Array.isArray(regData)) {
+        setRegisteredStudents(regData);
+      }
+
+      // 5. Compute Warnings for Yellow Box
       const newWarnings: string[] = [];
       if (statusData) {
         if (!statusData.total_students || statusData.total_students === 0) {
@@ -712,6 +742,20 @@ export default function AdminPage() {
     );
   }
 
+  const uniqueKelasList = Array.from(
+    new Set(registeredStudents.map((s) => s.kelas).filter((k): k is string => Boolean(k)))
+  ).sort();
+
+  const filteredStudents = registeredStudents.filter((s) => {
+    const term = searchPendaftar.toLowerCase();
+    const matchSearch =
+      !term ||
+      s.nim.toLowerCase().includes(term) ||
+      s.nama.toLowerCase().includes(term);
+    const matchKelas = filterKelasPendaftar === "all" || s.kelas === filterKelasPendaftar;
+    return matchSearch && matchKelas;
+  });
+
   return (
     <div className="container">
       {/* Admin Header */}
@@ -836,6 +880,22 @@ export default function AdminPage() {
           }}
         >
           Kelola Kuota & Pilihan
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("pendaftar")}
+          style={{
+            padding: "0.75rem 1.25rem",
+            fontWeight: 600,
+            background: "none",
+            border: "none",
+            borderBottom: activeTab === "pendaftar" ? "3px solid var(--primary)" : "none",
+            color: activeTab === "pendaftar" ? "var(--primary)" : "var(--text-muted)",
+            cursor: "pointer",
+          }}
+        >
+          Data Mahasiswa Masuk ({registeredStudents.length})
         </button>
 
         <button
@@ -1027,7 +1087,205 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TAB 2: IMPOR EXCEL */}
+      {/* TAB: DATA MAHASISWA MASUK */}
+      {activeTab === "pendaftar" && (
+        <div className="card">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1.25rem",
+              flexWrap: "wrap",
+              gap: "1rem",
+            }}
+          >
+            <div>
+              <h3 className="card-title" style={{ margin: 0 }}>
+                Data Mahasiswa yang Telah Menyelesaikan KRS ({filteredStudents.length} Mahasiswa)
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem", margin: 0 }}>
+                Menampilkan mahasiswa yang telah memilih 4 matkul/proyek pilihan beserta rincian jadwal dan ruangan.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Cari NIM atau Nama..."
+                value={searchPendaftar}
+                onChange={(e) => setSearchPendaftar(e.target.value)}
+                style={{ width: "200px", padding: "6px 12px", fontSize: "0.875rem" }}
+              />
+
+              <select
+                className="form-input"
+                value={filterKelasPendaftar}
+                onChange={(e) => setFilterKelasPendaftar(e.target.value)}
+                style={{ width: "140px", padding: "6px 12px", fontSize: "0.875rem" }}
+              >
+                <option value="all">Semua Kelas</option>
+                {uniqueKelasList.map((k) => (
+                  <option key={k} value={k}>
+                    Kelas {k}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={loadAdminData}
+                style={{ padding: "6px 12px", fontSize: "0.875rem" }}
+                title="Muat Ulang Data"
+              >
+                🔄 Refresh
+              </button>
+            </div>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+              <thead>
+                <tr style={{ backgroundColor: "var(--bg-subtle)", textAlign: "left" }}>
+                  <th style={{ padding: "10px", width: "40px" }}>No</th>
+                  <th style={{ padding: "10px", width: "120px" }}>NIM</th>
+                  <th style={{ padding: "10px", width: "180px" }}>Nama Mahasiswa</th>
+                  <th style={{ padding: "10px", width: "80px", textAlign: "center" }}>Kelas</th>
+                  <th style={{ padding: "10px", width: "150px" }}>Waktu Selesai</th>
+                  <th style={{ padding: "10px" }}>Mata Kuliah & Proyek Pilihan (4 Pilihan)</th>
+                  <th style={{ padding: "10px", width: "90px", textAlign: "center" }}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                      {registeredStudents.length === 0
+                        ? "Belum ada mahasiswa yang menyelesaikan pendaftaran."
+                        : "Tidak ditemukan mahasiswa yang cocok dengan filter pencarian."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((s, idx) => (
+                    <tr key={s.nim} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                      <td style={{ padding: "10px", color: "var(--text-muted)" }}>{idx + 1}</td>
+                      <td style={{ padding: "10px", fontWeight: 700, fontFamily: "monospace", fontSize: "0.9rem" }}>
+                        {s.nim}
+                      </td>
+                      <td style={{ padding: "10px", fontWeight: 600 }}>{s.nama}</td>
+                      <td style={{ padding: "10px", textAlign: "center" }}>
+                        <span
+                          style={{
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            backgroundColor: "var(--bg-subtle)",
+                            fontWeight: 600,
+                            fontSize: "0.8rem",
+                          }}
+                        >
+                          {s.kelas || "-"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                        {s.registered_at
+                          ? new Date(s.registered_at).toLocaleString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "-"}
+                      </td>
+                      <td style={{ padding: "10px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          {s.pilihan && s.pilihan.length > 0 ? (
+                            s.pilihan.map((p) => (
+                              <div
+                                key={p.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  backgroundColor: p.jenis === "proyek" ? "#eef2ff" : "var(--bg-subtle)",
+                                  borderLeft: p.jenis === "proyek" ? "3px solid #6366f1" : "3px solid var(--primary)",
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  fontSize: "0.8rem",
+                                  gap: "0.5rem",
+                                }}
+                              >
+                                <div>
+                                  <span
+                                    style={{
+                                      fontSize: "0.7rem",
+                                      fontWeight: 700,
+                                      padding: "1px 5px",
+                                      borderRadius: "3px",
+                                      marginRight: "6px",
+                                      backgroundColor: p.jenis === "proyek" ? "#4f46e5" : "#0284c7",
+                                      color: "#fff",
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
+                                    {p.jenis}
+                                  </span>
+                                  <strong>{p.nama}</strong>
+                                  {p.topik && (
+                                    <span style={{ color: "var(--text-muted)", marginLeft: "4px" }}>
+                                      ({p.topik})
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                                  {p.jadwal && p.jadwal.length > 0 ? (
+                                    p.jadwal.map((j, jIdx) => (
+                                      <span key={jIdx} style={{ marginLeft: "4px" }}>
+                                        📅 {j.hari} {j.jam_mulai.slice(0, 5)}-{j.jam_selesai.slice(0, 5)}
+                                        {j.ruang ? ` (${j.ruang})` : ""}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span>-</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+                              Belum ada pilihan mata kuliah
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px", textAlign: "center" }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{
+                            padding: "4px 8px",
+                            fontSize: "0.75rem",
+                            color: "var(--danger)",
+                            borderColor: "var(--danger)",
+                          }}
+                          onClick={() => handleBatalDaftar(s.nim)}
+                          title={`Batalkan pendaftaran dan kembalikan kuota untuk NIM ${s.nim}`}
+                        >
+                          Batalkan
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: IMPOR EXCEL */}
       {activeTab === "import" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
           {/* Impor Mata Kuliah / Proyek Pilihan */}
