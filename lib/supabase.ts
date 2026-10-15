@@ -5,11 +5,11 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholde
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export interface RpcResponse<T = any> {
+export interface RpcResponse<T = unknown> {
   ok: boolean;
   error?: string;
   data?: T;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface OfferingSchedule {

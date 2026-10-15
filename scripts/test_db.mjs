@@ -120,8 +120,16 @@ async function runTestSuite() {
     return "RPC admin_list_pendaftar berhasil dieksekusi oleh anon!";
   });
 
+  await assertTest("Admin RPC: is_admin() ditolak / false untuk role anon", async () => {
+    const { data, error } = await supabase.rpc("is_admin");
+    if (error) return true;
+    return data === false || "is_admin() menghasilkan true untuk role anon!";
+  });
+
   await assertTest("Admin RPC: admin_reset_data_uji() ditolak untuk role anon", async () => {
-    const { data, error } = await supabase.rpc("admin_reset_data_uji");
+    const { data, error } = await supabase.rpc("admin_reset_data_uji", {
+      p_confirm_code: "RESET-DATA-UJI-SEKARANG",
+    });
     if (error) return true;
     if (data && data.ok === false) return true;
     return "RPC admin_reset_data_uji berhasil dieksekusi oleh anon!";
@@ -211,15 +219,21 @@ async function runTestSuite() {
     return allValid || "Terdapat respons konkurensi yang tidak terdefinisi";
   });
 
-  await assertTest("Konkurensi: 15 pemanggilan cek_nim() simultan dilayani paralel dengan konsisten", async () => {
-    const calls = Array.from({ length: 15 }, (_, i) =>
-      supabase.rpc("cek_nim", { p_nim: `NIM_CONCURRENT_${i}` })
+  await assertTest("Konkurensi: 5 pemanggilan daftar() simultan pada NIM yang sama menolak pendaftaran dobel", async () => {
+    const targetNim = "2110211001";
+    const calls = Array.from({ length: 5 }, (_, i) =>
+      supabase.rpc("daftar", {
+        p_nim: targetNim,
+        p_token: `PARALLEL_TOKEN_${i}`,
+        p_offering_ids: [1, 2, 3, 35],
+      })
     );
     const results = await Promise.all(calls);
-    const allConsistent = results.every(
-      (res) => res.data && res.data.ok === false && typeof res.data.error === "string"
-    );
-    return allConsistent || "Ada respons cek_nim konkurensi yang tidak konsisten";
+    const successes = results.filter((res) => res.data?.ok === true);
+    if (successes.length > 1) {
+      return `Pelanggaran atomisitas: ${successes.length} pendaftaran paralel berhasil untuk NIM yang sama!`;
+    }
+    return true;
   });
 
   // --------------------------------------------------------------------------

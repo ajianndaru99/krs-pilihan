@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 interface BuktiData {
@@ -28,50 +29,63 @@ interface BuktiData {
 }
 
 export default function BuktiPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<BuktiData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const nim = sessionStorage.getItem("nim");
-    const token = sessionStorage.getItem("token");
-
-    if (!nim || !token) {
-      setHasSession(false);
-      setLoading(false);
-      return;
-    }
+    let isMounted = true;
 
     const fetchBukti = async () => {
+      const nim = typeof window !== "undefined" ? sessionStorage.getItem("nim") : null;
+      const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+
+      if (!nim || !token) {
+        if (isMounted) {
+          setHasSession(false);
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
         const { data: resData, error } = await supabase.rpc("hasil_saya", {
           p_nim: nim,
           p_token: token,
         });
 
+        if (!isMounted) return;
+
         if (error) {
           setErrorMessage(error.message || "Gagal memuat bukti pendaftaran.");
           return;
         }
 
-        const res = resData || {};
-        if (res.ok === false) {
-          setErrorMessage(res.error || "Data pendaftaran tidak ditemukan.");
+        const res = (resData as (BuktiData & { ok?: boolean; error?: string }) | null) || null;
+        if (!res || res.ok === false) {
+          setErrorMessage(res?.error || "Data pendaftaran tidak ditemukan.");
           return;
         }
 
         setData(res);
-      } catch (err: any) {
-        setErrorMessage(err.message || "Terjadi kesalahan saat memuat data.");
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data.";
+        setErrorMessage(msg);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchBukti();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handlePrint = () => {
@@ -84,7 +98,7 @@ export default function BuktiPage() {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("nim");
       sessionStorage.removeItem("token");
-      window.location.href = "/";
+      router.push("/");
     }
   };
 

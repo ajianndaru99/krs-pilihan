@@ -6,6 +6,22 @@ Panduan teknis dan operasional untuk tim administrator dan operator program stud
 
 ## 1. Persiapan Pra-Hari H (H-3 sampai H-1)
 
+### 1.0 Pengamanan Akun Administrator & Supabase Auth (Wajib)
+Sebelum sistem dipublikasikan ke mahasiswa, pastikan langkah keamanan berikut telah dijalankan:
+1. **Matikan Sign-up Publik**:
+   - Buka Supabase Dashboard -> **Authentication** -> **Providers** -> **Email**.
+   - **NONAKTIFKAN (Uncheck)** opsi *"Enable Sign Up"*. Ini mencegah pihak luar membuat akun baru untuk mencoba mendapatkan hak admin.
+2. **Akun & Kata Sandi Administrator Kuat**:
+   - Jangan gunakan kata sandi default atau yang mudah ditebak. Buat kata sandi kuat minimal 16 karakter acak.
+   - Di Supabase Dashboard -> **Authentication** -> **Users**, undang atau buat akun dengan email resmi kampus (misal: `krs.faperta@kampus.ac.id`).
+   - Daftarkan email resmi tersebut ke tabel `admins` via SQL Editor:
+     ```sql
+     INSERT INTO public.admins (email, username) VALUES ('krs.faperta@kampus.ac.id', 'admin') ON CONFLICT DO NOTHING;
+     ```
+   - Hapus akun default `admin@admin.local` dari tabel `admins` dan Supabase Auth setelah akun resmi aktif.
+3. **Pembersihan Data Uji Coba**:
+   - Setelah simulasi selesai, gunakan tombol merah **Pembersihan Data Uji Coba** di tab *Batal & Reset Data*. Masukkan kode `RESET-DATA-UJI-SEKARANG` saat portal berstatus **TUTUP**.
+
 ### 1.1 Verifikasi Data Master
 Pastikan seluruh data awal telah masuk dan tidak ada peringatan kuning pada halaman dashboard admin (`/admin`):
 1. **Daftar Mahasiswa**: Seluruh mahasiswa aktif semester berjalan sudah diimpor. Kolom kelas terisi sesuai pembagian kelas mahasiswa.
