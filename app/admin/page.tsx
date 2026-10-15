@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [requests, setRequests] = useState<AdminPengajuanItem[]>([]);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
   // Modal Dialog Interaktif Admin
   const [adminModal, setAdminModal] = useState<AdminModalState>({
@@ -80,8 +81,8 @@ export default function AdminPage() {
   );
 
   // Muat data dashboard admin
-  const loadAdminData = useCallback(async () => {
-    setIsRefreshing(true);
+  const loadAdminData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setIsRefreshing(true);
     try {
       // 1. Status sistem
       const { data: stData } = await supabase.rpc("admin_status");
@@ -152,11 +153,13 @@ export default function AdminPage() {
       if (Array.isArray(kData)) {
         setKelasList(kData as string[]);
       }
+
+      setLastSyncTime(new Date().toLocaleTimeString("id-ID"));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal memuat data admin.";
-      setActionError(msg);
+      if (!isSilent) setActionError(msg);
     } finally {
-      setIsRefreshing(false);
+      if (!isSilent) setIsRefreshing(false);
     }
   }, []);
 
@@ -184,13 +187,25 @@ export default function AdminPage() {
     };
   }, [loadAdminData]);
 
-  // Polling data admin otomatis setiap 10 detik saat admin sedang login
+  // Polling data admin otomatis setiap 5 detik saat admin login + sinkron saat tab aktif
   useEffect(() => {
     if (sessionUser) {
       const timer = setInterval(() => {
-        void loadAdminData();
-      }, 10000);
-      return () => clearInterval(timer);
+        void loadAdminData(true);
+      }, 5000);
+
+      const handleVisibilityChange = () => {
+        if (typeof document !== "undefined" && document.visibilityState === "visible") {
+          void loadAdminData(true);
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      return () => {
+        clearInterval(timer);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
     }
   }, [sessionUser, loadAdminData]);
 
@@ -430,6 +445,7 @@ export default function AdminPage() {
         onLogout={handleLogout}
         onRefresh={loadAdminData}
         isRefreshing={isRefreshing}
+        lastSyncTime={lastSyncTime}
       />
 
 

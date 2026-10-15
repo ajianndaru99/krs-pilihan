@@ -9,6 +9,7 @@ interface AdminHeaderProps {
   onLogout: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  lastSyncTime?: string;
 }
 
 export function AdminHeader({
@@ -18,6 +19,7 @@ export function AdminHeader({
   onLogout,
   onRefresh,
   isRefreshing,
+  lastSyncTime,
 }: AdminHeaderProps) {
   return (
     <header
@@ -34,7 +36,7 @@ export function AdminHeader({
       }}
     >
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
           <h1 style={{ fontSize: "1.35rem", fontWeight: 800, margin: 0 }}>
             Dashboard Admin KRS
           </h1>
@@ -49,6 +51,19 @@ export function AdminHeader({
             }}
           >
             {portalOpen ? "● PORTAL DIBUKA" : "○ PORTAL DITUTUP"}
+          </span>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            title="Dashboard melakukan sinkronisasi otomatis ke database Supabase setiap 5 detik"
+          >
+            <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", backgroundColor: "var(--success)" }} />
+            {lastSyncTime ? `Sinkron ${lastSyncTime}` : "Menyinkronkan..."}
           </span>
         </div>
         <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>

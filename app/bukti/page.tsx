@@ -96,8 +96,8 @@ export default function BuktiPage() {
   const handleBackToHome = () => {
     if (typeof window !== "undefined") {
       sessionStorage.clear();
-      router.push("/");
     }
+    router.replace("/");
   };
 
   if (loading) {

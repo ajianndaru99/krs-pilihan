@@ -432,7 +432,9 @@ export default function StudentPage() {
           clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
         }
-        sessionStorage.clear();
+        if (typeof window !== "undefined") {
+          sessionStorage.clear();
+        }
         setPhase("login");
         setNim("");
         setToken("");
@@ -444,6 +446,7 @@ export default function StudentPage() {
         setQueueNumber(null);
         setQueuePosition(null);
         setRemainingSeconds(null);
+        router.replace("/");
       }
     );
   };
