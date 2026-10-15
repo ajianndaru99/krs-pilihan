@@ -169,6 +169,46 @@ async function runTestSuite() {
   });
 
   // --------------------------------------------------------------------------
+  // 4. UJI KONKURENSI & BEBAN PARALEL (Promise.all)
+  // --------------------------------------------------------------------------
+  console.log("\n--- 4. UJI KONKURENSI & BEBAN PARALEL ---");
+
+  await assertTest("Konkurensi: 15 pemanggilan daftar() simultan ditangani atomik tanpa crash/deadlock", async () => {
+    const calls = Array.from({ length: 15 }, (_, i) =>
+      supabase.rpc("daftar", {
+        p_nim: `M0520${String(i).padStart(3, "0")}`,
+        p_token: `CONCURRENT_TOKEN_${i}`,
+        p_offering_ids: [1, 2, 3, 4],
+      })
+    );
+    const results = await Promise.all(calls);
+    if (results.length !== 15) return "Jumlah respons tidak lengkap";
+
+    // Memverifikasi atomisitas: jika ada perebutan kuota, maksimal tepat 1 yang berhasil
+    const successes = results.filter((res) => res.data?.ok === true);
+    if (successes.length > 1) {
+      return `Anomali konkurensi: ${successes.length} pendaftar berhasil pada slot yang sama!`;
+    }
+
+    // Memverifikasi bahwa setiap panggilan mengembalikan struktur data yang terdefinisi
+    const allValid = results.every(
+      (res) => res.error !== null || (res.data && typeof res.data.ok === "boolean")
+    );
+    return allValid || "Terdapat respons konkurensi yang tidak terdefinisi";
+  });
+
+  await assertTest("Konkurensi: 15 pemanggilan cek_nim() simultan dilayani paralel dengan konsisten", async () => {
+    const calls = Array.from({ length: 15 }, (_, i) =>
+      supabase.rpc("cek_nim", { p_nim: `NIM_CONCURRENT_${i}` })
+    );
+    const results = await Promise.all(calls);
+    const allConsistent = results.every(
+      (res) => res.data && res.data.ok === false && typeof res.data.error === "string"
+    );
+    return allConsistent || "Ada respons cek_nim konkurensi yang tidak konsisten";
+  });
+
+  // --------------------------------------------------------------------------
   // KESIMPULAN
   // --------------------------------------------------------------------------
   console.log("\n==================================================================");

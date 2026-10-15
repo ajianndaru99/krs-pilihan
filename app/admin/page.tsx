@@ -219,31 +219,6 @@ export default function AdminPage() {
     }
   };
 
-  // Update Quota
-  const handleUpdateQuota = async (offeringId: number, currentQuota: number) => {
-    const input = prompt("Masukkan kuota baru:", String(currentQuota));
-    if (input === null) return;
-    const newQuota = parseInt(input, 10);
-    if (isNaN(newQuota) || newQuota < 0) {
-      alert("Masukkan angka kuota yang valid.");
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc("admin_update_kuota", {
-        p_offering_id: offeringId,
-        p_kuota: newQuota,
-      });
-      if (error) throw error;
-      if (data?.ok === false) throw new Error(data.error);
-
-      setActionSuccess("Kuota berhasil diperbarui.");
-      loadAdminData();
-    } catch (err: any) {
-      alert(err.message || "Gagal memperbarui kuota.");
-    }
-  };
-
   // Approve Access Request
   const handleApproveAccess = async (id: number) => {
     if (!confirm("Setujui pengajuan akses mahasiswa ini?")) return;
@@ -616,7 +591,7 @@ export default function AdminPage() {
       const targetId = editingOfferingId || data.id;
 
       // Jika memasukkan jadwal baru
-      if (newJadwalHari && newJadwalMulai && newJadwalSelesai && targetId && newJadwalRuang.trim() !== "") {
+      if (newJadwalHari && newJadwalMulai && newJadwalSelesai && targetId) {
         await supabase.rpc("admin_tambah_jadwal", {
           p_offering_id: targetId,
           p_hari: newJadwalHari,
@@ -904,7 +879,6 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* TAB 1: KELOLA KUOTA */}
       {/* TAB 1: KELOLA KUOTA & PILIHAN */}
       {activeTab === "kuota" && (
         <div className="card">
@@ -1006,10 +980,13 @@ export default function AdminPage() {
                           padding: "10px",
                           textAlign: "center",
                           fontWeight: 700,
-                          color: o.sisa <= 0 ? "var(--danger)" : "var(--success)",
+                          color: o.sisa <= 0 ? "var(--danger)" : o.sisa <= 5 ? "var(--warning)" : "var(--success)",
+                          backgroundColor: o.sisa <= 5 && o.sisa > 0 ? "var(--warning-light)" : undefined,
+                          borderRadius: "4px",
                         }}
+                        title={o.sisa <= 0 ? "Kuota penuh" : o.sisa <= 5 ? "Peringatan: Kuota menipis (≤ 5 kursi tersisa)" : "Kuota masih tersedia"}
                       >
-                        {o.sisa}
+                        {o.sisa <= 5 && o.sisa > 0 ? `⚠️ ${o.sisa}` : o.sisa}
                       </td>
                       <td style={{ padding: "10px", textAlign: "center" }}>
                         <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
