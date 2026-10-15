@@ -111,6 +111,111 @@ function parseJamRange(
   return { jamMulai: undefined, jamSelesai: undefined };
 }
 
+// Ekstrak mahasiswa cerdas berbasis pola (mendukung file Excel hasil konversi PDF acak)
+function extractStudentFromRow(
+  rowObj: Record<string, any>,
+  defaultKelas?: string
+): StudentImportRow | null {
+  const values = Object.values(rowObj).filter(
+    (v) => v !== null && v !== undefined && String(v).trim() !== ""
+  );
+  if (values.length === 0) return null;
+
+  let foundNim: string | null = null;
+  let foundNama: string | null = null;
+  let foundKelas: string | null = defaultKelas || null;
+
+  // 1. Cek dulu apakah ada key eksplisit (NIM, Nama, dsb)
+  for (const [k, v] of Object.entries(rowObj)) {
+    const keyLower = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const valStr = String(v).trim();
+    if (
+      !foundNim &&
+      (keyLower === "nim" ||
+        keyLower === "npm" ||
+        keyLower === "nomorinduk" ||
+        keyLower === "nomhs" ||
+        keyLower === "noinduk")
+    ) {
+      const digits = valStr.replace(/[^0-9]/g, "");
+      if (digits.length >= 7 && digits.length <= 15) {
+        foundNim = digits;
+      }
+    }
+    if (
+      !foundNama &&
+      (keyLower === "nama" ||
+        keyLower === "namamahasiswa" ||
+        keyLower === "namalengkap" ||
+        keyLower === "mahasiswa" ||
+        keyLower === "peserta")
+    ) {
+      if (valStr.length >= 3 && !/^\d+$/.test(valStr.replace(/[^0-9]/g, ""))) {
+        foundNama = valStr;
+      }
+    }
+    if (
+      !foundKelas &&
+      (keyLower === "kelas" || keyLower === "rombel" || keyLower === "grup")
+    ) {
+      foundKelas = valStr;
+    }
+  }
+
+  // 2. Jika belum ditemukan (misal convert PDF dengan header acak 'Col1', 'F2', atau tanpa header),
+  // lakukan deteksi cerdas berdasarkan pola nilai sel:
+  if (!foundNim || !foundNama) {
+    for (const val of values) {
+      const strVal = String(val).trim();
+      const cleanDigits = strVal.replace(/[^0-9]/g, "");
+
+      // Deteksi NIM: Angka berurutan 7 sampai 15 digit
+      if (!foundNim && cleanDigits.length >= 7 && cleanDigits.length <= 15 && /^\d+$/.test(strVal.replace(/[\s\.\-]/g, ""))) {
+        foundNim = cleanDigits;
+        continue;
+      }
+
+      // Deteksi Nama: Teks dengan huruf latin, panjang >= 3, bukan tanggal, bukan keyword header
+      if (
+        !foundNama &&
+        strVal.length >= 3 &&
+        !/^\d+$/.test(cleanDigits) &&
+        /[a-zA-Z]/.test(strVal)
+      ) {
+        const lower = strVal.toLowerCase();
+        const isHeaderWord =
+          lower === "nim" ||
+          lower === "nama" ||
+          lower === "npm" ||
+          lower === "kelas" ||
+          lower === "no" ||
+          lower === "nomor" ||
+          lower.includes("daftar") ||
+          lower.includes("semester") ||
+          lower.includes("halaman") ||
+          lower.includes("presensi") ||
+          lower.includes("universitas") ||
+          lower.includes("fakultas") ||
+          lower.includes("program studi");
+
+        if (!isHeaderWord) {
+          foundNama = strVal;
+        }
+      }
+    }
+  }
+
+  if (foundNim && foundNama) {
+    return {
+      nim: foundNim,
+      nama: foundNama,
+      kelas: foundKelas ? foundKelas.trim() : undefined,
+    };
+  }
+
+  return null;
+}
+
 export default function AdminPage() {
   // Auth state
   const [session, setSession] = useState<any>(null);
@@ -409,7 +514,7 @@ export default function AdminPage() {
     }
   };
 
-  // Import Students Excel
+  // 1. Impor Mahasiswa Cerdas & Fleksibel (Mendukung file Excel biasa maupun hasil convert PDF yang acak)
   const handleImportStudents = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -418,29 +523,28 @@ export default function AdminPage() {
       setLoading(true);
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array" });
-      const students: StudentImportRow[] = [];
+      const studentMap = new Map<string, StudentImportRow>();
 
-      // Iterate through sheets (supports sheet per class)
       wb.SheetNames.forEach((sheetName) => {
         const sheet = wb.Sheets[sheetName];
-        const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
         rows.forEach((r) => {
-          const rawNim = r.NIM || r.nim || r.Nim;
-          const rawNama = r.Nama || r.nama || r.NAMA || r["Nama Mahasiswa"];
-          const rawKelas = r.Kelas || r.kelas || r.KELAS || sheetName;
-
-          if (rawNim && rawNama) {
-            students.push({
-              nim: String(rawNim).trim(),
-              nama: String(rawNama).trim(),
-              kelas: rawKelas ? String(rawKelas).trim() : undefined,
-            });
+          const extracted = extractStudentFromRow(r, sheetName.includes("Sheet") ? undefined : sheetName);
+          if (extracted && extracted.nim && extracted.nama) {
+            // Deduplikasi berdasarkan NIM
+            if (!studentMap.has(extracted.nim)) {
+              studentMap.set(extracted.nim, extracted);
+            }
           }
         });
       });
 
+      const students = Array.from(studentMap.values());
+
       if (students.length === 0) {
-        alert("Tidak ditemukan data mahasiswa yang valid dalam file Excel.");
+        alert(
+          "Tidak ditemukan data mahasiswa yang valid. Sistem mendeteksi NIM (angka 7-15 digit) dan Nama secara otomatis. Pastikan file memuat kolom nomor induk dan nama mahasiswa."
+        );
         return;
       }
 
@@ -450,18 +554,18 @@ export default function AdminPage() {
       if (error) throw error;
       if (data?.ok === false) throw new Error(data.error);
 
-      setActionSuccess(`Berhasil mengimpor ${students.length} data mahasiswa.`);
+      setActionSuccess(`Berhasil mendeteksi dan mengimpor ${students.length} data mahasiswa.`);
       loadAdminData();
     } catch (err: any) {
-      alert(err.message || "Gagal memproses file Excel.");
+      alert(err.message || "Gagal memproses file Excel mahasiswa.");
     } finally {
       setLoading(false);
       e.target.value = "";
     }
   };
 
-  // Import Jadwal Kelas Excel (Mendukung format jadwal semesteran admin prodi & format Jam "07.30-08.50")
-  const handleImportJadwalKelas = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 2. Impor Master Jadwal Keseluruhan (Semesteran Fakultas: Jadwal Kelas Tetap + Matkul Pilihan)
+  const handleImportMasterSchedule = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -470,21 +574,25 @@ export default function AdminPage() {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array" });
       const schedules: JadwalKelasRow[] = [];
+      const offerings: any[] = [];
 
       wb.SheetNames.forEach((sheetName) => {
         const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
         rows.forEach((r) => {
-          const rawKelas = r.KELAS || r.Kelas || r.kelas || sheetName;
+          const rawKelas = r.KELAS || r.Kelas || r.kelas || (sheetName.includes("Sheet") ? "" : sheetName);
           const rawHari = r.HARI || r.Hari || r.hari;
           const rawJam = r.JAM || r.Jam || r.jam || r["Waktu"] || r["Jadwal"];
           const rawJamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai || r["JAM MULAI"];
           const rawJamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai || r["JAM SELESAI"];
-          const matkul = r.MATKUL || r.Matkul || r["Mata Kuliah"] || r.matkul || r["Nama Matkul"];
+          const matkul = r.MATKUL || r.Matkul || r["Mata Kuliah"] || r.matkul || r["Nama Matkul"] || r.Nama;
           const ruang = r.RUANG || r.Ruang || r.ruang;
+          const rawKuota = r.KUOTA || r.Kuota || r.kuota || r.Kapasitas;
+          const rawPilihan = r.PILIHAN || r.Pilihan || r.pilihan || r.Kategori || r.Jenis;
 
           const { jamMulai, jamSelesai } = parseJamRange(rawJam, rawJamMulai, rawJamSelesai);
           const hari = normalizeHari(rawHari);
 
+          // 1. Catat ke jadwal kelas tetap (untuk proteksi bentrok jadwal mahasiswa)
           if (rawKelas && rawHari && jamMulai && jamSelesai) {
             schedules.push({
               kelas: String(rawKelas).trim(),
@@ -495,124 +603,16 @@ export default function AdminPage() {
               ruang: ruang ? String(ruang).trim() : undefined,
             });
           }
-        });
-      });
 
-      if (schedules.length === 0) {
-        alert("Tidak ada baris jadwal kelas yang valid. Pastikan kolom Hari, Jam (atau Jam Mulai/Selesai), dan Kelas terisi.");
-        return;
-      }
+          // 2. Jika baris memiliki kuota atau ditandai sebagai pilihan, masukkan sebagai pilihan yang dibuka
+          const isMarkedPilihan =
+            Boolean(rawKuota) ||
+            String(rawPilihan).toLowerCase().includes("pilihan") ||
+            String(rawPilihan).toLowerCase() === "ya" ||
+            String(rawPilihan).toLowerCase() === "true";
 
-      const { data, error } = await supabase.rpc("admin_import_jadwal_kelas", {
-        p_jadwal: schedules,
-      });
-      if (error) throw error;
-      if (data?.ok === false) throw new Error(data.error);
-
-      setActionSuccess(`Berhasil mengimpor ${schedules.length} baris jadwal kelas.`);
-      loadAdminData();
-    } catch (err: any) {
-      alert(err.message || "Gagal mengimpor jadwal kelas.");
-    } finally {
-      setLoading(false);
-      e.target.value = "";
-    }
-  };
-
-  // Import Jadwal Pilihan Excel (Susulan)
-  const handleImportJadwalPilihan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setLoading(true);
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array" });
-      const schedules: JadwalPilihanRow[] = [];
-
-      wb.SheetNames.forEach((sheetName) => {
-        const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
-        rows.forEach((r) => {
-          const offId = r.ID || r.id || r["Offering ID"];
-          const nama = r.Nama || r.nama || r["Nama Matkul"] || r.MATKUL || sheetName;
-          const rawHari = r.Hari || r.hari || r.HARI;
-          const rawJam = r.Jam || r.jam || r.JAM;
-          const rawJamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai;
-          const rawJamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai;
-          const ruang = r.Ruang || r.ruang || r.RUANG;
-
-          const { jamMulai, jamSelesai } = parseJamRange(rawJam, rawJamMulai, rawJamSelesai);
-          const hari = normalizeHari(rawHari);
-
-          if ((offId || nama) && rawHari && jamMulai && jamSelesai) {
-            schedules.push({
-              offering_id: offId ? Number(offId) : undefined,
-              nama_pilihan: nama ? String(nama).trim() : undefined,
-              hari,
-              jam_mulai: jamMulai,
-              jam_selesai: jamSelesai,
-              ruang: ruang ? String(ruang).trim() : undefined,
-            });
-          }
-        });
-      });
-
-      if (schedules.length === 0) {
-        alert("Tidak ditemukan baris jadwal pilihan yang valid.");
-        return;
-      }
-
-      const { data, error } = await supabase.rpc("admin_import_jadwal_pilihan", {
-        p_jadwal: schedules,
-      });
-      if (error) throw error;
-      if (data?.ok === false) throw new Error(data.error);
-
-      setActionSuccess(`Berhasil mengimpor ${schedules.length} jadwal mata kuliah pilihan.`);
-      loadAdminData();
-    } catch (err: any) {
-      alert(err.message || "Gagal mengimpor jadwal pilihan.");
-    } finally {
-      setLoading(false);
-      e.target.value = "";
-    }
-  };
-
-  // 4. Import Daftar Mata Kuliah & Proyek Pilihan Excel (Format Ringkas: Nama Matkul, Kelas, Kuota, Hari, Jam, Ruang)
-  const handleImportOfferings = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setLoading(true);
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array" });
-      const items: any[] = [];
-
-      wb.SheetNames.forEach((sheetName) => {
-        const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
-        rows.forEach((r) => {
-          const rawNama =
-            r["Nama Matkul"] ||
-            r.Nama ||
-            r.nama ||
-            r["Nama Mata Kuliah"] ||
-            r["Mata Kuliah"] ||
-            r.Matkul ||
-            r.MATKUL ||
-            r.Pilihan;
-          const rawKelas = r.Kelas || r.kelas || r.KELAS;
-          const rawKuota = r.Kuota || r.kuota || r.Kapasitas || r.KUOTA || 30;
-          const rawHari = r.Hari || r.hari || r.HARI;
-          const rawJam = r.Jam || r.jam || r.JAM || r["Waktu"] || r["Jadwal"];
-          const rawJamMulai = r["Jam Mulai"] || r.jam_mulai || r.Mulai || r["JAM MULAI"];
-          const rawJamSelesai = r["Jam Selesai"] || r.jam_selesai || r.Selesai || r["JAM SELESAI"];
-          const rawRuang = r.Ruang || r.ruang || r.RUANG;
-          const rawJenis = r.Jenis || r.jenis || r.Tipe || "";
-
-          if (rawNama) {
-            let nama = String(rawNama).trim();
-            // Jika ada kolom Kelas dan belum tercantum di nama, tambahkan akhiran (Kelas X)
+          if (matkul && isMarkedPilihan) {
+            let nama = String(matkul).trim();
             if (rawKelas) {
               const kelasStr = String(rawKelas).trim();
               if (
@@ -624,47 +624,96 @@ export default function AdminPage() {
               }
             }
 
-            // Tentukan jenis: default 'matkul', jika ada kata 'proyek' jadi 'proyek'
-            const isProyek =
-              String(rawJenis).toLowerCase().includes("proyek") ||
-              nama.toLowerCase().includes("proyek");
-
-            const { jamMulai, jamSelesai } = parseJamRange(rawJam, rawJamMulai, rawJamSelesai);
-            const hari = rawHari ? normalizeHari(rawHari) : undefined;
-
-            items.push({
+            offerings.push({
               nama,
-              jenis: isProyek ? "proyek" : "matkul",
-              topik: r.Topik || r.topik || undefined,
+              jenis: nama.toLowerCase().includes("proyek") ? "proyek" : "matkul",
               kuota: Number(rawKuota) || 30,
               hari,
               jam_mulai: jamMulai,
               jam_selesai: jamSelesai,
-              ruang: rawRuang ? String(rawRuang).trim() : undefined,
+              ruang: ruang ? String(ruang).trim() : undefined,
             });
           }
         });
       });
 
-      if (items.length === 0) {
-        alert("Tidak ada baris data mata kuliah yang valid pada berkas Excel.");
+      if (schedules.length === 0) {
+        alert(
+          "Tidak ada baris jadwal yang valid. Pastikan kolom HARI, JAM (format 07.30-08.50), MATKUL, dan KELAS terisi."
+        );
         return;
       }
 
-      const { data, error } = await supabase.rpc("admin_import_offerings", {
-        p_offerings: items,
+      // Impor jadwal kelas ke database
+      const { data: schedData, error: schedErr } = await supabase.rpc("admin_import_jadwal_kelas", {
+        p_jadwal: schedules,
       });
+      if (schedErr) throw schedErr;
+      if (schedData?.ok === false) throw new Error(schedData.error);
 
-      if (error) throw error;
-      if (data?.ok === false) throw new Error(data.error);
+      // Jika ada offerings terdeteksi dari kuota/penanda pilihan
+      let offeringMsg = "";
+      if (offerings.length > 0) {
+        const { data: offData, error: offErr } = await supabase.rpc("admin_import_offerings", {
+          p_offerings: offerings,
+        });
+        if (!offErr && offData?.ok) {
+          offeringMsg = ` serta mendaftarkan ${offData.imported_count || offerings.length} mata kuliah pilihan`;
+        }
+      }
 
-      setActionSuccess(`Berhasil mengimpor ${data.imported_count || items.length} mata kuliah / proyek pilihan.`);
+      setActionSuccess(
+        `Berhasil mengimpor ${schedules.length} baris master jadwal perkuliahan${offeringMsg}.`
+      );
       loadAdminData();
     } catch (err: any) {
-      alert(err.message || "Gagal mengimpor daftar mata kuliah.");
+      alert(err.message || "Gagal mengimpor master jadwal.");
     } finally {
       setLoading(false);
       e.target.value = "";
+    }
+  };
+
+  // 3. Bersihkan Seluruh Data Uji Coba Sebelum Hari-H
+  const handleResetDataUji = async () => {
+    const confirm1 = confirm(
+      "PERINGATAN: Apakah Anda yakin ingin membersihkan seluruh data uji coba?\n\n" +
+        "Tindakan ini akan:\n" +
+        "1. Menghapus seluruh pendaftaran KRS uji coba\n" +
+        "2. Menghapus seluruh antrian dan token sesi\n" +
+        "3. Menghapus riwayat pengajuan akses uji coba\n" +
+        "4. Menghapus mahasiswa dummy uji coba\n" +
+        "5. Mengunci kembali portal pemilihan ke status TUTUP."
+    );
+    if (!confirm1) return;
+
+    const confirm2 = confirm(
+      "Konfirmasi Terakhir: Pastikan mahasiswa sungguhan belum mulai mendaftar. Lanjutkan reset bersih data uji coba?"
+    );
+    if (!confirm2) return;
+
+    setLoading(true);
+    setActionError(null);
+    try {
+      const { data, error } = await supabase.rpc("admin_reset_data_uji");
+      if (error) {
+        alert(
+          "Gagal mereset: " +
+            error.message +
+            "\n\nPastikan script patch9_reset_data_uji.sql sudah dieksekusi di Supabase SQL Editor."
+        );
+      } else if (data?.ok) {
+        setActionSuccess(
+          `Data uji coba berhasil dibersihkan! (${data.pendaftaran_dihapus || 0} pendaftaran, ${
+            data.antrian_dihapus || 0
+          } antrian, ${data.mahasiswa_dummy_dihapus || 0} mahasiswa dummy dibersihkan).`
+        );
+        loadAdminData();
+      }
+    } catch (err: any) {
+      alert(err.message || "Terjadi kesalahan saat mereset data uji.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -682,8 +731,8 @@ export default function AdminPage() {
     XLSX.writeFile(wb, "template_data_mahasiswa.xlsx");
   };
 
-  // Unduh Template Excel untuk Jadwal Kelas Tetap (Format resmi seperti jadwal semesteran)
-  const handleDownloadJadwalKelasTemplate = () => {
+  // Unduh Template Excel untuk Master Jadwal Keseluruhan (Format Resmi Semesteran Fakultas)
+  const handleDownloadMasterScheduleTemplate = () => {
     const sampleData = [
       {
         HARI: "SENIN",
@@ -694,6 +743,7 @@ export default function AdminPage() {
         "DOSEN SETELAH SISIPAN": "Jajang Agus Sonjaya, S.S., M.Hum.",
         KELAS: "SPKS G",
         RUANG: "D501",
+        KUOTA: "",
       },
       {
         HARI: "SENIN",
@@ -704,6 +754,7 @@ export default function AdminPage() {
         "DOSEN SETELAH SISIPAN": "E. Nanik Kristalisasi. SP. MP",
         KELAS: "SPKS P",
         RUANG: "D505",
+        KUOTA: "",
       },
       {
         HARI: "SENIN",
@@ -714,6 +765,7 @@ export default function AdminPage() {
         "DOSEN SETELAH SISIPAN": "Ir. Ety Rosa Setyawati, M.Sc",
         KELAS: "SPKS I",
         RUANG: "D502",
+        KUOTA: "",
       },
       {
         HARI: "SENIN",
@@ -724,73 +776,35 @@ export default function AdminPage() {
         "DOSEN SETELAH SISIPAN": "Dr. Tantri Swandari, S.Si, M.Sc.",
         KELAS: "ANTAN A",
         RUANG: "D108",
+        KUOTA: "",
       },
       {
-        HARI: "SELASA",
-        JAM: "09.00-10.40",
-        MATKUL: "Ekonomi Matematika",
+        HARI: "RABU",
+        JAM: "10.00-11.40",
+        MATKUL: "Bioteknologi Pertanian",
         SKS: 2,
-        "DOSEN SEBELUM SISIPAN": "Danik Nurjanah, S.P., M.Sc",
-        "DOSEN SETELAH SISIPAN": "Hernowo, SP., MP.",
-        KELAS: "SEA",
-        RUANG: "D506",
+        "DOSEN SEBELUM SISIPAN": "Prof. Dr. Ir. Sudarmono",
+        "DOSEN SETELAH SISIPAN": "Prof. Dr. Ir. Sudarmono",
+        KELAS: "A",
+        RUANG: "D301",
+        KUOTA: 30,
+      },
+      {
+        HARI: "KAMIS",
+        JAM: "13.00-14.40",
+        MATKUL: "Smart Farming & IoT",
+        SKS: 2,
+        "DOSEN SEBELUM SISIPAN": "Dr. Ir. Budi Hartono",
+        "DOSEN SETELAH SISIPAN": "Dr. Ir. Budi Hartono",
+        KELAS: "A",
+        RUANG: "Lab Komputer",
+        KUOTA: 30,
       },
     ];
     const ws = XLSX.utils.json_to_sheet(sampleData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Jadwal Kelas");
-    XLSX.writeFile(wb, "template_jadwal_kelas_tetap.xlsx");
-  };
-
-  // Unduh Contoh Template Excel untuk Mata Kuliah Pilihan (Format Baru: Nama Matkul, Kelas, Kuota, Hari, Jam, Ruang)
-  const handleDownloadOfferingTemplate = () => {
-    const sampleData = [
-      {
-        "Nama Matkul": "Bioteknologi Pertanian",
-        Kelas: "A",
-        Kuota: 30,
-        Hari: "Senin",
-        Jam: "07.30-08.50",
-        Ruang: "D501",
-      },
-      {
-        "Nama Matkul": "Bioteknologi Pertanian",
-        Kelas: "B",
-        Kuota: 30,
-        Hari: "Selasa",
-        Jam: "09.00-10.40",
-        Ruang: "D502",
-      },
-      {
-        "Nama Matkul": "Smart Farming & IoT",
-        Kelas: "A",
-        Kuota: 30,
-        Hari: "Rabu",
-        Jam: "10.00-11.40",
-        Ruang: "Lab Komputer",
-      },
-      {
-        "Nama Matkul": "Smart Farming & IoT",
-        Kelas: "B",
-        Kuota: 30,
-        Hari: "Kamis",
-        Jam: "13.00-14.40",
-        Ruang: "Lab Komputer",
-      },
-      {
-        "Nama Matkul": "Proyek Inovasi Sawit Berkelanjutan",
-        Kelas: "A",
-        Kuota: 20,
-        Hari: "Jumat",
-        Jam: "08.00-10.30",
-        Ruang: "Workshop",
-      },
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(sampleData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Mata Kuliah Pilihan");
-    XLSX.writeFile(wb, "template_matkul_pilihan.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Jadwal Semester");
+    XLSX.writeFile(wb, "template_master_jadwal_keseluruhan.xlsx");
   };
 
   // Buka Modal Tambah Pilihan Baru
@@ -1507,33 +1521,33 @@ export default function AdminPage() {
 
       {/* TAB 3: IMPOR EXCEL */}
       {activeTab === "import" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
-          {/* 1. Impor Mata Kuliah / Proyek Pilihan */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.5rem" }}>
+          {/* 1. Impor Master Jadwal Keseluruhan */}
           <div className="card" style={{ border: "2px solid #3b82f6" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
-              <h3 className="card-title" style={{ margin: 0, color: "var(--primary)" }}>1. Impor Mata Kuliah Pilihan</h3>
+              <h3 className="card-title" style={{ margin: 0, color: "var(--primary)" }}>1. Impor Master Jadwal Keseluruhan</h3>
               <button
                 type="button"
                 className="btn btn-secondary"
                 style={{ fontSize: "0.75rem", padding: "4px 10px" }}
-                onClick={handleDownloadOfferingTemplate}
+                onClick={handleDownloadMasterScheduleTemplate}
               >
-                📥 Unduh Template Matkul
+                📥 Unduh Template Jadwal
               </button>
             </div>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>Nama Matkul</strong>, <strong>Kelas</strong> (A, B, C, D), <strong>Kuota</strong> (kursi per kelas), <strong>Hari</strong>, <strong>Jam</strong> (format <code>07.30-08.50</code> atau terpisah jam mulai/selesai), dan <strong>Ruang</strong>. Tidak memerlukan kolom Jenis dan Topik.
+              Format Excel: 1 berkas jadwal lengkap fakultas (kolom <strong>HARI</strong>, <strong>JAM</strong> format <code>07.30-08.50</code>, <strong>MATKUL</strong>, <strong>KELAS</strong>, <strong>RUANG</strong>, serta opsional <strong>KUOTA</strong>). Sistem otomatis mencatat jadwal kelas tetap untuk mencegah bentrok dan sekaligus mendaftarkan mata kuliah pilihan jika kuota diisi.
             </p>
             <input
               type="file"
               accept=".xlsx, .xls"
               className="form-input"
-              onChange={handleImportOfferings}
+              onChange={handleImportMasterSchedule}
               disabled={loading}
             />
           </div>
 
-          {/* 2. Impor Mahasiswa */}
+          {/* 2. Impor Data Mahasiswa (Fleksibel PDF/Excel) */}
           <div className="card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
               <h3 className="card-title" style={{ margin: 0 }}>2. Impor Data Mahasiswa</h3>
@@ -1547,54 +1561,13 @@ export default function AdminPage() {
               </button>
             </div>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>NIM</strong>, <strong>Nama</strong>, dan opsional <strong>Kelas</strong> (misal <code>SPKS G</code>, atau sheet per kelas).
+              Format Excel: Cerdas mendeteksi <strong>NIM (angka 7–15 digit)</strong> dan <strong>Nama</strong> mahasiswa secara otomatis, baik dari file Excel rapi maupun hasil konversi PDF dengan tata letak baris dan kolom yang acak.
             </p>
             <input
               type="file"
               accept=".xlsx, .xls"
               className="form-input"
               onChange={handleImportStudents}
-              disabled={loading}
-            />
-          </div>
-
-          {/* 3. Impor Jadwal Kelas Tetap */}
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
-              <h3 className="card-title" style={{ margin: 0 }}>3. Impor Jadwal Kelas Tetap (Wajib)</h3>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ fontSize: "0.75rem", padding: "4px 10px" }}
-                onClick={handleDownloadJadwalKelasTemplate}
-              >
-                📥 Unduh Template Jadwal
-              </button>
-            </div>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Mendukung 100% format berkas jadwal resmi prodi (kolom <strong>HARI</strong>, <strong>JAM</strong> <code>07.30-08.50</code>, <strong>MATKUL</strong>, <strong>KELAS</strong>, <strong>RUANG</strong>). Kolom tambahan (SKS, Dosen) diabaikan otomatis.
-            </p>
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              className="form-input"
-              onChange={handleImportJadwalKelas}
-              disabled={loading}
-            />
-          </div>
-
-          {/* 4. Impor Jadwal Pilihan */}
-          <div className="card">
-            <h3 className="card-title">4. Impor Jadwal Pilihan (Susulan)</h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Format Excel: Kolom <strong>Nama Matkul</strong> (atau ID), <strong>Hari</strong>,{" "}
-              <strong>Jam</strong> (format <code>07.30-08.50</code> atau Jam Mulai/Selesai), dan <strong>Ruang</strong>.
-            </p>
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              className="form-input"
-              onChange={handleImportJadwalPilihan}
               disabled={loading}
             />
           </div>
@@ -1691,6 +1664,38 @@ export default function AdminPage() {
           >
             Batalkan Pendaftaran NIM Ini
           </button>
+
+          {/* Pembersihan Data Uji Coba Sebelum Hari-H */}
+          <div
+            style={{
+              marginTop: "2rem",
+              paddingTop: "1.5rem",
+              borderTop: "2px dashed #fca5a5",
+            }}
+          >
+            <h4 style={{ color: "var(--danger)", fontWeight: 700, margin: "0 0 0.5rem 0" }}>
+              🧹 Bersihkan Seluruh Data Uji Coba (Sebelum Hari-H)
+            </h4>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+              Setelah selesai melakukan simulasi uji coba, gunakan tombol ini untuk mengembalikan database ke kondisi bersih sebelum mahasiswa sungguhan masuk:
+            </p>
+            <ul style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem", paddingLeft: "1.25rem" }}>
+              <li>Menghapus seluruh pendaftaran KRS uji coba</li>
+              <li>Menghapus seluruh antrian dan token sesi uji coba</li>
+              <li>Menghapus seluruh pengajuan akses uji coba</li>
+              <li>Menghapus data mahasiswa dummy (NIM 2110211001 s/d 2110211020)</li>
+              <li>Mengunci kembali status portal menjadi TUTUP</li>
+            </ul>
+            <button
+              type="button"
+              className="btn btn-danger btn-block"
+              onClick={handleResetDataUji}
+              disabled={loading}
+              style={{ fontWeight: 700 }}
+            >
+              🧹 Bersihkan Seluruh Data Uji Coba Sekarang
+            </button>
+          </div>
         </div>
       )}
 
