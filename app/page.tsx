@@ -375,12 +375,16 @@ export default function StudentPage() {
     setShowAjukanModal(true);
     setAjukanNim(nim);
     try {
-      const { data } = await supabase.rpc("daftar_kelas");
+      const { data, error } = await supabase.rpc("daftar_kelas");
+      if (error) {
+        setErrorMessage("Gagal memuat daftar kelas: " + error.message);
+        return;
+      }
       if (data && Array.isArray(data)) {
         setKelasList(data);
       }
-    } catch {
-      // fallback
+    } catch (err: any) {
+      setErrorMessage(err?.message || "Gagal memuat daftar kelas.");
     }
   };
 

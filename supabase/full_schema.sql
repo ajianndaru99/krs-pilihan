@@ -465,6 +465,7 @@ BEGIN
         LEFT JOIN public.registrations r ON r.offering_id = o.id
         WHERE o.id = ANY(p_offering_ids)
         GROUP BY o.id
+        ORDER BY o.id ASC
         FOR UPDATE OF o
     LOOP
         IF v_off.jenis = 'matkul' THEN

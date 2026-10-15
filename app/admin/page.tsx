@@ -106,7 +106,9 @@ export default function AdminPage() {
     try {
       // 1. Get Portal Status & Stats
       const { data: statusData, error: statusErr } = await supabase.rpc("admin_status");
-      if (!statusErr && statusData) {
+      if (statusErr) {
+        setActionError("Gagal memuat status portal: " + statusErr.message);
+      } else if (statusData) {
         setPortalOpen(!!statusData.portal_open);
         setStats({
           totalStudents: statusData.total_students || 0,
@@ -116,14 +118,18 @@ export default function AdminPage() {
       }
 
       // 2. Get Offerings
-      const { data: offData } = await supabase.rpc("admin_list_offerings");
-      if (offData && Array.isArray(offData)) {
+      const { data: offData, error: offErr } = await supabase.rpc("admin_list_offerings");
+      if (offErr) {
+        setActionError("Gagal memuat daftar matkul: " + offErr.message);
+      } else if (offData && Array.isArray(offData)) {
         setOfferings(offData);
       }
 
       // 3. Get Access Requests
-      const { data: reqData } = await supabase.rpc("admin_list_pengajuan");
-      if (reqData && Array.isArray(reqData)) {
+      const { data: reqData, error: reqErr } = await supabase.rpc("admin_list_pengajuan");
+      if (reqErr) {
+        setActionError("Gagal memuat pengajuan akses: " + reqErr.message);
+      } else if (reqData && Array.isArray(reqData)) {
         setAccessRequests(reqData);
       }
 
@@ -592,13 +598,15 @@ export default function AdminPage() {
 
       // Jika memasukkan jadwal baru
       if (newJadwalHari && newJadwalMulai && newJadwalSelesai && targetId) {
-        await supabase.rpc("admin_tambah_jadwal", {
+        const { data: schedData, error: schedErr } = await supabase.rpc("admin_tambah_jadwal", {
           p_offering_id: targetId,
           p_hari: newJadwalHari,
           p_jam_mulai: newJadwalMulai,
           p_jam_selesai: newJadwalSelesai,
           p_ruang: newJadwalRuang.trim() || null,
         });
+        if (schedErr) throw schedErr;
+        if (schedData?.ok === false) throw new Error(schedData.error);
       }
 
       setShowOfferingModal(false);
