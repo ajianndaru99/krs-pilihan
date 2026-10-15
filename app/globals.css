@@ -306,6 +306,42 @@ body {
   background-color: var(--bg-subtle);
 }
 
+/* Responsive Mobile Optimization (HP Viewport) */
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem 0.75rem;
+  }
+  .header-banner {
+    padding: 1.5rem 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1.25rem;
+  }
+  .header-banner h1 {
+    font-size: 1.35rem;
+  }
+  .header-banner p {
+    font-size: 0.85rem;
+  }
+  .card {
+    padding: 1.25rem 1rem;
+    border-radius: var(--radius-md);
+  }
+  .queue-box {
+    padding: 1.75rem 1rem;
+  }
+  .queue-number {
+    font-size: 3rem;
+  }
+  .btn {
+    padding: 0.65rem 1.15rem;
+    font-size: 0.9rem;
+  }
+  table th, table td {
+    padding: 8px 6px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
 /* Print Styling for A4 Bukti */
 @media print {
   body {
