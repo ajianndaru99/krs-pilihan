@@ -47,13 +47,12 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', format('Jumlah pilihan harus tepat %s matkul dan %s proyek.', v_settings.need_matkul, v_settings.need_proyek));
     END IF;
 
-    -- Urutkan kunci berdasarkan o.id ASC guna menjamin determinisme lock dan anti-deadlock
+    -- Urutkan kunci berdasarkan o.id ASC guna menjamin determinisme lock dan anti-deadlock (tanpa GROUP BY)
     FOR v_off IN
-        SELECT o.*, COALESCE(count(r.id), 0) AS terisi
+        SELECT o.*, 
+               COALESCE((SELECT count(*) FROM public.registrations r WHERE r.offering_id = o.id), 0)::INT AS terisi
         FROM public.offerings o
-        LEFT JOIN public.registrations r ON r.offering_id = o.id
         WHERE o.id = ANY(p_offering_ids)
-        GROUP BY o.id
         ORDER BY o.id ASC
         FOR UPDATE OF o
     LOOP

@@ -460,11 +460,10 @@ BEGIN
     END IF;
 
     FOR v_off IN
-        SELECT o.*, COALESCE(count(r.id), 0) AS terisi
+        SELECT o.*, 
+               COALESCE((SELECT count(*) FROM public.registrations r WHERE r.offering_id = o.id), 0)::INT AS terisi
         FROM public.offerings o
-        LEFT JOIN public.registrations r ON r.offering_id = o.id
         WHERE o.id = ANY(p_offering_ids)
-        GROUP BY o.id
         ORDER BY o.id ASC
         FOR UPDATE OF o
     LOOP
