@@ -49,59 +49,64 @@ export function OfferingSelector({
     <div>
       {/* Floating Sticky Top Bar (Aman & Responsif di HP & Desktop) */}
       <div
+        className="card"
         style={{
           position: "sticky",
           top: "0.5rem",
           zIndex: 100,
-          backgroundColor: "#ffffff",
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          backdropFilter: "blur(8px)",
           borderRadius: "var(--radius-lg)",
-          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--border-color)",
-          padding: "0.75rem 1.25rem",
-          marginBottom: "1.5rem",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)",
+          border: "1.5px solid var(--primary-border)",
+          padding: "0.85rem 1.4rem",
+          marginBottom: "1.75rem",
           display: "flex",
           flexWrap: "wrap",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: "0.75rem",
+          gap: "1rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Sisa Waktu Sesi
             </div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 800, color: timerColor, fontFamily: "var(--font-mono)" }}>
-              ⏱️ {formatTimer(remainingSeconds)}
+            <div style={{ fontSize: "1.35rem", fontWeight: 800, color: timerColor, fontFamily: "var(--font-mono)" }}>
+              {formatTimer(remainingSeconds)}
             </div>
           </div>
 
           <div style={{ height: 32, width: 1, backgroundColor: "var(--border-color)" }} />
 
           <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Status Pilihan
             </div>
-            <div style={{ fontSize: "0.9rem", fontWeight: 700 }}>
+            <div style={{ fontSize: "0.925rem", fontWeight: 700 }}>
               Matkul: <span style={{ color: matkulSelected === needMatkul ? "var(--success)" : "var(--primary)" }}>{matkulSelected}/{needMatkul}</span> | Proyek: <span style={{ color: proyekSelected === needProyek ? "var(--success)" : "var(--primary)" }}>{proyekSelected}/{needProyek}</span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
           {onRefreshQuota && (
             <button
               type="button"
               className="btn btn-secondary"
               onClick={onRefreshQuota}
               disabled={isRefreshingQuota}
-              style={{ fontSize: "0.85rem", padding: "0.5rem 0.75rem" }}
+              style={{ fontSize: "0.85rem", padding: "0.6rem 0.9rem" }}
               title="Perbarui data kuota terkini"
             >
               {isRefreshingQuota ? (
-                <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
+                <>
+                  <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
+                  <span>Memperbarui...</span>
+                </>
               ) : (
-                "Refresh Kuota"
+                <span>Refresh Kuota</span>
               )}
             </button>
           )}
@@ -110,7 +115,7 @@ export function OfferingSelector({
             type="button"
             className="btn btn-secondary"
             onClick={onLogout}
-            style={{ fontSize: "0.85rem", padding: "0.5rem 0.85rem" }}
+            style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}
           >
             Keluar
           </button>
@@ -119,7 +124,7 @@ export function OfferingSelector({
             className="btn btn-primary"
             onClick={onSubmitSelection}
             disabled={!isCompositionValid || isSubmitting}
-            style={{ fontSize: "0.9rem", padding: "0.5rem 1.25rem" }}
+            style={{ fontSize: "0.9rem", padding: "0.6rem 1.4rem" }}
           >
             {isSubmitting ? "Menyimpan..." : "Simpan Pilihan Final"}
           </button>
@@ -127,7 +132,7 @@ export function OfferingSelector({
       </div>
 
       {/* Grid Kartu Mata Kuliah */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.25rem" }}>
         {offerings.map((item) => {
           const isSelected = selectedIds.includes(item.id);
           const isFull = item.sisa <= 0;
@@ -141,32 +146,34 @@ export function OfferingSelector({
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                padding: "1.25rem",
-                borderRadius: "var(--radius-md)",
+                padding: "1.35rem",
+                borderRadius: "var(--radius-lg)",
                 border: isSelected
                   ? "2px solid var(--primary)"
                   : hasClashWithClass
-                  ? "1px solid #fecaca"
-                  : "1px solid var(--border-color)",
+                  ? "1.5px solid #fecaca"
+                  : "1px solid var(--border-subtle)",
                 backgroundColor: isSelected
                   ? "var(--primary-light)"
                   : hasClashWithClass
                   ? "#fff5f5"
                   : "#ffffff",
-                transition: "all 0.15s ease",
+                transition: "all 0.18s ease",
+                marginBottom: 0,
               }}
             >
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.65rem" }}>
                   <span
                     style={{
                       fontSize: "0.75rem",
                       fontWeight: 700,
                       textTransform: "uppercase",
-                      padding: "2px 8px",
+                      padding: "3px 10px",
                       borderRadius: "var(--radius-full)",
-                      backgroundColor: item.jenis === "matkul" ? "#e0f2fe" : "#fef3c7",
-                      color: item.jenis === "matkul" ? "#0369a1" : "#b45309",
+                      backgroundColor: item.jenis === "matkul" ? "#f0f7ff" : "#fffbeb",
+                      color: item.jenis === "matkul" ? "#1e40af" : "#b45309",
+                      border: `1px solid ${item.jenis === "matkul" ? "#dbeafe" : "#fef3c7"}`,
                     }}
                   >
                     {item.jenis === "matkul" ? "Mata Kuliah" : "Proyek Terapan"}
@@ -176,17 +183,18 @@ export function OfferingSelector({
                     style={{
                       fontSize: "0.75rem",
                       fontWeight: 700,
-                      padding: "2px 8px",
+                      padding: "3px 10px",
                       borderRadius: "var(--radius-full)",
                       backgroundColor: isFull ? "var(--danger-light)" : "var(--success-light)",
                       color: isFull ? "var(--danger)" : "var(--success)",
+                      border: `1px solid ${isFull ? "var(--danger-border)" : "var(--success-border)"}`,
                     }}
                   >
                     Sisa Kuota: {item.sisa}/{item.kuota}
                   </span>
                 </div>
 
-                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-body)", marginBottom: "0.25rem" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "0.35rem" }}>
                   {item.nama}
                 </h3>
                 {item.topik && (
@@ -198,19 +206,20 @@ export function OfferingSelector({
                 {/* Info Jadwal */}
                 <div
                   style={{
-                    backgroundColor: isSelected ? "rgba(255,255,255,0.7)" : "var(--bg-subtle)",
-                    padding: "0.6rem 0.75rem",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "0.8rem",
+                    backgroundColor: isSelected ? "rgba(255,255,255,0.85)" : "var(--bg-subtle)",
+                    padding: "0.75rem 0.85rem",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "0.825rem",
                     marginBottom: "1rem",
+                    border: "1px solid var(--border-color)",
                   }}
                 >
-                  <div style={{ fontWeight: 600, color: "var(--text-muted)", marginBottom: "0.25rem" }}>
-                    Jadwal Pertemuan:
+                  <div style={{ fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.35rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    Jadwal Pertemuan
                   </div>
                   {item.jadwal && item.jadwal.length > 0 ? (
                     item.jadwal.map((j, idx) => (
-                      <div key={idx} style={{ color: "var(--text-body)" }}>
+                      <div key={idx} style={{ color: "var(--text-body)", lineHeight: 1.5 }}>
                         • {j.hari}, {j.jam_mulai} - {j.jam_selesai} {j.ruang ? `(${j.ruang})` : ""}
                       </div>
                     ))
@@ -223,11 +232,13 @@ export function OfferingSelector({
                   <div
                     style={{
                       fontSize: "0.75rem",
+                      fontWeight: 600,
                       color: "var(--danger)",
                       backgroundColor: "#fee2e2",
-                      padding: "4px 8px",
+                      border: "1px solid #fecaca",
+                      padding: "6px 10px",
                       borderRadius: "var(--radius-sm)",
-                      marginBottom: "0.75rem",
+                      marginBottom: "0.85rem",
                     }}
                   >
                     Bentrok dengan jadwal kelas tetap Anda
@@ -241,7 +252,7 @@ export function OfferingSelector({
                   onClick={() => onToggleOffering(item)}
                   disabled={isFull && !isSelected}
                   className={isSelected ? "btn btn-primary" : "btn btn-secondary"}
-                  style={{ width: "100%", justifyContent: "center" }}
+                  style={{ width: "100%", justifyContent: "center", padding: "0.75rem" }}
                 >
                   {isSelected ? "Terpilih" : isFull ? "Kuota Penuh" : "Pilih"}
                 </button>

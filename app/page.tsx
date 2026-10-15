@@ -454,45 +454,47 @@ export default function StudentPage() {
 
   return (
     <div className="container" style={{ maxWidth: 1080 }}>
-      <header
-        className="header-banner"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1.25rem",
-          marginBottom: "2rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <Image
-          src="/logo-instiper.png"
-          alt="Logo INSTIPER"
-          width={68}
-          height={68}
-          priority
-          style={{ objectFit: "contain", flexShrink: 0 }}
-        />
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <div
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              color: "var(--primary)",
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-              marginBottom: "0.2rem",
-            }}
-          >
-            Institut Pertanian STIPER Yogyakarta • Fakultas Pertanian
+      {phase !== "login" && (
+        <header
+          className="header-banner"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "1.25rem",
+            marginBottom: "2rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <Image
+            src="/logo-instiper.png"
+            alt="Logo INSTIPER"
+            width={64}
+            height={64}
+            priority
+            style={{ objectFit: "contain", flexShrink: 0 }}
+          />
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <div
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                color: "var(--primary)",
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                marginBottom: "0.2rem",
+              }}
+            >
+              Institut Pertanian STIPER Yogyakarta • Fakultas Pertanian
+            </div>
+            <h1 style={{ fontSize: "1.45rem", fontWeight: 800, color: "var(--text-main)", margin: 0, letterSpacing: "-0.02em" }}>
+              Sistem Pemilihan Mata Kuliah Pilihan
+            </h1>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem", margin: 0 }}>
+              Portal Resmi Pendaftaran Mata Kuliah & Proyek Pilihan Semester Berjalan
+            </p>
           </div>
-          <h1 style={{ fontSize: "1.45rem", fontWeight: 800, color: "var(--text-main)", margin: 0, letterSpacing: "-0.02em" }}>
-            Sistem Pemilihan Mata Kuliah Pilihan
-          </h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem", margin: 0 }}>
-            Portal Resmi Pendaftaran Mata Kuliah & Proyek Pilihan Semester Berjalan
-          </p>
-        </div>
-      </header>
+        </header>
+      )}
 
       {phase === "login" && (
         <CheckNimCard

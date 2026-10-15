@@ -22,143 +22,194 @@ export function AdminHeader({
   isRefreshing,
   lastSyncTime,
 }: AdminHeaderProps) {
+  // Format tanggal Indonesia formal (Reference Gambar 3)
+  const todayFormatted = new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
   return (
-    <header
-      className="card"
-      style={{
-        marginBottom: "1.5rem",
-        padding: "1.25rem 1.5rem",
-        display: "flex",
-        flexWrap: "wrap",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "1rem",
-        backgroundColor: "#ffffff",
-        borderTop: "4px solid var(--primary)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-        <Image
-          src="/logo-instiper.png"
-          alt="Logo INSTIPER"
-          width={52}
-          height={52}
-          priority
-          style={{ objectFit: "contain", flexShrink: 0 }}
-        />
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-            <h1 style={{ fontSize: "1.3rem", fontWeight: 800, margin: 0 }}>
-              Dashboard Admin KRS
-            </h1>
-          <span
+    <div style={{ marginBottom: "1.75rem" }}>
+      {/* Topbar Header (Reference Gambar 3) */}
+      <header
+        className="card"
+        style={{
+          marginBottom: "1.25rem",
+          padding: "1.25rem 1.75rem",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "1.25rem",
+          borderRadius: "var(--radius-xl)",
+          backgroundColor: "#ffffff",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <Image
+            src="/logo-instiper.png"
+            alt="Logo INSTIPER"
+            width={52}
+            height={52}
+            priority
+            style={{ objectFit: "contain", flexShrink: 0 }}
+          />
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+              <h1 style={{ fontSize: "1.35rem", fontWeight: 800, margin: 0, color: "var(--text-main)", letterSpacing: "-0.02em" }}>
+                Panel Kontrol Administrator
+              </h1>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  padding: "3px 10px",
+                  borderRadius: "var(--radius-full)",
+                  backgroundColor: portalOpen ? "var(--success-light)" : "var(--danger-light)",
+                  color: portalOpen ? "var(--success)" : "var(--danger)",
+                  border: `1px solid ${portalOpen ? "var(--success-border)" : "var(--danger-border)"}`,
+                }}
+              >
+                {portalOpen ? "● PORTAL DIBUKA" : "○ PORTAL DITUTUP"}
+              </span>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  padding: "3px 10px",
+                  borderRadius: "var(--radius-full)",
+                  backgroundColor: "#f0fdf4",
+                  color: "var(--primary)",
+                  border: "1px solid #bbf7d0",
+                }}
+              >
+                T.A. 2026/2027
+              </span>
+            </div>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem", margin: 0 }}>
+              Fakultas Pertanian INSTIPER Yogyakarta • Sistem KRS Pilihan
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div
             style={{
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              padding: "3px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.45rem 0.85rem",
               borderRadius: "var(--radius-full)",
-              backgroundColor: portalOpen ? "var(--success-light)" : "var(--danger-light)",
-              color: portalOpen ? "var(--success)" : "var(--danger)",
+              backgroundColor: "var(--bg-subtle)",
+              fontSize: "0.8rem",
+              color: "var(--text-body)",
+              fontWeight: 600,
             }}
           >
-            {portalOpen ? "● PORTAL DIBUKA" : "○ PORTAL DITUTUP"}
-          </span>
-          <span
+            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "var(--success)", display: "inline-block" }} />
+            <span>{todayFormatted}</span>
+          </div>
+
+          <div
             style={{
               fontSize: "0.75rem",
               color: "var(--text-muted)",
               display: "flex",
               alignItems: "center",
               gap: "4px",
+              padding: "0.45rem 0.75rem",
+              borderRadius: "var(--radius-full)",
+              backgroundColor: "var(--bg-subtle)",
             }}
             title="Dashboard melakukan sinkronisasi otomatis ke database Supabase setiap 5 detik"
           >
-            <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", backgroundColor: "var(--success)" }} />
-            {lastSyncTime ? `Sinkron ${lastSyncTime}` : "Menyinkronkan..."}
-          </span>
-        </div>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-          Institut Pertanian STIPER — Fakultas Pertanian
-        </p>
-      </div>
-      </div>
+            <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--success)" }} />
+            {lastSyncTime ? `Live ${lastSyncTime}` : "Sinkron..."}
+          </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        {onRefresh && (
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="btn btn-secondary"
+              style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}
+              disabled={isRefreshing}
+              title="Perbarui data kuota & antrian sekarang"
+            >
+              {isRefreshing ? (
+                <>
+                  <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
+                  <span>Memperbarui...</span>
+                </>
+              ) : (
+                <span>Refresh Data</span>
+              )}
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={onRefresh}
-            className="btn btn-secondary"
-            style={{ fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem" }}
-            disabled={isRefreshing}
-            title="Perbarui data kuota & antrian sekarang"
+            onClick={onTogglePortal}
+            className={portalOpen ? "btn btn-danger" : "btn btn-primary"}
+            style={{ fontSize: "0.85rem", padding: "0.6rem 1.15rem" }}
           >
-            {isRefreshing ? (
-              <>
-                <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
-                <span>Memperbarui...</span>
-              </>
-            ) : (
-              <span>Refresh Data</span>
-            )}
+            {portalOpen ? "Tutup Portal" : "Buka Portal"}
           </button>
-        )}
 
-        <button
-          type="button"
-          onClick={onTogglePortal}
-          className={portalOpen ? "btn btn-danger" : "btn btn-primary"}
-          style={{ fontSize: "0.85rem" }}
-        >
-          {portalOpen ? "Tutup Portal Pemilihan" : "Buka Portal Pemilihan"}
-        </button>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="btn btn-secondary"
+            style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}
+          >
+            Keluar
+          </button>
+        </div>
+      </header>
 
-        <button
-          type="button"
-          onClick={onLogout}
-          className="btn btn-secondary"
-          style={{ fontSize: "0.85rem" }}
-        >
-          Keluar
-        </button>
-      </div>
-
+      {/* 4 Soft Pastel KPI Stat Cards (Reference Gambar 3) */}
       {status && (
         <div
           style={{
-            width: "100%",
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-            gap: "0.75rem",
-            marginTop: "0.5rem",
-            paddingTop: "1rem",
-            borderTop: "1px solid var(--border-color)",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "1rem",
+            marginBottom: "1.5rem",
           }}
         >
-          <div style={{ padding: "0.5rem", backgroundColor: "var(--bg-subtle)", borderRadius: "var(--radius-sm)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Total Mahasiswa Terdaftar</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700 }}>{status.total_students}</div>
+          {/* Card 1: Total Mahasiswa (Soft Blue) */}
+          <div className="stat-card stat-card-blue">
+            <div className="stat-label">Total Mahasiswa</div>
+            <div className="stat-value">{status.total_students}</div>
+            <div className="stat-sub">Mahasiswa Terdaftar Aktif</div>
           </div>
-          <div style={{ padding: "0.5rem", backgroundColor: "var(--bg-subtle)", borderRadius: "var(--radius-sm)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Sudah Mendaftar</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--success)" }}>
-              {status.sudah_daftar}
-            </div>
+
+          {/* Card 2: Sudah Mendaftar (Soft Teal) */}
+          <div className="stat-card stat-card-teal">
+            <div className="stat-label">Sudah Mendaftar</div>
+            <div className="stat-value">{status.sudah_daftar}</div>
+            <div className="stat-sub">Selesai Memilih KRS</div>
           </div>
-          <div style={{ padding: "0.5rem", backgroundColor: "var(--bg-subtle)", borderRadius: "var(--radius-sm)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Sesi Aktif Saat Ini</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--primary)" }}>
-              {status.active_queue} / {status.max_active}
+
+          {/* Card 3: Sesi Aktif Saat Ini (Soft Amber) */}
+          <div className="stat-card stat-card-amber">
+            <div className="stat-label">Sesi Aktif Memilih</div>
+            <div className="stat-value">
+              {status.active_queue} <span style={{ fontSize: "1.25rem", opacity: 0.65 }}>/ {status.max_active}</span>
             </div>
+            <div className="stat-sub">Kapasitas Slot Bersamaan</div>
           </div>
-          <div style={{ padding: "0.5rem", backgroundColor: "var(--bg-subtle)", borderRadius: "var(--radius-sm)" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Antrian Menunggu</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--warning)" }}>
-              {status.waiting_queue}
-            </div>
+
+          {/* Card 4: Antrian Menunggu (Soft Green) */}
+          <div className="stat-card stat-card-green">
+            <div className="stat-label">Antrian Menunggu</div>
+            <div className="stat-value">{status.waiting_queue}</div>
+            <div className="stat-sub">Mahasiswa di Ruang Tunggu</div>
           </div>
         </div>
       )}
-    </header>
+    </div>
   );
 }

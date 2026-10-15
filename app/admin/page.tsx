@@ -437,7 +437,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="container" style={{ maxWidth: 1140, paddingBottom: "4rem" }}>
+    <div className="container" style={{ maxWidth: 1240, paddingBottom: "4rem" }}>
       <AdminHeader
         portalOpen={portalOpen}
         status={status}
@@ -448,130 +448,156 @@ export default function AdminPage() {
         lastSyncTime={lastSyncTime}
       />
 
-
       {actionError && (
-        <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
+        <div className="alert alert-danger" style={{ marginBottom: "1.5rem" }}>
           <span>{actionError}</span>
         </div>
       )}
 
-      {/* Navigasi Tab Admin */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          overflowX: "auto",
-          paddingBottom: "0.5rem",
-          marginBottom: "1.5rem",
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
-        <button
-          type="button"
-          className={activeTab === "offerings" ? "btn btn-primary" : "btn btn-secondary"}
-          onClick={() => setActiveTab("offerings")}
+      {/* Admin Workbench Layout with Sidebar (Reference Gambar 3) */}
+      <div style={{ display: "flex", gap: "1.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+        {/* Sidebar Nav */}
+        <nav
+          className="card"
+          style={{
+            width: 270,
+            flexShrink: 0,
+            padding: "1.25rem 0.85rem",
+            borderRadius: "var(--radius-xl)",
+            backgroundColor: "#ffffff",
+            marginBottom: "1.5rem",
+          }}
         >
-          Kelola Pilihan & Kuota ({offerings.length})
-        </button>
-        <button
-          type="button"
-          className={activeTab === "pendaftar" ? "btn btn-primary" : "btn btn-secondary"}
-          onClick={() => setActiveTab("pendaftar")}
-        >
-          Mahasiswa Masuk ({pendaftar.length})
-        </button>
-        <button
-          type="button"
-          className={activeTab === "import_jadwal" ? "btn btn-primary" : "btn btn-secondary"}
-          onClick={() => setActiveTab("import_jadwal")}
-        >
-          Impor Master Jadwal
-        </button>
-        <button
-          type="button"
-          className={activeTab === "import_mahasiswa" ? "btn btn-primary" : "btn btn-secondary"}
-          onClick={() => setActiveTab("import_mahasiswa")}
-        >
-          Impor Data Mahasiswa
-        </button>
-        <button
-          type="button"
-          className={activeTab === "pengajuan" ? "btn btn-primary" : "btn btn-secondary"}
-          onClick={() => setActiveTab("pengajuan")}
-        >
-          Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})
-        </button>
-        <button
-          type="button"
-          className={activeTab === "batal_reset" ? "btn btn-danger" : "btn btn-secondary"}
-          onClick={() => setActiveTab("batal_reset")}
-        >
-          Batal & Reset Data
-        </button>
+          {/* MENU UTAMA */}
+          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0.25rem 0.75rem 0.5rem" }}>
+            Menu Utama
+          </div>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === "offerings" ? "active" : ""}`}
+            onClick={() => setActiveTab("offerings")}
+          >
+            <span>Kelola Kuota ({offerings.length})</span>
+            {activeTab === "offerings" && <span className="nav-chevron">&gt;</span>}
+          </button>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === "pendaftar" ? "active" : ""}`}
+            onClick={() => setActiveTab("pendaftar")}
+          >
+            <span>Mahasiswa Masuk ({pendaftar.length})</span>
+            {activeTab === "pendaftar" && <span className="nav-chevron">&gt;</span>}
+          </button>
+
+          {/* DATA MASTER */}
+          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "1.25rem 0.75rem 0.5rem" }}>
+            Data Master
+          </div>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === "import_jadwal" ? "active" : ""}`}
+            onClick={() => setActiveTab("import_jadwal")}
+          >
+            <span>Impor Master Jadwal</span>
+            {activeTab === "import_jadwal" && <span className="nav-chevron">&gt;</span>}
+          </button>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === "import_mahasiswa" ? "active" : ""}`}
+            onClick={() => setActiveTab("import_mahasiswa")}
+          >
+            <span>Impor Data Mahasiswa</span>
+            {activeTab === "import_mahasiswa" && <span className="nav-chevron">&gt;</span>}
+          </button>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === "pengajuan" ? "active" : ""}`}
+            onClick={() => setActiveTab("pengajuan")}
+          >
+            <span>Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})</span>
+            {activeTab === "pengajuan" && <span className="nav-chevron">&gt;</span>}
+          </button>
+
+          {/* SISTEM */}
+          <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "1.25rem 0.75rem 0.5rem" }}>
+            Sistem
+          </div>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === "batal_reset" ? "active" : ""}`}
+            onClick={() => setActiveTab("batal_reset")}
+            style={{ color: activeTab === "batal_reset" ? "#ffffff" : "var(--danger)" }}
+          >
+            <span>Batal & Reset Data</span>
+            {activeTab === "batal_reset" && <span className="nav-chevron">&gt;</span>}
+          </button>
+        </nav>
+
+        {/* Content Area */}
+        <div style={{ flex: 1, minWidth: 320, width: "100%" }}>
+          {activeTab === "offerings" && (
+            <OfferingManager
+              offerings={offerings}
+              onUpdateKuota={handleUpdateKuota}
+              onUpsertOffering={handleUpsertOffering}
+              onDeleteOffering={handleDeleteOffering}
+              onAddSchedule={handleAddSchedule}
+              onDeleteSchedule={handleDeleteSchedule}
+            />
+          )}
+
+          {activeTab === "pendaftar" && (
+            <PendaftarList pendaftar={pendaftar} kelasList={kelasList} />
+          )}
+
+          {activeTab === "import_jadwal" && (
+            <MasterScheduleImport
+              onImportOfferings={async (offs) => {
+                const { data } = await supabase.rpc("admin_import_offerings", {
+                  p_offerings: offs,
+                });
+                loadAdminData();
+                return (data as { inserted: number; updated: number }) || { inserted: 0, updated: 0 };
+              }}
+              onImportClassSchedules={async (scheds) => {
+                const { data } = await supabase.rpc("admin_import_jadwal_kelas", {
+                  p_jadwal: scheds,
+                });
+                loadAdminData();
+                return (data as { inserted: number }) || { inserted: 0 };
+              }}
+              onSuccess={(msg) => showAdminPopup("success", "Impor Berhasil", msg)}
+              onError={(err) => showAdminPopup("danger", "Impor Gagal", err)}
+            />
+          )}
+
+          {activeTab === "import_mahasiswa" && (
+            <StudentImport
+              onImportStudents={async (studs: StudentImportRow[]) => {
+                const { data } = await supabase.rpc("admin_import_students", {
+                  p_students: studs,
+                });
+                loadAdminData();
+                return (data as { inserted: number; updated: number }) || { inserted: 0, updated: 0 };
+              }}
+              onSuccess={(msg) => showAdminPopup("success", "Impor Berhasil", msg)}
+              onError={(err) => showAdminPopup("danger", "Impor Gagal", err)}
+            />
+          )}
+
+          {activeTab === "pengajuan" && (
+            <AccessRequestsList requests={requests} onApprove={handleApproveRequest} />
+          )}
+
+          {activeTab === "batal_reset" && (
+            <ResetDataModal
+              portalOpen={portalOpen}
+              onBatalDaftar={handleBatalDaftar}
+              onResetDataUji={handleResetDataUji}
+            />
+          )}
+        </div>
       </div>
-
-      {/* Isi Tab Aktif */}
-      {activeTab === "offerings" && (
-        <OfferingManager
-          offerings={offerings}
-          onUpdateKuota={handleUpdateKuota}
-          onUpsertOffering={handleUpsertOffering}
-          onDeleteOffering={handleDeleteOffering}
-          onAddSchedule={handleAddSchedule}
-          onDeleteSchedule={handleDeleteSchedule}
-        />
-      )}
-
-      {activeTab === "pendaftar" && (
-        <PendaftarList pendaftar={pendaftar} kelasList={kelasList} />
-      )}
-
-      {activeTab === "import_jadwal" && (
-        <MasterScheduleImport
-          onImportOfferings={async (offs) => {
-            const { data } = await supabase.rpc("admin_import_offerings", {
-              p_offerings: offs,
-            });
-            loadAdminData();
-            return (data as { inserted: number; updated: number }) || { inserted: 0, updated: 0 };
-          }}
-          onImportClassSchedules={async (scheds) => {
-            const { data } = await supabase.rpc("admin_import_jadwal_kelas", {
-              p_jadwal: scheds,
-            });
-            loadAdminData();
-            return (data as { inserted: number }) || { inserted: 0 };
-          }}
-          onSuccess={(msg) => showAdminPopup("success", "Impor Berhasil", msg)}
-          onError={(err) => showAdminPopup("danger", "Impor Gagal", err)}
-        />
-      )}
-
-      {activeTab === "import_mahasiswa" && (
-        <StudentImport
-          onImportStudents={async (studs: StudentImportRow[]) => {
-            const { data } = await supabase.rpc("admin_import_students", {
-              p_students: studs,
-            });
-            loadAdminData();
-            return (data as { inserted: number; updated: number }) || { inserted: 0, updated: 0 };
-          }}
-          onSuccess={(msg) => showAdminPopup("success", "Impor Berhasil", msg)}
-          onError={(err) => showAdminPopup("danger", "Impor Gagal", err)}
-        />
-      )}
-
-      {activeTab === "pengajuan" && (
-        <AccessRequestsList requests={requests} onApprove={handleApproveRequest} />
-      )}
-
-      {activeTab === "batal_reset" && (
-        <ResetDataModal
-          portalOpen={portalOpen}
-          onBatalDaftar={handleBatalDaftar}
-          onResetDataUji={handleResetDataUji}
-        />
-      )}
 
       <AdminModal modal={adminModal} onClose={closeModal} />
 

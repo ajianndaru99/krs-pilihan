@@ -184,8 +184,8 @@ export default function BuktiPage() {
         style={{
           padding: "2.5rem",
           backgroundColor: "#ffffff",
-          border: "2px solid #cbd5e1",
-          borderRadius: 8,
+          border: "1.5px solid var(--border-color)",
+          borderRadius: "var(--radius-xl)",
         }}
       >
         {/* Kop Surat Resmi Institusi */}
