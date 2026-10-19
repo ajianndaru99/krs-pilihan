@@ -506,7 +506,7 @@ export default function AdminPage() {
             className={`admin-nav-item ${activeTab === "import_mahasiswa" ? "active" : ""}`}
             onClick={() => setActiveTab("import_mahasiswa")}
           >
-            <span>Impor Data Mahasiswa</span>
+            <span>Data & Impor Mahasiswa</span>
             {activeTab === "import_mahasiswa" && <span className="nav-chevron">&gt;</span>}
           </button>
           <button
@@ -573,15 +573,23 @@ export default function AdminPage() {
 
           {activeTab === "import_mahasiswa" && (
             <StudentImport
+              kelasList={kelasList}
               onImportStudents={async (studs: StudentImportRow[]) => {
-                const { data } = await supabase.rpc("admin_import_students", {
+                const { data, error } = await supabase.rpc("admin_import_students", {
                   p_students: studs,
                 });
+                if (error) {
+                  throw new Error(error.message);
+                }
+                const res = data as { ok?: boolean; error?: string; inserted?: number; updated?: number } | null;
+                if (res && res.ok === false) {
+                  throw new Error(res.error || "Gagal memproses data mahasiswa.");
+                }
                 loadAdminData();
-                return (data as { inserted: number; updated: number }) || { inserted: 0, updated: 0 };
+                return { inserted: res?.inserted || 0, updated: res?.updated || 0 };
               }}
-              onSuccess={(msg) => showAdminPopup("success", "Impor Berhasil", msg)}
-              onError={(err) => showAdminPopup("danger", "Impor Gagal", err)}
+              onSuccess={(msg) => showAdminPopup("success", "Berhasil", msg)}
+              onError={(err) => showAdminPopup("danger", "Gagal", err)}
             />
           )}
 

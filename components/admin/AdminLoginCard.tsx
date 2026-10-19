@@ -25,14 +25,16 @@ export function AdminLoginCard({
   return (
     <div className="admin-login-canvas">
       <div style={{ textAlign: "center", marginBottom: "1.75rem", maxWidth: 480 }}>
-        <Image
-          src="/logo-instiper.png"
-          alt="Logo INSTIPER"
-          width={76}
-          height={76}
-          priority
-          style={{ objectFit: "contain", margin: "0 auto 1.25rem" }}
-        />
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", marginBottom: "1.25rem" }}>
+          <Image
+            src="/logo-instiper.png"
+            alt="Logo INSTIPER"
+            width={100}
+            height={90}
+            priority
+            style={{ objectFit: "contain", display: "block" }}
+          />
+        </div>
 
         <div className="admin-control-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

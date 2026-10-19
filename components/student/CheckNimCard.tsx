@@ -31,15 +31,37 @@ export function CheckNimCard({
   return (
     <div style={{ maxWidth: 460, margin: "2rem auto" }}>
       {/* Header Branding — Reference Gambar 2 */}
-      <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
-        <Image
-          src="/logo-instiper.png"
-          alt="Logo INSTIPER"
-          width={80}
-          height={80}
-          priority
-          style={{ objectFit: "contain", margin: "0 auto 1.25rem" }}
-        />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          marginBottom: "1.75rem",
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+            marginBottom: "1.25rem",
+          }}
+        >
+          <Image
+            src="/logo-instiper.png"
+            alt="Logo INSTIPER"
+            width={120}
+            height={108}
+            priority
+            style={{
+              objectFit: "contain",
+              display: "block",
+            }}
+          />
+        </div>
         <h1
           style={{
             fontSize: "2rem",
@@ -48,6 +70,8 @@ export function CheckNimCard({
             letterSpacing: "-0.025em",
             textTransform: "uppercase",
             margin: "0 0 0.35rem",
+            textAlign: "center",
+            width: "100%",
           }}
         >
           Portal KRS Pilihan
@@ -60,6 +84,8 @@ export function CheckNimCard({
             letterSpacing: "0.08em",
             textTransform: "uppercase",
             margin: 0,
+            textAlign: "center",
+            width: "100%",
           }}
         >
           Faperta INSTIPER Yogyakarta
