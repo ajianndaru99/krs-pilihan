@@ -74,6 +74,11 @@ async function runTestSuite() {
     return (error !== null || !data || data.length === 0) || "Tabel settings terbaca oleh publik anon!";
   });
 
+  await assertTest("RLS: Akses langsung ke tabel 'student_complaints' ditolak / kosong", async () => {
+    const { data, error } = await supabase.from("student_complaints").select("*");
+    return (error !== null || !data || data.length === 0) || "Tabel student_complaints terbaca oleh publik anon!";
+  });
+
   // --------------------------------------------------------------------------
   // 2. KEAMANAN RPC ADMINISTRATOR (Ditolak untuk anon / non-admin)
   // --------------------------------------------------------------------------
@@ -140,6 +145,23 @@ async function runTestSuite() {
     if (error) return true;
     if (data && data.ok === false) return true;
     return "RPC admin_import_students berhasil dieksekusi oleh anon!";
+  });
+
+  await assertTest("Admin RPC: admin_list_complaints() ditolak untuk role anon", async () => {
+    const { data, error } = await supabase.rpc("admin_list_complaints");
+    if (error) return true;
+    if (data && data.ok === false) return true;
+    return "RPC admin_list_complaints berhasil dieksekusi oleh anon!";
+  });
+
+  await assertTest("Admin RPC: admin_resolve_complaint() ditolak untuk role anon", async () => {
+    const { data, error } = await supabase.rpc("admin_resolve_complaint", {
+      p_id: 1,
+      p_action: "reject",
+    });
+    if (error) return true;
+    if (data && data.ok === false) return true;
+    return "RPC admin_resolve_complaint berhasil dieksekusi oleh anon!";
   });
 
   // --------------------------------------------------------------------------
@@ -240,6 +262,18 @@ async function runTestSuite() {
     const { data, error } = await supabase.rpc("daftar_kelas");
     if (error) return `Error RPC: ${error.message}`;
     return Array.isArray(data) || "Hasil daftar_kelas bukan array!";
+  });
+
+  await assertTest("Bisnis: lapor_kendala_mahasiswa() menolak input kosong / tidak valid", async () => {
+    const { data, error } = await supabase.rpc("lapor_kendala_mahasiswa", {
+      p_nim: "",
+      p_nama: "",
+      p_kategori: "salah_pilih",
+      p_alasan: "",
+      p_kontak: "",
+    });
+    if (error) return true;
+    return data?.ok === false || "Input kosong diloloskan oleh lapor_kendala_mahasiswa!";
   });
 
   // --------------------------------------------------------------------------

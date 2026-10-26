@@ -14,6 +14,7 @@ interface CheckNimCardProps {
   onJoinQueue: (e: React.FormEvent) => void;
   onResetVerification: () => void;
   onOpenAjukanModal: () => void;
+  onOpenLaporModal?: () => void;
 }
 
 export function CheckNimCard({
@@ -27,6 +28,7 @@ export function CheckNimCard({
   onJoinQueue,
   onResetVerification,
   onOpenAjukanModal,
+  onOpenLaporModal,
 }: CheckNimCardProps) {
   return (
     <div style={{ maxWidth: 460, margin: "2rem auto" }}>
@@ -184,7 +186,7 @@ export function CheckNimCard({
               )}
             </button>
 
-            <div style={{ textAlign: "center", marginTop: "1.25rem" }}>
+            <div style={{ textAlign: "center", marginTop: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               <button
                 type="button"
                 onClick={onOpenAjukanModal}
@@ -200,6 +202,22 @@ export function CheckNimCard({
               >
                 NIM tidak terdaftar? Ajukan akses di sini
               </button>
+              {onOpenLaporModal && (
+                <button
+                  type="button"
+                  onClick={onOpenLaporModal}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Sudah terdaftar tapi salah pilih? Laporkan kendala ke Admin
+                </button>
+              )}
             </div>
           </form>
         ) : (

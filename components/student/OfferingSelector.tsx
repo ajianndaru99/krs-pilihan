@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Offering } from "@/lib/types";
 
 interface OfferingSelectorProps {
@@ -29,6 +30,8 @@ export function OfferingSelector({
   onSubmitSelection,
   onLogout,
 }: OfferingSelectorProps) {
+  const [quotaFilter, setQuotaFilter] = useState<"all" | "available" | "full">("all");
+
   const selectedOfferings = offerings.filter((o) => selectedIds.includes(o.id));
   const matkulSelected = selectedOfferings.filter((o) => o.jenis === "matkul").length;
   const proyekSelected = selectedOfferings.filter((o) => o.jenis === "proyek").length;
@@ -45,69 +48,136 @@ export function OfferingSelector({
 
   const timerColor = remainingSeconds && remainingSeconds < 60 ? "var(--danger)" : "var(--primary)";
 
+  const availableCount = offerings.filter((o) => o.sisa > 0).length;
+  const fullCount = offerings.filter((o) => o.sisa <= 0).length;
+
+  const filteredOfferings = offerings.filter((o) => {
+    if (quotaFilter === "available") return o.sisa > 0;
+    if (quotaFilter === "full") return o.sisa <= 0;
+    return true;
+  });
+
   return (
-    <div>
-      {/* Floating Sticky Top Bar (Aman & Responsif di HP & Desktop) */}
+    <div className="has-mobile-bottom-bar">
+      {/* Floating Sticky Top Bar */}
       <div
         className="card"
         style={{
           position: "sticky",
           top: "0.5rem",
           zIndex: 100,
-          backgroundColor: "rgba(255, 255, 255, 0.95)",
-          backdropFilter: "blur(8px)",
+          backgroundColor: "rgba(255, 255, 255, 0.96)",
+          backdropFilter: "blur(10px)",
           borderRadius: "var(--radius-lg)",
           boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)",
           border: "1.5px solid var(--primary-border)",
-          padding: "0.85rem 1.4rem",
-          marginBottom: "1.75rem",
+          padding: "0.85rem 1.25rem",
+          marginBottom: "1.5rem",
           display: "flex",
           flexWrap: "wrap",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: "1rem",
+          gap: "0.85rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Sisa Waktu Sesi
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Sisa Waktu
             </div>
-            <div style={{ fontSize: "1.35rem", fontWeight: 800, color: timerColor, fontFamily: "var(--font-mono)" }}>
+            <div style={{ fontSize: "1.3rem", fontWeight: 800, color: timerColor, fontFamily: "var(--font-mono)" }}>
               {formatTimer(remainingSeconds)}
             </div>
           </div>
 
-          <div style={{ height: 32, width: 1, backgroundColor: "var(--border-color)" }} />
+          <div style={{ height: 28, width: 1, backgroundColor: "var(--border-color)" }} />
 
           <div>
-            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Status Pilihan
             </div>
-            <div style={{ fontSize: "0.925rem", fontWeight: 700 }}>
+            <div style={{ fontSize: "0.875rem", fontWeight: 700 }}>
               Matkul: <span style={{ color: matkulSelected === needMatkul ? "var(--success)" : "var(--primary)" }}>{matkulSelected}/{needMatkul}</span> | Proyek: <span style={{ color: proyekSelected === needProyek ? "var(--success)" : "var(--primary)" }}>{proyekSelected}/{needProyek}</span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+        {/* Filter Pills Kuota */}
+        <div
+          style={{
+            display: "inline-flex",
+            backgroundColor: "var(--bg-subtle)",
+            padding: "3px",
+            borderRadius: "var(--radius-full)",
+            border: "1px solid var(--border-color)",
+            gap: "2px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setQuotaFilter("all")}
+            style={{
+              padding: "0.35rem 0.75rem",
+              borderRadius: "var(--radius-full)",
+              border: "none",
+              fontSize: "0.775rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              backgroundColor: quotaFilter === "all" ? "#ffffff" : "transparent",
+              color: quotaFilter === "all" ? "var(--text-main)" : "var(--text-muted)",
+              boxShadow: quotaFilter === "all" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            Semua ({offerings.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuotaFilter("available")}
+            style={{
+              padding: "0.35rem 0.75rem",
+              borderRadius: "var(--radius-full)",
+              border: "none",
+              fontSize: "0.775rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              backgroundColor: quotaFilter === "available" ? "#ffffff" : "transparent",
+              color: quotaFilter === "available" ? "var(--success)" : "var(--text-muted)",
+              boxShadow: quotaFilter === "available" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            Tersedia ({availableCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuotaFilter("full")}
+            style={{
+              padding: "0.35rem 0.75rem",
+              borderRadius: "var(--radius-full)",
+              border: "none",
+              fontSize: "0.775rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              backgroundColor: quotaFilter === "full" ? "#ffffff" : "transparent",
+              color: quotaFilter === "full" ? "var(--danger)" : "var(--text-muted)",
+              boxShadow: quotaFilter === "full" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            Penuh ({fullCount})
+          </button>
+        </div>
+
+        {/* Action Buttons (Desktop view) */}
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {onRefreshQuota && (
             <button
               type="button"
               className="btn btn-secondary"
               onClick={onRefreshQuota}
               disabled={isRefreshingQuota}
-              style={{ fontSize: "0.85rem", padding: "0.6rem 0.9rem" }}
-              title="Perbarui data kuota terkini"
+              style={{ fontSize: "0.8rem", padding: "0.5rem 0.85rem" }}
+              title="Perbarui kuota terkini"
             >
-              {isRefreshingQuota ? (
-                <>
-                  <span className="spinner spinner-primary" style={{ width: 12, height: 12 }} />
-                  <span>Memperbarui...</span>
-                </>
-              ) : (
-                <span>Refresh Kuota</span>
-              )}
+              {isRefreshingQuota ? "Memperbarui..." : "Refresh Kuota"}
             </button>
           )}
 
@@ -115,7 +185,7 @@ export function OfferingSelector({
             type="button"
             className="btn btn-secondary"
             onClick={onLogout}
-            style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}
+            style={{ fontSize: "0.8rem", padding: "0.5rem 0.85rem" }}
           >
             Keluar
           </button>
@@ -124,7 +194,7 @@ export function OfferingSelector({
             className="btn btn-primary"
             onClick={onSubmitSelection}
             disabled={!isCompositionValid || isSubmitting}
-            style={{ fontSize: "0.9rem", padding: "0.6rem 1.4rem" }}
+            style={{ fontSize: "0.85rem", padding: "0.5rem 1.15rem" }}
           >
             {isSubmitting ? "Menyimpan..." : "Simpan Pilihan Final"}
           </button>
@@ -132,8 +202,8 @@ export function OfferingSelector({
       </div>
 
       {/* Grid Kartu Mata Kuliah */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.25rem" }}>
-        {offerings.map((item) => {
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(285px, 1fr))", gap: "1rem" }}>
+        {filteredOfferings.map((item) => {
           const isSelected = selectedIds.includes(item.id);
           const isFull = item.sisa <= 0;
           const hasClashWithClass = Boolean(item.bentrok_kelas);
@@ -146,12 +216,14 @@ export function OfferingSelector({
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                padding: "1.35rem",
+                padding: "1.25rem",
                 borderRadius: "var(--radius-lg)",
                 border: isSelected
                   ? "2px solid var(--primary)"
                   : hasClashWithClass
                   ? "1.5px solid #fecaca"
+                  : isFull
+                  ? "1px solid #fed7aa"
                   : "1px solid var(--border-subtle)",
                 backgroundColor: isSelected
                   ? "var(--primary-light)"
@@ -160,16 +232,17 @@ export function OfferingSelector({
                   : "#ffffff",
                 transition: "all 0.18s ease",
                 marginBottom: 0,
+                opacity: isFull && !isSelected ? 0.9 : 1,
               }}
             >
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.65rem" }}>
                   <span
                     style={{
-                      fontSize: "0.75rem",
+                      fontSize: "0.725rem",
                       fontWeight: 700,
                       textTransform: "uppercase",
-                      padding: "3px 10px",
+                      padding: "2px 8px",
                       borderRadius: "var(--radius-full)",
                       backgroundColor: item.jenis === "matkul" ? "#f0f7ff" : "#fffbeb",
                       color: item.jenis === "matkul" ? "#1e40af" : "#b45309",
@@ -181,20 +254,21 @@ export function OfferingSelector({
 
                   <span
                     style={{
-                      fontSize: "0.75rem",
-                      fontWeight: 700,
-                      padding: "3px 10px",
+                      fontSize: "0.725rem",
+                      fontWeight: 800,
+                      padding: "2px 8px",
                       borderRadius: "var(--radius-full)",
-                      backgroundColor: isFull ? "var(--danger-light)" : "var(--success-light)",
-                      color: isFull ? "var(--danger)" : "var(--success)",
-                      border: `1px solid ${isFull ? "var(--danger-border)" : "var(--success-border)"}`,
+                      backgroundColor: isFull ? "#fef2f2" : "var(--success-light)",
+                      color: isFull ? "#dc2626" : "var(--success)",
+                      border: `1px solid ${isFull ? "#fecaca" : "var(--success-border)"}`,
+                      letterSpacing: "0.02em",
                     }}
                   >
-                    Sisa Kuota: {item.sisa}/{item.kuota}
+                    {isFull ? `● KUOTA HABIS (0/${item.kuota})` : `Sisa Kuota: ${item.sisa}/${item.kuota}`}
                   </span>
                 </div>
 
-                <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "0.35rem" }}>
+                <h3 style={{ fontSize: "1.05rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "0.35rem", lineHeight: 1.35 }}>
                   {item.nama}
                 </h3>
                 {item.topik && (
@@ -207,38 +281,42 @@ export function OfferingSelector({
                 <div
                   style={{
                     backgroundColor: isSelected ? "rgba(255,255,255,0.85)" : "var(--bg-subtle)",
-                    padding: "0.75rem 0.85rem",
+                    padding: "0.65rem 0.75rem",
                     borderRadius: "var(--radius-md)",
-                    fontSize: "0.825rem",
-                    marginBottom: "1rem",
+                    fontSize: "0.8rem",
+                    marginBottom: "0.85rem",
                     border: "1px solid var(--border-color)",
                   }}
                 >
-                  <div style={{ fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.35rem", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  <div style={{ fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.25rem", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                     Jadwal Pertemuan
                   </div>
                   {item.jadwal && item.jadwal.length > 0 ? (
-                    item.jadwal.map((j, idx) => (
-                      <div key={idx} style={{ color: "var(--text-body)", lineHeight: 1.5 }}>
-                        • {j.hari}, {j.jam_mulai} - {j.jam_selesai} {j.ruang ? `(${j.ruang})` : ""}
+                    item.jadwal.map((sch, schIdx) => (
+                      <div key={schIdx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 0" }}>
+                        <span style={{ fontWeight: 600 }}>{sch.hari}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
+                          {sch.jam_mulai.slice(0, 5)} - {sch.jam_selesai.slice(0, 5)} {sch.ruang ? `(${sch.ruang})` : ""}
+                        </span>
                       </div>
                     ))
                   ) : (
-                    <span style={{ color: "var(--text-light)" }}>Belum ada jadwal terplot</span>
+                    <span style={{ color: "var(--warning)", fontSize: "0.75rem", fontWeight: 600 }}>
+                      ⚠️ Jadwal belum ditentukan
+                    </span>
                   )}
                 </div>
 
                 {hasClashWithClass && (
                   <div
                     style={{
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "var(--danger)",
+                      padding: "0.45rem 0.65rem",
                       backgroundColor: "#fee2e2",
-                      border: "1px solid #fecaca",
-                      padding: "6px 10px",
+                      color: "#b91c1c",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
                       borderRadius: "var(--radius-sm)",
-                      marginBottom: "0.85rem",
+                      marginBottom: "0.75rem",
                     }}
                   >
                     Bentrok dengan jadwal kelas tetap Anda
@@ -252,14 +330,55 @@ export function OfferingSelector({
                   onClick={() => onToggleOffering(item)}
                   disabled={isFull && !isSelected}
                   className={isSelected ? "btn btn-primary" : "btn btn-secondary"}
-                  style={{ width: "100%", justifyContent: "center", padding: "0.75rem" }}
+                  style={{ width: "100%", justifyContent: "center", padding: "0.65rem", fontSize: "0.875rem" }}
                 >
-                  {isSelected ? "Terpilih" : isFull ? "Kuota Penuh" : "Pilih"}
+                  {isSelected ? "Terpilih ✓" : isFull ? "Kuota Penuh" : "Pilih Mata Kuliah"}
                 </button>
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Floating Bottom Bar Khusus Layar HP (Thumb Zone Friendly) */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 999,
+          backgroundColor: "rgba(255, 255, 255, 0.97)",
+          backdropFilter: "blur(12px)",
+          borderTop: "1.5px solid var(--primary-border)",
+          padding: "0.75rem 1rem",
+          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "0.75rem",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: "0.675rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
+            Total Terpilih: {selectedIds.length} / {needMatkul + needProyek}
+          </div>
+          <div style={{ fontSize: "0.85rem", fontWeight: 800, color: isCompositionValid ? "var(--success)" : "var(--primary)" }}>
+            {isCompositionValid
+              ? "Lengkap Siap Simpan ✓"
+              : `${matkulSelected}/${needMatkul} Matkul, ${proyekSelected}/${needProyek} Proyek`}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={onSubmitSelection}
+          disabled={!isCompositionValid || isSubmitting}
+          style={{ minHeight: 46, padding: "0.65rem 1.25rem", fontSize: "0.875rem", fontWeight: 800, flexShrink: 0 }}
+        >
+          {isSubmitting ? "Menyimpan..." : "Simpan KRS Final →"}
+        </button>
       </div>
     </div>
   );

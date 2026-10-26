@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { MasterStudentItem } from "@/lib/types";
 
 interface EditStudentModalProps {
@@ -18,31 +18,46 @@ export function EditStudentModal({
   onClose,
   onSave,
 }: EditStudentModalProps) {
-  const [nama, setNama] = useState("");
-  const [kelasSelect, setKelasSelect] = useState("");
-  const [customKelas, setCustomKelas] = useState("");
+  if (!isOpen || !student) return null;
+
+  return (
+    <EditStudentModalContent
+      key={student.nim}
+      student={student}
+      kelasList={kelasList}
+      onClose={onClose}
+      onSave={onSave}
+    />
+  );
+}
+
+function EditStudentModalContent({
+  student,
+  kelasList,
+  onClose,
+  onSave,
+}: {
+  student: MasterStudentItem;
+  kelasList: string[];
+  onClose: () => void;
+  onSave: (nim: string, nama: string, kelas: string) => Promise<void>;
+}) {
+  const initialKelas = (student.kelas || "").trim();
+  const isPredefined = kelasList.includes(initialKelas);
+  const isNone = !initialKelas || initialKelas === "-";
+
+  const [nama, setNama] = useState(student.nama || "");
+  const [kelasSelect, setKelasSelect] = useState(() => {
+    if (isNone) return "";
+    if (isPredefined) return initialKelas;
+    return "CUSTOM";
+  });
+  const [customKelas, setCustomKelas] = useState(() => {
+    if (!isNone && !isPredefined) return initialKelas;
+    return "";
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (student) {
-      setNama(student.nama || "");
-      const k = (student.kelas || "").trim();
-      if (!k || k === "-") {
-        setKelasSelect("");
-        setCustomKelas("");
-      } else if (kelasList.includes(k)) {
-        setKelasSelect(k);
-        setCustomKelas("");
-      } else {
-        setKelasSelect("CUSTOM");
-        setCustomKelas(k);
-      }
-      setErrorMsg(null);
-    }
-  }, [student, kelasList]);
-
-  if (!isOpen || !student) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

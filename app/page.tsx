@@ -11,6 +11,7 @@ import { CheckNimCard } from "@/components/student/CheckNimCard";
 import { QueueCard } from "@/components/student/QueueCard";
 import { OfferingSelector } from "@/components/student/OfferingSelector";
 import { AjukanAksesModal } from "@/components/student/AjukanAksesModal";
+import { LaporKendalaModal } from "@/components/student/LaporKendalaModal";
 
 const NEED_MATKUL = 3;
 const NEED_PROYEK = 1;
@@ -65,6 +66,9 @@ export default function StudentPage() {
   const [isRefreshingQuota, setIsRefreshingQuota] = useState(false);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [showAjukanModal, setShowAjukanModal] = useState(false);
+  const [showLaporModal, setShowLaporModal] = useState(false);
+  const [showRegisteredModal, setShowRegisteredModal] = useState(false);
+  const [registeredData, setRegisteredData] = useState<{ nim: string; nama?: string; kelas?: string } | null>(null);
   const [networkWarning, setNetworkWarning] = useState<string | null>(null);
 
   // State Modal Dialog Interaktif
@@ -287,15 +291,17 @@ export default function StudentPage() {
   }, [showAjukanModal, kelasList.length]);
 
   // Deteksi status koneksi offline perangkat
-  const [isOffline, setIsOffline] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => {
+    if (typeof navigator !== "undefined") {
+      return !navigator.onLine;
+    }
+    return false;
+  });
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setIsOffline(true);
-    }
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -326,10 +332,12 @@ export default function StudentPage() {
         return;
       }
       if (res.sudah_daftar) {
-        showPopup("info", "Pendaftaran Selesai", "Anda sudah menyelesaikan pendaftaran KRS.", undefined, () => {
-          sessionStorage.setItem("nim", nim.trim());
-          router.push("/bukti");
+        setRegisteredData({
+          nim: nim.trim(),
+          nama: res.nama_samar || "",
+          kelas: res.kelas || "",
         });
+        setShowRegisteredModal(true);
         return;
       }
       setStudentInfo({
@@ -653,6 +661,7 @@ export default function StudentPage() {
           onJoinQueue={handleJoinQueue}
           onResetVerification={() => setStudentInfo(null)}
           onOpenAjukanModal={() => setShowAjukanModal(true)}
+          onOpenLaporModal={() => setShowLaporModal(true)}
         />
       )}
 
@@ -694,6 +703,141 @@ export default function StudentPage() {
         onSuccess={(msg) => showPopup("info", "Pengajuan Terkirim", msg)}
         onError={(err) => showPopup("danger", "Pengajuan Gagal", err)}
       />
+
+      <LaporKendalaModal
+        isOpen={showLaporModal}
+        nim={registeredData?.nim || nim}
+        nama={registeredData?.nama || studentInfo?.nama_samar || ""}
+        onClose={() => setShowLaporModal(false)}
+        onSuccess={(msg) => showPopup("info", "Laporan Terkirim", msg)}
+        onError={(err) => showPopup("danger", "Gagal Mengirim Laporan", err)}
+      />
+
+      {/* Modal Interaktif Khusus Mahasiswa yang Sudah Menyelesaikan Pendaftaran */}
+      {showRegisteredModal && registeredData && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "1rem",
+            animation: "fadeIn 0.15s ease-out",
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 480,
+              backgroundColor: "#ffffff",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              borderRadius: "var(--radius-xl)",
+              padding: "2rem",
+              border: "1.5px solid var(--primary-border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
+              <span
+                style={{
+                  fontSize: "0.7rem",
+                  fontWeight: 800,
+                  padding: "3px 10px",
+                  borderRadius: "var(--radius-full)",
+                  backgroundColor: "var(--success-light)",
+                  color: "var(--success)",
+                  border: "1px solid var(--success-border)",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                STATUS: TERDAFTAR
+              </span>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", margin: 0 }}>
+                Pendaftaran Telah Selesai
+              </h3>
+            </div>
+
+            <p style={{ fontSize: "0.9rem", color: "var(--text-body)", lineHeight: 1.5, marginBottom: "1.25rem" }}>
+              Mahasiswa <strong>{registeredData.nama || registeredData.nim}</strong> ({registeredData.nim}) telah menyelesaikan pendaftaran KRS pilihan.
+            </p>
+
+            <div
+              style={{
+                backgroundColor: "var(--bg-subtle)",
+                borderRadius: "var(--radius-md)",
+                padding: "1rem",
+                marginBottom: "1.5rem",
+                border: "1px solid var(--border-color)",
+                fontSize: "0.85rem",
+              }}
+            >
+              <div style={{ fontWeight: 700, color: "var(--text-main)", marginBottom: "0.35rem" }}>
+                Pilihan Tindakan Anda:
+              </div>
+              <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--text-muted)", lineHeight: 1.6 }}>
+                <li>Melihat dan mencetak lembar Tanda Bukti KRS Anda.</li>
+                <li>Jika terjadi salah pilih atau kendala mendesak, ajukan perbaikan langsung ke Admin Akademik.</li>
+              </ul>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  sessionStorage.setItem("nim", registeredData.nim);
+                  setShowRegisteredModal(false);
+                  router.push("/bukti");
+                }}
+                style={{ padding: "0.85rem", fontSize: "0.95rem" }}
+              >
+                📄 Lihat Tanda Bukti KRS Anda →
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-block"
+                onClick={() => {
+                  setShowRegisteredModal(false);
+                  setShowLaporModal(true);
+                }}
+                style={{
+                  padding: "0.75rem",
+                  fontSize: "0.875rem",
+                  borderColor: "var(--warning-border)",
+                  color: "var(--warning)",
+                  backgroundColor: "var(--warning-light)",
+                }}
+              >
+                ⚠️ Laporkan Kendala / Ajukan Reset KRS
+              </button>
+
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowRegisteredModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  fontSize: "0.825rem",
+                  padding: "0.4rem",
+                  cursor: "pointer",
+                }}
+              >
+                Tutup Jendela Ini
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer
         style={{

@@ -4,6 +4,7 @@ import {
   PendaftarStudentItem,
   AdminPengajuanItem,
   MasterStudentItem,
+  StudentComplaintItem,
 } from "./types";
 
 /**
@@ -213,4 +214,37 @@ export function parseMasterStudentsData(raw: unknown): MasterStudentItem[] {
       has_registered: Boolean(item.has_registered || item.registered_at),
     }))
     .filter((s) => Boolean(s.nim));
+}
+
+/**
+ * Parsing hasil RPC admin_list_complaints.
+ */
+export function parseComplaintsData(raw: unknown): StudentComplaintItem[] {
+  let list: Record<string, unknown>[] = [];
+  if (Array.isArray(raw)) {
+    list = raw as Record<string, unknown>[];
+  } else if (raw && typeof raw === "object") {
+    const res = raw as { ok?: boolean; complaints?: Record<string, unknown>[] };
+    if (res.ok && Array.isArray(res.complaints)) {
+      list = res.complaints;
+    }
+  }
+
+  if (list.length === 0) return [];
+
+  return list
+    .map((item) => ({
+      id: Number(item.id || 0),
+      nim: String(item.nim || item.NIM || "").trim(),
+      nama: String(item.nama || item.Nama || "").trim(),
+      kelas: String(item.kelas || item.Kelas || "-").trim(),
+      kategori: String(item.kategori || "salah_pilih").trim(),
+      alasan: String(item.alasan || "").trim(),
+      kontak: String(item.kontak || "").trim(),
+      status: (item.status === "resolved" ? "resolved" : item.status === "rejected" ? "rejected" : "pending") as "pending" | "resolved" | "rejected",
+      catatan_admin: item.catatan_admin ? String(item.catatan_admin) : undefined,
+      created_at: String(item.created_at || new Date().toISOString()),
+      resolved_at: item.resolved_at ? String(item.resolved_at) : undefined,
+    }))
+    .filter((c) => Boolean(c.nim));
 }

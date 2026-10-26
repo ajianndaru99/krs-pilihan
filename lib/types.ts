@@ -90,3 +90,18 @@ export interface MasterStudentItem {
   registered_at: string | null;
   has_registered: boolean;
 }
+
+export interface StudentComplaintItem {
+  id: number;
+  nim: string;
+  nama: string;
+  kelas: string;
+  kategori: string;
+  alasan: string;
+  kontak: string;
+  status: "pending" | "resolved" | "rejected";
+  catatan_admin?: string;
+  created_at: string;
+  resolved_at?: string;
+}
+

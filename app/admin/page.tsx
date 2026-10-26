@@ -8,6 +8,7 @@ import {
   AdminPengajuanItem,
   PendaftarStudentItem,
   MasterStudentItem,
+  StudentComplaintItem,
 } from "@/lib/types";
 import {
   normalizeAdminStatus,
@@ -17,6 +18,7 @@ import {
   parsePengajuanData,
   parseKelasData,
   parseMasterStudentsData,
+  parseComplaintsData,
 } from "@/lib/admin-adapter";
 import { StudentImportRow } from "@/lib/excel-parser";
 import { AdminLoginCard } from "@/components/admin/AdminLoginCard";
@@ -26,12 +28,13 @@ import { PendaftarList } from "@/components/admin/PendaftarList";
 import { MasterScheduleImport } from "@/components/admin/MasterScheduleImport";
 import { StudentImport } from "@/components/admin/StudentImport";
 import { AccessRequestsList } from "@/components/admin/AccessRequestsList";
+import { ComplaintManager } from "@/components/admin/ComplaintManager";
 import { ResetDataModal } from "@/components/admin/ResetDataModal";
 import { AdminModal, AdminModalState, AdminModalType } from "@/components/admin/AdminModal";
 
 const ADMIN_POLL_INTERVAL_MS = 10000;
 
-type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "batal_reset";
+type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "complaints" | "batal_reset";
 
 interface SupabaseUserSession {
   email?: string;
@@ -55,6 +58,7 @@ export default function AdminPage() {
   const [pendaftar, setPendaftar] = useState<PendaftarStudentItem[]>([]);
   const [students, setStudents] = useState<MasterStudentItem[]>([]);
   const [requests, setRequests] = useState<AdminPengajuanItem[]>([]);
+  const [complaints, setComplaints] = useState<StudentComplaintItem[]>([]);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
@@ -153,6 +157,16 @@ export default function AdminPage() {
       // 6. Daftar Kelas
       const { data: kData } = await supabase.rpc("daftar_kelas");
       setKelasList(parseKelasData(kData));
+
+      // 7. Laporan Kendala Mahasiswa (Complaints)
+      try {
+        const { data: compData, error: compErr } = await supabase.rpc("admin_list_complaints");
+        if (!compErr) {
+          setComplaints(parseComplaintsData(compData));
+        }
+      } catch {
+        // Fallback aman jika patch13 belum dieksekusi di database server
+      }
 
       setLastSyncTime(new Date().toLocaleTimeString("id-ID"));
     } catch (err: unknown) {
@@ -447,6 +461,27 @@ export default function AdminPage() {
     }
   };
 
+  // Handler Resolve Complaint (Setujui & Reset KRS / Tolak)
+  const handleResolveComplaint = async (
+    id: number,
+    action: "reset_and_batal" | "reject",
+    catatan?: string
+  ) => {
+    const { data, error } = await supabase.rpc("admin_resolve_complaint", {
+      p_id: id,
+      p_action: action,
+      p_catatan: catatan || null,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    const res = data as { ok?: boolean; error?: string; message?: string } | null;
+    if (res && res.ok === false) {
+      throw new Error(res.error || "Gagal memproses laporan kendala.");
+    }
+    loadAdminData(true);
+  };
+
   if (checkingAuth) {
     return (
       <div className="container" style={{ textAlign: "center", paddingTop: "5rem" }}>
@@ -551,6 +586,30 @@ export default function AdminPage() {
             <span>Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})</span>
             {activeTab === "pengajuan" && <span className="nav-chevron">&gt;</span>}
           </button>
+          <button
+            type="button"
+            className={`admin-nav-item ${activeTab === "complaints" ? "active" : ""}`}
+            onClick={() => setActiveTab("complaints")}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "0.5rem" }}>
+              <span>Laporan Kendala ({complaints.filter((c) => c.status === "pending").length})</span>
+              {complaints.filter((c) => c.status === "pending").length > 0 && (
+                <span
+                  style={{
+                    backgroundColor: "var(--warning)",
+                    color: "#ffffff",
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    padding: "1px 6px",
+                    borderRadius: "var(--radius-full)",
+                  }}
+                >
+                  {complaints.filter((c) => c.status === "pending").length} Baru
+                </span>
+              )}
+            </div>
+            {activeTab === "complaints" && <span className="nav-chevron">&gt;</span>}
+          </button>
 
           {/* SISTEM */}
           <div style={{ fontSize: "0.72rem", fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "1.25rem 0.75rem 0.5rem" }}>
@@ -636,6 +695,15 @@ export default function AdminPage() {
 
           {activeTab === "pengajuan" && (
             <AccessRequestsList requests={requests} onApprove={handleApproveRequest} />
+          )}
+
+          {activeTab === "complaints" && (
+            <ComplaintManager
+              complaints={complaints}
+              onResolveComplaint={handleResolveComplaint}
+              onSuccess={(msg) => showAdminPopup("success", "Berhasil", msg)}
+              onError={(err) => showAdminPopup("danger", "Gagal", err)}
+            />
           )}
 
           {activeTab === "batal_reset" && (

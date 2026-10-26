@@ -658,3 +658,47 @@ body {
   height: 2.25rem;
   border-width: 3px;
 }
+
+/* ==============================================================================
+   RESPONSIVE DESIGN SYSTEM — MOBILE PHONE OPTIMIZATION (<= 640px)
+   ============================================================================== */
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem 0.75rem !important;
+  }
+
+  .card {
+    padding: 1.25rem 1rem !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  /* Mencegah auto-zoom paksa pada iOS Safari */
+  input, select, textarea, .form-control {
+    font-size: 16px !important;
+  }
+
+  /* Target sentuh tombol ramah jempol */
+  .btn {
+    min-height: 44px;
+    padding: 0.65rem 1rem !important;
+  }
+
+  /* Proporsi judul di layar ponsel */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  h3 {
+    font-size: 1.1rem !important;
+  }
+
+  /* Ruang bawah aman untuk fixed bottom bar */
+  .has-mobile-bottom-bar {
+    padding-bottom: 5.5rem !important;
+  }
+}
+
