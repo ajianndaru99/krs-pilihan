@@ -78,4 +78,7 @@ export interface AdminSystemStatus {
   sudah_daftar: number;
   active_queue: number;
   waiting_queue: number;
+  total_registered?: number;
+  offerings_without_schedule?: number;
+  classes_without_schedule?: number;
 }

@@ -87,65 +87,122 @@ export default function AdminPage() {
       // 1. Status sistem
       const { data: stData } = await supabase.rpc("admin_status");
       const st = stData as (AdminSystemStatus & { ok?: boolean }) | null;
-      if (st?.ok) {
-        setStatus(st);
-        setPortalOpen(st.portal_open);
+      if (st && (st.ok === undefined || st.ok === true)) {
+        const normalizedStatus: AdminSystemStatus = {
+          portal_open: Boolean(st.portal_open),
+          need_matkul: st.need_matkul ?? 3,
+          need_proyek: st.need_proyek ?? 1,
+          session_duration_minutes: st.session_duration_minutes ?? 5,
+          max_active: st.max_active ?? 30,
+          max_requeue: st.max_requeue ?? 2,
+          total_students: st.total_students ?? 0,
+          sudah_daftar: st.sudah_daftar ?? st.total_registered ?? 0,
+          active_queue: st.active_queue ?? 0,
+          waiting_queue: st.waiting_queue ?? 0,
+          total_registered: st.total_registered ?? st.sudah_daftar ?? 0,
+        };
+        setStatus(normalizedStatus);
+        setPortalOpen(Boolean(st.portal_open));
       }
 
-      // 2. Offerings
+      // 2. Offerings (Mendukung array langsung maupun objek { ok, offerings })
       const { data: offData } = await supabase.rpc("admin_list_offerings");
-      const offRes = offData as { ok?: boolean; offerings?: Offering[] } | null;
-      if (offRes?.ok && offRes.offerings) {
-        setOfferings(offRes.offerings);
+      if (Array.isArray(offData)) {
+        setOfferings(offData as Offering[]);
+      } else {
+        const offRes = offData as { ok?: boolean; offerings?: Offering[] } | null;
+        if (offRes?.ok && Array.isArray(offRes.offerings)) {
+          setOfferings(offRes.offerings);
+        }
       }
 
-      // 3. Pendaftar
+      // 3. Pendaftar (Mendukung admin_list_pendaftar dan fallback admin_export_pendaftaran)
       const { data: pendData } = await supabase.rpc("admin_list_pendaftar");
-      const pendRes = pendData as { ok?: boolean; pendaftar?: PendaftarStudentItem[] } | null;
-      if (pendRes?.ok && pendRes.pendaftar) {
-        setPendaftar(pendRes.pendaftar);
+      let pendaftarList: PendaftarStudentItem[] = [];
+
+      if (Array.isArray(pendData)) {
+        pendaftarList = pendData as PendaftarStudentItem[];
       } else {
-        // Fallback export jika list_pendaftar belum ada
-        const { data: expData } = await supabase.rpc("admin_export_pendaftaran");
-        interface ExpItem {
-          nim: string;
-          nama: string;
-          kelas: string;
-          offering_id: number;
-          nama_pilihan: string;
-          jenis: string;
-          topik: string;
-          waktu_daftar: string;
+        const pendRes = pendData as { ok?: boolean; pendaftar?: PendaftarStudentItem[] } | null;
+        if (pendRes?.ok && Array.isArray(pendRes.pendaftar)) {
+          pendaftarList = pendRes.pendaftar;
         }
-        const expRes = expData as { ok?: boolean; data?: ExpItem[] } | null;
-        if (expRes?.ok && expRes.data) {
+      }
+
+      // Jika list pendaftar belum terisi, coba fallback dari admin_export_pendaftaran
+      if (pendaftarList.length === 0) {
+        const { data: expData } = await supabase.rpc("admin_export_pendaftaran");
+        let rawList: Record<string, unknown>[] = [];
+        if (Array.isArray(expData)) {
+          rawList = expData as Record<string, unknown>[];
+        } else if (expData && typeof expData === "object") {
+          const expRes = expData as { ok?: boolean; data?: Record<string, unknown>[] };
+          if (Array.isArray(expRes.data)) {
+            rawList = expRes.data;
+          }
+        }
+
+        if (rawList.length > 0) {
           const map = new Map<string, PendaftarStudentItem>();
-          expRes.data.forEach((r) => {
-            if (!map.has(r.nim)) {
-              map.set(r.nim, {
-                nim: r.nim,
-                nama: r.nama,
-                kelas: r.kelas,
-                registered_at: r.waktu_daftar,
+          rawList.forEach((r) => {
+            const nim = String(r.nim || r.NIM || "").trim();
+            if (!nim) return;
+            const nama = String(r.nama || r.Nama || "").trim();
+            const kelas = String(r.kelas || r.Kelas || "-").trim();
+            const registered_at = String(r.waktu_daftar || r["Waktu Registrasi"] || r.created_at || "");
+            const offId = Number(r.offering_id || r.id || 0);
+            const offNama = String(r.nama_pilihan || r["Mata Kuliah / Proyek"] || r.nama || "").trim();
+            const offJenis = String(r.jenis || r.Jenis || "matkul").trim();
+            const offTopik = String(r.topik || r.Topik || "").trim();
+
+            if (!map.has(nim)) {
+              map.set(nim, {
+                nim,
+                nama,
+                kelas,
+                registered_at,
                 pilihan: [],
               });
             }
-            map.get(r.nim)!.pilihan.push({
-              id: r.offering_id,
-              nama: r.nama_pilihan,
-              jenis: r.jenis,
-              topik: r.topik,
-            });
+            if (offNama) {
+              map.get(nim)!.pilihan.push({
+                id: offId,
+                nama: offNama,
+                jenis: offJenis,
+                topik: offTopik,
+              });
+            }
           });
-          setPendaftar(Array.from(map.values()));
+          pendaftarList = Array.from(map.values());
         }
+      }
+
+      setPendaftar(pendaftarList);
+
+      // Pastikan status.sudah_daftar mencerminkan jumlah pendaftar aktual jika sebelumnya 0
+      if (pendaftarList.length > 0) {
+        setStatus((prev) => {
+          if (!prev) return prev;
+          if (prev.sudah_daftar === 0 || !prev.sudah_daftar) {
+            return {
+              ...prev,
+              sudah_daftar: pendaftarList.length,
+              total_registered: pendaftarList.length,
+            };
+          }
+          return prev;
+        });
       }
 
       // 4. Pengajuan Akses
       const { data: reqData } = await supabase.rpc("admin_list_pengajuan");
-      const reqRes = reqData as { ok?: boolean; pengajuan?: AdminPengajuanItem[] } | null;
-      if (reqRes?.ok && reqRes.pengajuan) {
-        setRequests(reqRes.pengajuan);
+      if (Array.isArray(reqData)) {
+        setRequests(reqData as AdminPengajuanItem[]);
+      } else {
+        const reqRes = reqData as { ok?: boolean; pengajuan?: AdminPengajuanItem[] } | null;
+        if (reqRes?.ok && Array.isArray(reqRes.pengajuan)) {
+          setRequests(reqRes.pengajuan);
+        }
       }
 
       // 5. Daftar Kelas
@@ -547,7 +604,11 @@ export default function AdminPage() {
           )}
 
           {activeTab === "pendaftar" && (
-            <PendaftarList pendaftar={pendaftar} kelasList={kelasList} />
+            <PendaftarList
+              pendaftar={pendaftar}
+              kelasList={kelasList}
+              onBatalDaftar={handleBatalDaftar}
+            />
           )}
 
           {activeTab === "import_jadwal" && (

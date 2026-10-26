@@ -24,15 +24,34 @@ export function AdminLoginCard({
 }: AdminLoginCardProps) {
   return (
     <div className="admin-login-canvas">
-      <div style={{ textAlign: "center", marginBottom: "1.75rem", maxWidth: 480 }}>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", marginBottom: "1.25rem" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          marginBottom: "2rem",
+          width: "100%",
+          maxWidth: 480,
+          margin: "0 auto 2rem auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+            marginBottom: "1.25rem",
+          }}
+        >
           <Image
             src="/logo-instiper.png"
             alt="Logo INSTIPER"
-            width={100}
-            height={90}
+            width={130}
+            height={118}
             priority
-            style={{ objectFit: "contain", display: "block" }}
+            style={{ objectFit: "contain", display: "block", margin: "0 auto" }}
           />
         </div>
 

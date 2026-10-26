@@ -8,9 +8,10 @@ import { AdminModal, AdminModalState } from "@/components/admin/AdminModal";
 interface PendaftarListProps {
   pendaftar: PendaftarStudentItem[];
   kelasList: string[];
+  onBatalDaftar?: (nim: string) => Promise<void>;
 }
 
-export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
+export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: PendaftarListProps) {
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
   const [modal, setModal] = useState<AdminModalState>({
@@ -122,6 +123,7 @@ export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
               <th style={{ padding: "8px 12px", width: 110 }}>Kelas</th>
               <th style={{ padding: "8px 12px" }}>Mata Kuliah / Proyek Terpilih</th>
               <th style={{ padding: "8px 12px", width: 160 }}>Waktu Terdaftar</th>
+              {onBatalDaftar && <th style={{ padding: "8px 12px", width: 90, textAlign: "center" }}>Aksi</th>}
             </tr>
           </thead>
           <tbody>
@@ -153,11 +155,35 @@ export function PendaftarList({ pendaftar, kelasList }: PendaftarListProps) {
                   <td style={{ padding: "8px 12px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
                     {item.registered_at || "-"}
                   </td>
+                  {onBatalDaftar && (
+                    <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        style={{ padding: "3px 8px", fontSize: "0.75rem", borderRadius: "var(--radius-sm)" }}
+                        onClick={() => {
+                          setModal({
+                            isOpen: true,
+                            type: "danger",
+                            title: "Batalkan Pendaftaran",
+                            message: `Apakah Anda yakin ingin membatalkan pendaftaran untuk ${item.nama} (${item.nim})? Kuota mata kuliah akan dikembalikan dan mahasiswa dapat memilih ulang.`,
+                            confirmText: "Ya, Batalkan",
+                            onConfirm: async () => {
+                              setModal((prev) => ({ ...prev, isOpen: false }));
+                              await onBatalDaftar(item.nim);
+                            },
+                          });
+                        }}
+                      >
+                        Batalkan
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
+                <td colSpan={onBatalDaftar ? 7 : 6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
                   Belum ada data pendaftar yang cocok.
                 </td>
               </tr>

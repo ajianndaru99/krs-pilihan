@@ -53,12 +53,13 @@ export function CheckNimCard({
           <Image
             src="/logo-instiper.png"
             alt="Logo INSTIPER"
-            width={120}
-            height={108}
+            width={150}
+            height={135}
             priority
             style={{
               objectFit: "contain",
               display: "block",
+              margin: "0 auto",
             }}
           />
         </div>

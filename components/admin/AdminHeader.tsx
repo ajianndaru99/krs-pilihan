@@ -182,14 +182,14 @@ export function AdminHeader({
           {/* Card 1: Total Mahasiswa (Soft Blue) */}
           <div className="stat-card stat-card-blue">
             <div className="stat-label">Total Mahasiswa</div>
-            <div className="stat-value">{status.total_students}</div>
+            <div className="stat-value">{status.total_students ?? 0}</div>
             <div className="stat-sub">Mahasiswa Terdaftar Aktif</div>
           </div>
 
           {/* Card 2: Sudah Mendaftar (Soft Teal) */}
           <div className="stat-card stat-card-teal">
             <div className="stat-label">Sudah Mendaftar</div>
-            <div className="stat-value">{status.sudah_daftar}</div>
+            <div className="stat-value">{status.sudah_daftar ?? status.total_registered ?? 0}</div>
             <div className="stat-sub">Selesai Memilih KRS</div>
           </div>
 
@@ -197,7 +197,7 @@ export function AdminHeader({
           <div className="stat-card stat-card-amber">
             <div className="stat-label">Sesi Aktif Memilih</div>
             <div className="stat-value">
-              {status.active_queue} <span style={{ fontSize: "1.25rem", opacity: 0.65 }}>/ {status.max_active}</span>
+              {status.active_queue ?? 0} <span style={{ fontSize: "1.25rem", opacity: 0.65 }}>/ {status.max_active ?? 30}</span>
             </div>
             <div className="stat-sub">Kapasitas Slot Bersamaan</div>
           </div>
@@ -205,7 +205,7 @@ export function AdminHeader({
           {/* Card 4: Antrian Menunggu (Soft Green) */}
           <div className="stat-card stat-card-green">
             <div className="stat-label">Antrian Menunggu</div>
-            <div className="stat-value">{status.waiting_queue}</div>
+            <div className="stat-value">{status.waiting_queue ?? 0}</div>
             <div className="stat-sub">Mahasiswa di Ruang Tunggu</div>
           </div>
         </div>
