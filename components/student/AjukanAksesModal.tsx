@@ -38,13 +38,30 @@ export function AjukanAksesModal({
 
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc("ajukan_akses", {
+      const fullCatatan = kontak.trim()
+        ? `${alasan.trim()} (Kontak: ${kontak.trim()})`
+        : alasan.trim();
+
+      // Coba panggil versi 4 parameter terlebih dahulu (sesuai schema yang aktif di database Supabase)
+      let { data, error } = await supabase.rpc("ajukan_akses", {
         p_nim: nim.trim(),
         p_nama: nama.trim(),
         p_kelas: kelas.trim(),
-        p_alasan: alasan.trim(),
-        p_kontak: kontak.trim(),
+        p_catatan: fullCatatan,
       });
+
+      // Jika error not found / signature mismatch, coba fallback ke versi 5 parameter
+      if (error && (error.code === "PGRST202" || error.message.includes("function"))) {
+        const fallbackRes = await supabase.rpc("ajukan_akses", {
+          p_nim: nim.trim(),
+          p_nama: nama.trim(),
+          p_kelas: kelas.trim(),
+          p_alasan: alasan.trim(),
+          p_kontak: kontak.trim(),
+        });
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
 
       if (error) {
         onError(error.message || "Gagal mengirim pengajuan akses.");

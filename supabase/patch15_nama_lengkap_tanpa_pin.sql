@@ -1,10 +1,11 @@
 -- ==============================================================================
--- PATCH 15: TAMPILKAN NAMA LENGKAP TANPA SENSOR & HILANGKAN KEWAJIBAN PIN
+-- PATCH 15 (REVISI): NAMA LENGKAP TANPA SENSOR & JOIN QUEUE TANPA PIN (SKEMA VALID)
 -- ==============================================================================
 -- 1. Fungsi cek_nim() mengembalikan nama lengkap mahasiswa secara utuh (tanpa sensor bintang)
 --    dan mengatur butuh_pin = false.
--- 2. Fungsi join_queue() menerima p_nim dan p_pin opsional (DEFAULT NULL) tanpa
---    memvalidasi PIN, sehingga mahasiswa cukup dengan NIM untuk bergabung ke antrian.
+-- 2. Fungsi join_queue() menggunakan kolom tabel queue yang sah (nomor, retry_count, entered_at)
+--    tanpa referensi ke kolom palsu queue_number/requeue_count, dan tanpa validasi PIN.
+-- 3. Fungsi ajukan_akses() disinkronkan agar aman dipanggil baik dengan 4 maupun 5 parameter.
 
 -- 1. FUNGSI cek_nim(p_nim TEXT)
 CREATE OR REPLACE FUNCTION public.cek_nim(p_nim TEXT)
@@ -29,7 +30,7 @@ BEGIN
         SELECT 1 FROM public.registrations WHERE nim = v_student.nim
     )) INTO v_sudah_daftar;
 
-    -- Mengembalikan nama asli lengkap tanpa sensor/masking bintang
+    -- Mengembalikan nama asli lengkap tanpa sensor bintang
     RETURN jsonb_build_object(
         'ok', true,
         'nim', v_student.nim,
@@ -72,7 +73,7 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'NIM tidak terdaftar.');
     END IF;
 
-    -- Cek jika mahasiswa sudah menyelesaikan pemilihan KRS
+    -- Mahasiswa yang sudah menyelesaikan pemilihan KRS tidak boleh antri lagi
     IF v_student.registered_at IS NOT NULL OR EXISTS (SELECT 1 FROM public.registrations WHERE nim = v_student.nim) THEN
         RETURN jsonb_build_object('ok', false, 'error', 'Mahasiswa dengan NIM ini sudah menyelesaikan pendaftaran.');
     END IF;
@@ -82,8 +83,10 @@ BEGIN
     SET state = 'expired'
     WHERE state = 'active' AND expires_at < v_now;
 
-    -- Cek antrian yang sudah ada untuk mahasiswa ini
-    SELECT * INTO v_q FROM public.queue WHERE nim = v_student.nim;
+    -- Periksa antrian yang sudah ada untuk mahasiswa ini
+    SELECT * INTO v_q FROM public.queue
+    WHERE nim = v_student.nim AND state IN ('waiting', 'active', 'menunggu_undian')
+    ORDER BY entered_at DESC LIMIT 1;
 
     IF FOUND THEN
         IF v_q.state = 'active' THEN
@@ -92,77 +95,54 @@ BEGIN
                 'ok', true,
                 'state', 'active',
                 'token', v_q.token,
-                'nomor', v_q.queue_number,
-                'sisa_detik', v_sisa_detik,
-                'posisi', 1,
-                'estimasi_menit', 0
+                'sisa_detik', v_sisa_detik
             );
         ELSIF v_q.state = 'waiting' THEN
-            SELECT count(*) INTO v_waiting_pos
-            FROM public.queue
-            WHERE state = 'waiting' AND queue_number <= v_q.queue_number;
-
-            v_est_minutes := GREATEST(1, ceil((v_waiting_pos::NUMERIC / GREATEST(1, v_settings.max_active)) * v_settings.session_duration_minutes)::INT);
-
+            SELECT count(*) INTO v_waiting_pos FROM public.queue WHERE state = 'waiting' AND entered_at <= v_q.entered_at;
+            v_est_minutes := CEIL(v_waiting_pos::FLOAT / GREATEST(1, v_settings.max_active)::FLOAT * 1.5)::INT;
             RETURN jsonb_build_object(
                 'ok', true,
                 'state', 'waiting',
                 'token', v_q.token,
-                'nomor', v_q.queue_number,
+                'nomor', v_q.nomor,
                 'posisi', v_waiting_pos,
                 'estimasi_menit', v_est_minutes
             );
-        ELSIF v_q.state = 'expired' THEN
-            IF v_q.requeue_count >= v_settings.max_requeue THEN
-                RETURN jsonb_build_object('ok', false, 'error', 'Anda telah mencapai batas maksimal antri ulang. Silakan hubungi admin prodi.');
-            END IF;
         END IF;
     END IF;
 
-    -- Tentukan apakah langsung aktif atau masuk antrian tunggu
-    SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active';
+    -- Periksa apakah sesi sebelumnya expired dan sudah mencapai batas retry
+    SELECT * INTO v_q FROM public.queue
+    WHERE nim = v_student.nim AND state = 'expired'
+    ORDER BY entered_at DESC LIMIT 1;
 
-    v_token := encode(extensions.digest(v_student.nim || '-' || gen_random_uuid()::TEXT, 'sha256'), 'hex');
+    IF FOUND AND v_q.retry_count >= v_settings.max_requeue THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Batas maksimal antri ulang Anda telah habis.');
+    END IF;
+
+    -- Hitung slot antrian aktif
+    SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active' AND expires_at >= v_now;
+    v_token := gen_random_uuid()::TEXT;
 
     IF v_active_count < v_settings.max_active THEN
         v_expires_at := v_now + (v_settings.session_duration_minutes || ' minutes')::INTERVAL;
-        v_sisa_detik := (v_settings.session_duration_minutes * 60);
-
-        INSERT INTO public.queue (nim, token, queue_number, state, expires_at, requeue_count)
-        VALUES (v_student.nim, v_token, nextval('public.queue_seq'), 'active', v_expires_at, 0)
-        ON CONFLICT (nim) DO UPDATE
-        SET token = EXCLUDED.token,
-            state = 'active',
-            expires_at = EXCLUDED.expires_at,
-            requeue_count = public.queue.requeue_count + 1;
-
-        RETURN jsonb_build_object(
-            'ok', true,
-            'state', 'active',
-            'token', v_token,
-            'sisa_detik', v_sisa_detik,
-            'posisi', 1,
-            'estimasi_menit', 0
-        );
+        v_sisa_detik := v_settings.session_duration_minutes * 60;
+        INSERT INTO public.queue (token, nim, state, activated_at, expires_at, retry_count)
+        VALUES (v_token, v_student.nim, 'active', v_now, v_expires_at, COALESCE(v_q.retry_count, 0));
+        RETURN jsonb_build_object('ok', true, 'token', v_token, 'state', 'active', 'sisa_detik', v_sisa_detik);
     ELSE
-        INSERT INTO public.queue (nim, token, queue_number, state, requeue_count)
-        VALUES (v_student.nim, v_token, nextval('public.queue_seq'), 'waiting', 0)
-        ON CONFLICT (nim) DO UPDATE
-        SET token = EXCLUDED.token,
-            state = 'waiting',
-            queue_number = nextval('public.queue_seq'),
-            requeue_count = public.queue.requeue_count + 1;
+        INSERT INTO public.queue (token, nim, state, retry_count)
+        VALUES (v_token, v_student.nim, 'waiting', COALESCE(v_q.retry_count, 0));
 
-        SELECT count(*) INTO v_waiting_pos
-        FROM public.queue
-        WHERE state = 'waiting';
+        SELECT count(*) INTO v_waiting_pos FROM public.queue WHERE state = 'waiting';
+        v_est_minutes := CEIL(v_waiting_pos::FLOAT / GREATEST(1, v_settings.max_active)::FLOAT * 1.5)::INT;
 
-        v_est_minutes := GREATEST(1, ceil((v_waiting_pos::NUMERIC / GREATEST(1, v_settings.max_active)) * v_settings.session_duration_minutes)::INT);
-
+        SELECT nomor INTO v_q FROM public.queue WHERE token = v_token;
         RETURN jsonb_build_object(
             'ok', true,
-            'state', 'waiting',
             'token', v_token,
+            'state', 'waiting',
+            'nomor', v_q.nomor,
             'posisi', v_waiting_pos,
             'estimasi_menit', v_est_minutes
         );
@@ -170,6 +150,37 @@ BEGIN
 END;
 $$;
 
+-- 3. FUNGSI ajukan_akses (4 PARAMETER: p_nim, p_nama, p_kelas, p_catatan)
+CREATE OR REPLACE FUNCTION public.ajukan_akses(
+    p_nim TEXT,
+    p_nama TEXT,
+    p_kelas TEXT,
+    p_catatan TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF trim(p_nim) = '' OR trim(p_nama) = '' THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'NIM dan Nama Lengkap wajib diisi.');
+    END IF;
+
+    -- Cek jika NIM sudah terdaftar di tabel mahasiswa
+    IF EXISTS (SELECT 1 FROM public.students WHERE nim = trim(p_nim)) THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'NIM Anda sudah terdaftar di database sistem.');
+    END IF;
+
+    -- Catat pengajuan akses ke tabel access_requests
+    INSERT INTO public.access_requests (nim, nama, kelas, catatan, status)
+    VALUES (trim(p_nim), trim(p_nama), NULLIF(trim(p_kelas), ''), NULLIF(trim(p_catatan), ''), 'pending');
+
+    RETURN jsonb_build_object('ok', true, 'message', 'Pengajuan akses Anda berhasil dicatat dan menunggu verifikasi.');
+END;
+$$;
+
 -- Izin eksekusi publik
 GRANT EXECUTE ON FUNCTION public.cek_nim(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.join_queue(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ajukan_akses(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
