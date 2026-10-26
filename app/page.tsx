@@ -49,12 +49,23 @@ export default function StudentPage() {
 
   // State Pilihan & UI
   const [offerings, setOfferings] = useState<Offering[]>([]);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("krs_selected_ids");
+        if (saved) return JSON.parse(saved) as number[];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshingQuota, setIsRefreshingQuota] = useState(false);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [showAjukanModal, setShowAjukanModal] = useState(false);
+  const [networkWarning, setNetworkWarning] = useState<string | null>(null);
 
   // State Modal Dialog Interaktif
   const [modalDialog, setModalDialog] = useState<ModalDialogState>({
@@ -67,6 +78,18 @@ export default function StudentPage() {
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionEndTimeRef = useRef<number | null>(null);
   const isExitingRef = useRef(false);
+  const pollFailCountRef = useRef(0);
+
+  // Simpan selectedIds ke sessionStorage agar pilihan tidak hilang saat refresh
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (selectedIds.length > 0) {
+        sessionStorage.setItem("krs_selected_ids", JSON.stringify(selectedIds));
+      } else {
+        sessionStorage.removeItem("krs_selected_ids");
+      }
+    }
+  }, [selectedIds]);
 
   const closeModal = useCallback(() => {
     setModalDialog((prev) => ({ ...prev, isOpen: false }));
@@ -149,7 +172,16 @@ export default function StudentPage() {
         });
 
         if (isExitingRef.current) return;
-        if (error) return;
+        if (error) {
+          pollFailCountRef.current += 1;
+          if (pollFailCountRef.current >= 3) {
+            setNetworkWarning("Koneksi ke server tidak stabil. Sedang mencoba menghubungkan kembali...");
+          }
+          return;
+        }
+
+        pollFailCountRef.current = 0;
+        setNetworkWarning(null);
 
         interface QueueStatusResponse {
           ok?: boolean;
@@ -167,6 +199,7 @@ export default function StudentPage() {
           // Token tidak lagi valid (misal reset admin), kembalikan ke login
           sessionStorage.removeItem("nim");
           sessionStorage.removeItem("token");
+          sessionStorage.removeItem("krs_selected_ids");
           setPhase("login");
           setNim("");
           setToken("");
@@ -190,8 +223,12 @@ export default function StudentPage() {
         } else if (res.state === "done") {
           router.push("/bukti");
         }
-      } catch {
-        // Polling fail silent
+      } catch (err: unknown) {
+        pollFailCountRef.current += 1;
+        if (pollFailCountRef.current >= 3) {
+          const msg = err instanceof Error ? err.message : "Gangguan jaringan";
+          setNetworkWarning(`Koneksi terganggu (${msg}). Sistem tetap mencoba menghubungkan kembali...`);
+        }
       }
     },
     [fetchOfferings, router]
@@ -416,19 +453,60 @@ export default function StudentPage() {
             p_token: token.trim(),
             p_offering_ids: selectedIds,
           });
+
           if (error) {
+            // Verifikasi apakah transaksi sebenarnya sudah berhasil tersimpan di server
+            try {
+              const { data: checkData } = await supabase.rpc("hasil_saya", {
+                p_nim: nim.trim(),
+                p_token: token.trim(),
+              });
+              const checkRes = checkData as { ok?: boolean } | null;
+              if (checkRes?.ok) {
+                if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
+                router.push("/bukti");
+                return;
+              }
+            } catch {
+              // Abaikan dan tampilkan pesan error asli
+            }
+
             showPopup("danger", "Gagal Mendaftar", error.message);
             return;
           }
+
           const res = (data as { ok?: boolean; error?: string }) || {};
           if (res.ok) {
+            if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
             router.push("/bukti");
           } else {
+            // Jika ditolak karena sudah pernah terdaftar, cek bukti pendaftaran
+            if (res.error && res.error.toLowerCase().includes("sudah pernah")) {
+              if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
+              router.push("/bukti");
+              return;
+            }
             showPopup("danger", "Pendaftaran Ditolak", res.error || "Gagal menyimpan pendaftaran.");
           }
         } catch (err: unknown) {
+          // Galat jaringan saat submit: verifikasi status akhir pendaftaran di server
+          try {
+            const { data: checkData } = await supabase.rpc("hasil_saya", {
+              p_nim: nim.trim(),
+              p_token: token.trim(),
+            });
+            const checkRes = checkData as { ok?: boolean } | null;
+            if (checkRes?.ok) {
+              if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
+              router.push("/bukti");
+              return;
+            }
+          } catch {
+            // Fallback ke notifikasi retry aman
+          }
+
           const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
-          showPopup("danger", "Kesalahan", msg);
+          showPopup("danger", "Kesalahan Jaringan", `${msg}. Pilihan Anda tetap aman tersimpan, silakan periksa koneksi dan coba tekan Simpan kembali.`);
         } finally {
           setIsSubmitting(false);
         }
@@ -493,6 +571,31 @@ export default function StudentPage() {
           }}
         >
           <span>Koneksi internet terputus. Sesi Anda tetap tersimpan, sistem akan terhubung otomatis saat online kembali.</span>
+        </div>
+      )}
+      {networkWarning && !isOffline && (
+        <div
+          role="status"
+          style={{
+            position: "sticky",
+            top: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#d97706",
+            color: "#ffffff",
+            textAlign: "center",
+            padding: "0.55rem 1rem",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+          }}
+        >
+          <span>{networkWarning}</span>
         </div>
       )}
       <div className="container" style={{ maxWidth: 1080 }}>

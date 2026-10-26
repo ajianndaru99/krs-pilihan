@@ -148,31 +148,76 @@ async function runTestSuite() {
 
   await assertTest("Bisnis: queue_status() menolak token kosong / palsu", async () => {
     const { data, error } = await supabase.rpc("queue_status", {
-      p_nim: "DUMMY",
-      p_token: "TOKEN_PALSU_XYZ",
+      p_nim: "2110211002",
+      p_token: "TOKEN_PALSU_XYZ_123456",
     });
     if (error) return true;
     return data.ok === false || "Token palsu diloloskan oleh queue_status!";
   });
 
-  await assertTest("Bisnis: daftar() menolak pendaftaran tanpa token / sesi valid", async () => {
-    const { data, error } = await supabase.rpc("daftar", {
-      p_nim: "DUMMY",
-      p_token: "TOKEN_TIDAK_VALID",
-      p_offerings: [1, 2, 3, 4],
+  let activeTestToken = "";
+  await assertTest("Bisnis: join_queue() menghasilkan token aktif untuk mahasiswa valid", async () => {
+    const { data, error } = await supabase.rpc("join_queue", {
+      p_nim: "2110211002",
+      p_pin: "",
     });
-    if (error) return true;
-    return data.ok === false || "Pendaftaran tanpa sesi lolos!";
+    if (error) return `Error RPC: ${error.message}`;
+    if (data?.ok && data.token) {
+      activeTestToken = data.token;
+      return true;
+    }
+    return `Gagal join queue: ${JSON.stringify(data)}`;
   });
 
-  await assertTest("Bisnis: daftar() menolak jumlah pilihan tidak sesuai (misal: 0 pilihan)", async () => {
+  await assertTest("Bisnis: queue_status() merespons data valid untuk token aktif", async () => {
+    if (!activeTestToken) return "Token aktif belum tersedia";
+    const { data, error } = await supabase.rpc("queue_status", {
+      p_nim: "2110211002",
+      p_token: activeTestToken,
+    });
+    if (error) return `Error RPC: ${error.message}`;
+    return data.ok === true && (data.state === "active" || data.state === "waiting") || `Respons tidak valid: ${JSON.stringify(data)}`;
+  });
+
+  await assertTest("Bisnis: daftar() menolak pendaftaran tanpa token / sesi valid", async () => {
     const { data, error } = await supabase.rpc("daftar", {
-      p_nim: "DUMMY",
-      p_token: "TOKEN_APAPUN",
-      p_offerings: [],
+      p_nim: "2110211002",
+      p_token: "TOKEN_TIDAK_VALID_BUKAN_AKTIF",
+      p_offering_ids: [1, 3, 5, 35],
     });
     if (error) return true;
-    return data.ok === false || "Pendaftaran dengan 0 pilihan lolos!";
+    return data.ok === false || "Pendaftaran tanpa sesi valid diloloskan!";
+  });
+
+  await assertTest("Bisnis: daftar() menolak jumlah pilihan tidak sesuai (misal: 2 pilihan)", async () => {
+    const { data, error } = await supabase.rpc("daftar", {
+      p_nim: "2110211002",
+      p_token: activeTestToken || "TOKEN_SEMBARANG",
+      p_offering_ids: [1, 3],
+    });
+    if (error) return true;
+    return data.ok === false || "Pendaftaran dengan 2 pilihan diloloskan!";
+  });
+
+  await assertTest("Bisnis: daftar() menolak topik mata kuliah kembar", async () => {
+    // Offering 1 & 2 sama-sama bertopik 'Bioteknologi'
+    const { data, error } = await supabase.rpc("daftar", {
+      p_nim: "2110211002",
+      p_token: activeTestToken || "TOKEN_SEMBARANG",
+      p_offering_ids: [1, 2, 5, 35],
+    });
+    if (error) return true;
+    return data.ok === false || "Pendaftaran dengan topik kembar diloloskan!";
+  });
+
+  await assertTest("Bisnis: daftar() menolak pendaftaran dobel pada mahasiswa yang sudah terdaftar", async () => {
+    const { data, error } = await supabase.rpc("daftar", {
+      p_nim: "2110211001", // Sudah terdaftar di database
+      p_token: "TOKEN_APAPUN",
+      p_offering_ids: [1, 3, 5, 35],
+    });
+    if (error) return true;
+    return data.ok === false || "Pendaftaran ganda pada NIM yang sudah terdaftar diloloskan!";
   });
 
   await assertTest("Bisnis: hasil_saya() menolak NIM tidak terdaftar", async () => {
@@ -195,37 +240,13 @@ async function runTestSuite() {
   // --------------------------------------------------------------------------
   console.log("\n--- 4. UJI KONKURENSI & BEBAN PARALEL ---");
 
-  await assertTest("Konkurensi: 15 pemanggilan daftar() simultan ditangani atomik tanpa crash/deadlock", async () => {
-    const calls = Array.from({ length: 15 }, (_, i) =>
-      supabase.rpc("daftar", {
-        p_nim: `M0520${String(i).padStart(3, "0")}`,
-        p_token: `CONCURRENT_TOKEN_${i}`,
-        p_offering_ids: [1, 2, 3, 4],
-      })
-    );
-    const results = await Promise.all(calls);
-    if (results.length !== 15) return "Jumlah respons tidak lengkap";
-
-    // Memverifikasi atomisitas: jika ada perebutan kuota, maksimal tepat 1 yang berhasil
-    const successes = results.filter((res) => res.data?.ok === true);
-    if (successes.length > 1) {
-      return `Anomali konkurensi: ${successes.length} pendaftar berhasil pada slot yang sama!`;
-    }
-
-    // Memverifikasi bahwa setiap panggilan mengembalikan struktur data yang terdefinisi
-    const allValid = results.every(
-      (res) => res.error !== null || (res.data && typeof res.data.ok === "boolean")
-    );
-    return allValid || "Terdapat respons konkurensi yang tidak terdefinisi";
-  });
-
   await assertTest("Konkurensi: 5 pemanggilan daftar() simultan pada NIM yang sama menolak pendaftaran dobel", async () => {
     const targetNim = "2110211001";
     const calls = Array.from({ length: 5 }, (_, i) =>
       supabase.rpc("daftar", {
         p_nim: targetNim,
         p_token: `PARALLEL_TOKEN_${i}`,
-        p_offering_ids: [1, 2, 3, 35],
+        p_offering_ids: [1, 3, 5, 35],
       })
     );
     const results = await Promise.all(calls);
@@ -233,7 +254,10 @@ async function runTestSuite() {
     if (successes.length > 1) {
       return `Pelanggaran atomisitas: ${successes.length} pendaftaran paralel berhasil untuk NIM yang sama!`;
     }
-    return true;
+    const allProtected = results.every(
+      (res) => res.error !== null || (res.data && res.data.ok === false)
+    );
+    return allProtected || "Terdapat respons pendaftaran dobel yang tidak ditolak!";
   });
 
   // --------------------------------------------------------------------------

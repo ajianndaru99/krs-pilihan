@@ -8,6 +8,14 @@ import {
   AdminPengajuanItem,
   PendaftarStudentItem,
 } from "@/lib/types";
+import {
+  normalizeAdminStatus,
+  parseOfferingsData,
+  parsePendaftarData,
+  parseExportFallbackPendaftar,
+  parsePengajuanData,
+  parseKelasData,
+} from "@/lib/admin-adapter";
 import { StudentImportRow } from "@/lib/excel-parser";
 import { AdminLoginCard } from "@/components/admin/AdminLoginCard";
 import { AdminHeader } from "@/components/admin/AdminHeader";
@@ -18,6 +26,8 @@ import { StudentImport } from "@/components/admin/StudentImport";
 import { AccessRequestsList } from "@/components/admin/AccessRequestsList";
 import { ResetDataModal } from "@/components/admin/ResetDataModal";
 import { AdminModal, AdminModalState, AdminModalType } from "@/components/admin/AdminModal";
+
+const ADMIN_POLL_INTERVAL_MS = 10000;
 
 type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "batal_reset";
 
@@ -86,100 +96,25 @@ export default function AdminPage() {
     try {
       // 1. Status sistem
       const { data: stData } = await supabase.rpc("admin_status");
-      const st = stData as (AdminSystemStatus & { ok?: boolean }) | null;
-      if (st && (st.ok === undefined || st.ok === true)) {
-        const normalizedStatus: AdminSystemStatus = {
-          portal_open: Boolean(st.portal_open),
-          need_matkul: st.need_matkul ?? 3,
-          need_proyek: st.need_proyek ?? 1,
-          session_duration_minutes: st.session_duration_minutes ?? 5,
-          max_active: st.max_active ?? 30,
-          max_requeue: st.max_requeue ?? 2,
-          total_students: st.total_students ?? 0,
-          sudah_daftar: st.sudah_daftar ?? st.total_registered ?? 0,
-          active_queue: st.active_queue ?? 0,
-          waiting_queue: st.waiting_queue ?? 0,
-          total_registered: st.total_registered ?? st.sudah_daftar ?? 0,
-        };
+      const normalizedStatus = normalizeAdminStatus(stData);
+      if (normalizedStatus) {
         setStatus(normalizedStatus);
-        setPortalOpen(Boolean(st.portal_open));
+        setPortalOpen(normalizedStatus.portal_open);
       }
 
-      // 2. Offerings (Mendukung array langsung maupun objek { ok, offerings })
+      // 2. Offerings
       const { data: offData } = await supabase.rpc("admin_list_offerings");
-      if (Array.isArray(offData)) {
-        setOfferings(offData as Offering[]);
-      } else {
-        const offRes = offData as { ok?: boolean; offerings?: Offering[] } | null;
-        if (offRes?.ok && Array.isArray(offRes.offerings)) {
-          setOfferings(offRes.offerings);
-        }
-      }
+      setOfferings(parseOfferingsData(offData));
 
-      // 3. Pendaftar (Mendukung admin_list_pendaftar dan fallback admin_export_pendaftaran)
+      // 3. Pendaftar
       const { data: pendData } = await supabase.rpc("admin_list_pendaftar");
-      let pendaftarList: PendaftarStudentItem[] = [];
-
-      if (Array.isArray(pendData)) {
-        pendaftarList = pendData as PendaftarStudentItem[];
-      } else {
-        const pendRes = pendData as { ok?: boolean; pendaftar?: PendaftarStudentItem[] } | null;
-        if (pendRes?.ok && Array.isArray(pendRes.pendaftar)) {
-          pendaftarList = pendRes.pendaftar;
-        }
-      }
-
-      // Jika list pendaftar belum terisi, coba fallback dari admin_export_pendaftaran
+      let pendaftarList = parsePendaftarData(pendData);
       if (pendaftarList.length === 0) {
         const { data: expData } = await supabase.rpc("admin_export_pendaftaran");
-        let rawList: Record<string, unknown>[] = [];
-        if (Array.isArray(expData)) {
-          rawList = expData as Record<string, unknown>[];
-        } else if (expData && typeof expData === "object") {
-          const expRes = expData as { ok?: boolean; data?: Record<string, unknown>[] };
-          if (Array.isArray(expRes.data)) {
-            rawList = expRes.data;
-          }
-        }
-
-        if (rawList.length > 0) {
-          const map = new Map<string, PendaftarStudentItem>();
-          rawList.forEach((r) => {
-            const nim = String(r.nim || r.NIM || "").trim();
-            if (!nim) return;
-            const nama = String(r.nama || r.Nama || "").trim();
-            const kelas = String(r.kelas || r.Kelas || "-").trim();
-            const registered_at = String(r.waktu_daftar || r["Waktu Registrasi"] || r.created_at || "");
-            const offId = Number(r.offering_id || r.id || 0);
-            const offNama = String(r.nama_pilihan || r["Mata Kuliah / Proyek"] || r.nama || "").trim();
-            const offJenis = String(r.jenis || r.Jenis || "matkul").trim();
-            const offTopik = String(r.topik || r.Topik || "").trim();
-
-            if (!map.has(nim)) {
-              map.set(nim, {
-                nim,
-                nama,
-                kelas,
-                registered_at,
-                pilihan: [],
-              });
-            }
-            if (offNama) {
-              map.get(nim)!.pilihan.push({
-                id: offId,
-                nama: offNama,
-                jenis: offJenis,
-                topik: offTopik,
-              });
-            }
-          });
-          pendaftarList = Array.from(map.values());
-        }
+        pendaftarList = parseExportFallbackPendaftar(expData);
       }
-
       setPendaftar(pendaftarList);
 
-      // Pastikan status.sudah_daftar mencerminkan jumlah pendaftar aktual jika sebelumnya 0
       if (pendaftarList.length > 0) {
         setStatus((prev) => {
           if (!prev) return prev;
@@ -196,20 +131,11 @@ export default function AdminPage() {
 
       // 4. Pengajuan Akses
       const { data: reqData } = await supabase.rpc("admin_list_pengajuan");
-      if (Array.isArray(reqData)) {
-        setRequests(reqData as AdminPengajuanItem[]);
-      } else {
-        const reqRes = reqData as { ok?: boolean; pengajuan?: AdminPengajuanItem[] } | null;
-        if (reqRes?.ok && Array.isArray(reqRes.pengajuan)) {
-          setRequests(reqRes.pengajuan);
-        }
-      }
+      setRequests(parsePengajuanData(reqData));
 
       // 5. Daftar Kelas
       const { data: kData } = await supabase.rpc("daftar_kelas");
-      if (Array.isArray(kData)) {
-        setKelasList(kData as string[]);
-      }
+      setKelasList(parseKelasData(kData));
 
       setLastSyncTime(new Date().toLocaleTimeString("id-ID"));
     } catch (err: unknown) {
@@ -244,12 +170,12 @@ export default function AdminPage() {
     };
   }, [loadAdminData]);
 
-  // Polling data admin otomatis setiap 5 detik saat admin login + sinkron saat tab aktif
+  // Polling data admin otomatis setiap 10 detik saat admin login + sinkron saat tab aktif
   useEffect(() => {
     if (sessionUser) {
       const timer = setInterval(() => {
         void loadAdminData(true);
-      }, 5000);
+      }, ADMIN_POLL_INTERVAL_MS);
 
       const handleVisibilityChange = () => {
         if (typeof document !== "undefined" && document.visibilityState === "visible") {

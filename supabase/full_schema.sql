@@ -17,11 +17,12 @@ CREATE TABLE IF NOT EXISTS public.settings (
     session_duration_minutes INT NOT NULL DEFAULT 5,
     need_matkul INT NOT NULL DEFAULT 3,
     need_proyek INT NOT NULL DEFAULT 1,
+    max_requeue INT NOT NULL DEFAULT 2,
     CONSTRAINT single_row CHECK (id = 1)
 );
 
-INSERT INTO public.settings (id, portal_open, max_active, session_duration_minutes, need_matkul, need_proyek)
-VALUES (1, false, 30, 5, 3, 1)
+INSERT INTO public.settings (id, portal_open, max_active, session_duration_minutes, need_matkul, need_proyek, max_requeue)
+VALUES (1, false, 30, 5, 3, 1, 2)
 ON CONFLICT (id) DO NOTHING;
 
 -- 1.2 Data Mahasiswa
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.students (
     nama TEXT NOT NULL,
     kelas TEXT, -- Opsional
     pin TEXT,
+    pin_hash TEXT,
     registered_at TIMESTAMPTZ
 );
 
@@ -85,7 +87,8 @@ CREATE TABLE IF NOT EXISTS public.queue (
     state TEXT NOT NULL DEFAULT 'waiting' CHECK (state IN ('menunggu_undian', 'waiting', 'active', 'done', 'expired')),
     entered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     activated_at TIMESTAMPTZ,
-    expires_at TIMESTAMPTZ
+    expires_at TIMESTAMPTZ,
+    retry_count INT NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_queue_state ON public.queue(state, nomor);
 CREATE INDEX IF NOT EXISTS idx_queue_nim ON public.queue(nim);
