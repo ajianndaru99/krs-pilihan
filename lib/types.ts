@@ -30,12 +30,19 @@ export interface StudentInfo {
   sudah_terdaftar?: boolean;
 }
 
+export interface ModalDetailItem {
+  label: string;
+  value: string;
+  subValue?: string;
+  schedule?: string;
+}
+
 export interface ModalDialogState {
   isOpen: boolean;
   type: "info" | "warning" | "danger" | "confirm";
   title: string;
   message: string;
-  details?: { label: string; value: string }[];
+  details?: ModalDetailItem[];
   onConfirm?: () => void;
   confirmText?: string;
   cancelText?: string;

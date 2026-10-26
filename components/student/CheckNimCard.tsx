@@ -123,10 +123,12 @@ export function CheckNimCard({
               <div style={{ position: "relative" }}>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="form-control"
-                  placeholder="Masukkan NIM kamu"
+                  placeholder="Masukkan NIM kamu (contoh: 2110211001)"
                   value={nim}
-                  onChange={(e) => setNim(e.target.value)}
+                  onChange={(e) => setNim(e.target.value.replace(/\D/g, ""))}
                   disabled={loading}
                   autoFocus
                   required
@@ -272,10 +274,12 @@ export function CheckNimCard({
               <div style={{ position: "relative" }}>
                 <input
                   type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="form-control"
                   placeholder="Masukkan 4 digit terakhir NIM Anda"
                   value={pin}
-                  onChange={(e) => setPin(e.target.value)}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
                   disabled={loading}
                   autoFocus
                   required

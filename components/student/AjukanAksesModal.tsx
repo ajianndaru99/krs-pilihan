@@ -122,10 +122,12 @@ export function AjukanAksesModal({
             <label className="form-label">Nomor Induk Mahasiswa (NIM)</label>
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="form-control"
               placeholder="Contoh: 2110211001"
               value={nim}
-              onChange={(e) => setNim(e.target.value)}
+              onChange={(e) => setNim(e.target.value.replace(/\D/g, ""))}
               required
             />
           </div>
@@ -174,10 +176,12 @@ export function AjukanAksesModal({
             <label className="form-label">Kontak WhatsApp / No. HP (Opsional)</label>
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="form-control"
               placeholder="08xxxxxxxxxx"
               value={kontak}
-              onChange={(e) => setKontak(e.target.value)}
+              onChange={(e) => setKontak(e.target.value.replace(/\D/g, ""))}
             />
           </div>
 

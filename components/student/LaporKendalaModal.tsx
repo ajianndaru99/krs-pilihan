@@ -211,10 +211,12 @@ export function LaporKendalaModal({
             </label>
             <input
               type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="form-control"
               placeholder="Contoh: 081234567890"
               value={kontak}
-              onChange={(e) => setKontak(e.target.value)}
+              onChange={(e) => setKontak(e.target.value.replace(/\D/g, ""))}
               required
               disabled={isSubmitting}
             />

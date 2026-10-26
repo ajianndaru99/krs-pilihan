@@ -700,5 +700,67 @@ body {
   .has-mobile-bottom-bar {
     padding-bottom: 5.5rem !important;
   }
+
+  .desktop-formal-preview {
+    display: none !important;
+  }
+
+  .mobile-screen-summary {
+    display: block !important;
+  }
+}
+
+@media (min-width: 641px) {
+  .desktop-formal-preview {
+    display: block !important;
+  }
+
+  .mobile-screen-summary {
+    display: none !important;
+  }
+}
+
+/* ==============================================================================
+   PRINT STYLESHEET — STRICT SINGLE-PAGE A4 ENFORCEMENT
+   ============================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  .mobile-screen-summary {
+    display: none !important;
+  }
+
+  .print-formal-sheet {
+    display: block !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 }
 

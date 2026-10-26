@@ -89,25 +89,72 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
           <div
             style={{
               backgroundColor: "var(--bg-subtle)",
-              borderRadius: "var(--radius-md)",
+              borderRadius: "var(--radius-lg)",
               padding: "0.85rem 1.15rem",
               marginBottom: "1.5rem",
               fontSize: "0.85rem",
               border: "1px solid var(--border-color)",
+              maxHeight: "45vh",
+              overflowY: "auto",
             }}
           >
             {dialog.details.map((item, idx) => (
               <div
                 key={idx}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "0.35rem 0",
+                  padding: "0.5rem 0",
                   borderBottom: idx < dialog.details!.length - 1 ? "1px dashed #cbd5e1" : "none",
                 }}
               >
-                <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{item.label}:</span>
-                <span style={{ fontWeight: 700, color: "var(--text-main)" }}>{item.value}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      fontWeight: 800,
+                      color: "var(--primary)",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  {item.subValue && (
+                    <span
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        backgroundColor: "#ffffff",
+                        padding: "1px 7px",
+                        borderRadius: "var(--radius-full)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {item.subValue}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ fontWeight: 800, color: "var(--text-main)", fontSize: "0.925rem", lineHeight: 1.35 }}>
+                  {item.value}
+                </div>
+
+                {item.schedule && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      fontSize: "0.775rem",
+                      fontWeight: 600,
+                      color: "#475569",
+                      marginTop: "0.25rem",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    <span>🕒 {item.schedule}</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

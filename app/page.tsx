@@ -443,10 +443,26 @@ export default function StudentPage() {
   // Handler: Submit Final Registration
   const handleSubmitSelection = () => {
     const selectedItems = offerings.filter((o) => selectedIds.includes(o.id));
-    const details = selectedItems.map((item, idx) => ({
-      label: `Pilihan #${idx + 1} (${item.jenis})`,
-      value: item.nama,
-    }));
+    const details = selectedItems.map((item, idx) => {
+      const scheduleText =
+        item.jadwal && item.jadwal.length > 0
+          ? item.jadwal
+              .map(
+                (j) =>
+                  `${j.hari}, ${j.jam_mulai.slice(0, 5)} - ${j.jam_selesai.slice(0, 5)}${
+                    j.ruang ? ` (${j.ruang})` : ""
+                  }`
+              )
+              .join("; ")
+          : "Jadwal belum ditentukan";
+
+      return {
+        label: `Pilihan #${idx + 1} • ${item.jenis === "matkul" ? "Mata Kuliah" : "Proyek Terapan"}`,
+        value: item.nama,
+        subValue: item.topik ? `Topik: ${item.topik}` : undefined,
+        schedule: scheduleText,
+      };
+    });
 
     showPopup(
       "confirm",
