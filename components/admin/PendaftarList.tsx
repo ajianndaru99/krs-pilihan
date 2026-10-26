@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { PendaftarStudentItem } from "@/lib/types";
+import { formatWIBDateTime } from "@/lib/admin-adapter";
 import { AdminModal, AdminModalState } from "@/components/admin/AdminModal";
 
 interface PendaftarListProps {
@@ -52,7 +53,7 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
           "Mata Kuliah / Proyek": opt.nama,
           Jenis: opt.jenis,
           Topik: opt.topik || "-",
-          "Waktu Registrasi": p.registered_at || "-",
+          "Waktu Registrasi": formatWIBDateTime(p.registered_at).full,
         });
       });
     });
@@ -122,7 +123,7 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
               <th style={{ padding: "8px 12px" }}>Nama Mahasiswa</th>
               <th style={{ padding: "8px 12px", width: 110 }}>Kelas</th>
               <th style={{ padding: "8px 12px" }}>Mata Kuliah / Proyek Terpilih</th>
-              <th style={{ padding: "8px 12px", width: 160 }}>Waktu Terdaftar</th>
+              <th style={{ padding: "8px 12px", width: 170 }}>Waktu Terdaftar</th>
               {onBatalDaftar && <th style={{ padding: "8px 12px", width: 90, textAlign: "center" }}>Aksi</th>}
             </tr>
           </thead>
@@ -152,8 +153,19 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
                       ))}
                     </div>
                   </td>
-                  <td style={{ padding: "8px 12px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                    {item.registered_at || "-"}
+                  <td style={{ padding: "8px 12px", fontSize: "0.825rem", whiteSpace: "nowrap" }}>
+                    {(() => {
+                      const timeObj = formatWIBDateTime(item.registered_at);
+                      if (timeObj.date === "-") return <span style={{ color: "var(--text-muted)" }}>-</span>;
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ fontWeight: 600, color: "var(--text-main)" }}>{timeObj.date}</span>
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                            {timeObj.time}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </td>
                   {onBatalDaftar && (
                     <td style={{ padding: "8px 12px", textAlign: "center" }}>

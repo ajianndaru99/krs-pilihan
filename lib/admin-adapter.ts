@@ -3,6 +3,7 @@ import {
   Offering,
   PendaftarStudentItem,
   AdminPengajuanItem,
+  MasterStudentItem,
 } from "./types";
 
 /**
@@ -143,4 +144,73 @@ export function parseKelasData(raw: unknown): string[] {
     return raw.map((k) => String(k).trim()).filter(Boolean);
   }
   return [];
+}
+
+/**
+ * Format tanggal dan jam ke dalam standar waktu Indonesia (WIB).
+ * Menghasilkan objek { date, time, full } yang bersih dan tidak terpotong.
+ */
+export function formatWIBDateTime(dateStr?: string | null): { date: string; time: string; full: string } {
+  if (!dateStr || dateStr === "-" || dateStr === "null") {
+    return { date: "-", time: "", full: "-" };
+  }
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+      return { date: String(dateStr), time: "", full: String(dateStr) };
+    }
+
+    const dateFormatted = new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Jakarta",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(d);
+
+    const timeFormatted =
+      new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+        .format(d)
+        .replace(/\./g, ":") + " WIB";
+
+    return {
+      date: dateFormatted,
+      time: timeFormatted,
+      full: `${dateFormatted}, ${timeFormatted}`,
+    };
+  } catch {
+    return { date: String(dateStr), time: "", full: String(dateStr) };
+  }
+}
+
+/**
+ * Parsing hasil RPC admin_list_students.
+ */
+export function parseMasterStudentsData(raw: unknown): MasterStudentItem[] {
+  let list: Record<string, unknown>[] = [];
+  if (Array.isArray(raw)) {
+    list = raw as Record<string, unknown>[];
+  } else if (raw && typeof raw === "object") {
+    const res = raw as { ok?: boolean; students?: Record<string, unknown>[] };
+    if (res.ok && Array.isArray(res.students)) {
+      list = res.students;
+    }
+  }
+
+  if (list.length === 0) return [];
+
+  return list
+    .map((item) => ({
+      nim: String(item.nim || item.NIM || "").trim(),
+      nama: String(item.nama || item.Nama || "").trim(),
+      kelas: String(item.kelas || item.Kelas || "-").trim(),
+      registered_at: item.registered_at ? String(item.registered_at) : null,
+      has_registered: Boolean(item.has_registered || item.registered_at),
+    }))
+    .filter((s) => Boolean(s.nim));
 }

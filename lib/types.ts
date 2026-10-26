@@ -82,3 +82,11 @@ export interface AdminSystemStatus {
   offerings_without_schedule?: number;
   classes_without_schedule?: number;
 }
+
+export interface MasterStudentItem {
+  nim: string;
+  nama: string;
+  kelas: string;
+  registered_at: string | null;
+  has_registered: boolean;
+}

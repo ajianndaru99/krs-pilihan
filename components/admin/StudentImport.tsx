@@ -3,17 +3,32 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { extractStudentFromRow, StudentImportRow } from "@/lib/excel-parser";
+import { MasterStudentItem } from "@/lib/types";
+import { StudentListTable } from "./StudentListTable";
+import { AdminModal } from "./AdminModal";
 
 interface StudentImportProps {
+  students?: MasterStudentItem[];
   onImportStudents: (students: StudentImportRow[]) => Promise<{ inserted: number; updated: number }>;
+  onUpdateStudent?: (nim: string, nama: string, kelas: string) => Promise<void>;
+  onDeleteStudent?: (nim: string) => Promise<void>;
   onSuccess: (msg: string) => void;
   onError: (err: string) => void;
   kelasList?: string[];
 }
 
-export function StudentImport({ onImportStudents, onSuccess, onError, kelasList = [] }: StudentImportProps) {
-  // Mode aktif: "manual" (1 Mahasiswa) atau "excel" (Impor Massal)
-  const [activeMode, setActiveMode] = useState<"manual" | "excel">("manual");
+export function StudentImport({
+  students = [],
+  onImportStudents,
+  onUpdateStudent,
+  onDeleteStudent,
+  onSuccess,
+  onError,
+  kelasList = [],
+}: StudentImportProps) {
+  // Mode aktif: "list" (Daftar Mahasiswa), "manual" (1 Mahasiswa), atau "excel" (Impor Massal)
+  const [activeMode, setActiveMode] = useState<"list" | "manual" | "excel">("list");
+  const [studentToDelete, setStudentToDelete] = useState<MasterStudentItem | null>(null);
 
   // State Form Manual (1 Mahasiswa)
   const [manualNim, setManualNim] = useState("");
@@ -186,8 +201,37 @@ export function StudentImport({ onImportStudents, onSuccess, onError, kelasList 
             padding: "4px",
             borderRadius: "var(--radius-full)",
             border: "1px solid var(--border-color)",
+            flexWrap: "wrap",
+            gap: "2px",
           }}
         >
+          <button
+            type="button"
+            onClick={() => setActiveMode("list")}
+            style={{
+              padding: "0.45rem 1rem",
+              borderRadius: "var(--radius-full)",
+              border: "none",
+              fontSize: "0.825rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+              backgroundColor: activeMode === "list" ? "#ffffff" : "transparent",
+              color: activeMode === "list" ? "var(--primary)" : "var(--text-muted)",
+              boxShadow: activeMode === "list" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            Daftar Mahasiswa ({students.length})
+          </button>
           <button
             type="button"
             onClick={() => setActiveMode("manual")}
@@ -243,6 +287,21 @@ export function StudentImport({ onImportStudents, onSuccess, onError, kelasList 
           </button>
         </div>
       </div>
+
+      {/* MODE 0: DAFTAR MAHASISWA MASTER */}
+      {activeMode === "list" && (
+        <StudentListTable
+          students={students}
+          kelasList={kelasList}
+          onUpdateStudent={async (nim, nama, kelas) => {
+            if (onUpdateStudent) {
+              await onUpdateStudent(nim, nama, kelas);
+              onSuccess(`Data mahasiswa ${nama} (${nim}) berhasil diperbarui.`);
+            }
+          }}
+          onRequestDelete={(stud) => setStudentToDelete(stud)}
+        />
+      )}
 
       {/* MODE 1: INPUT MANUAL (1 MAHASISWA) */}
       {activeMode === "manual" && (
@@ -496,6 +555,34 @@ export function StudentImport({ onImportStudents, onSuccess, onError, kelasList 
             </p>
           </div>
         </div>
+      )}
+
+      {/* Modal Dialog Konfirmasi Hapus Mahasiswa */}
+      {studentToDelete && (
+        <AdminModal
+          modal={{
+            isOpen: true,
+            type: "danger",
+            title: "Hapus Mahasiswa",
+            message: `Apakah Anda yakin ingin menghapus data mahasiswa ${studentToDelete.nama} (${studentToDelete.nim})? Seluruh riwayat pendaftaran dan antrian terkait akan ikut dibatalkan agar kuota kembali utuh.`,
+            confirmText: "Ya, Hapus Mahasiswa",
+            cancelText: "Batal",
+            onConfirm: async () => {
+              if (onDeleteStudent && studentToDelete) {
+                try {
+                  await onDeleteStudent(studentToDelete.nim);
+                  onSuccess(`Mahasiswa ${studentToDelete.nama} (${studentToDelete.nim}) berhasil dihapus.`);
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Gagal menghapus mahasiswa.";
+                  onError(msg);
+                } finally {
+                  setStudentToDelete(null);
+                }
+              }
+            },
+          }}
+          onClose={() => setStudentToDelete(null)}
+        />
       )}
     </div>
   );

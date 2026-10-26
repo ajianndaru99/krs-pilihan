@@ -7,6 +7,7 @@ import {
   AdminSystemStatus,
   AdminPengajuanItem,
   PendaftarStudentItem,
+  MasterStudentItem,
 } from "@/lib/types";
 import {
   normalizeAdminStatus,
@@ -15,6 +16,7 @@ import {
   parseExportFallbackPendaftar,
   parsePengajuanData,
   parseKelasData,
+  parseMasterStudentsData,
 } from "@/lib/admin-adapter";
 import { StudentImportRow } from "@/lib/excel-parser";
 import { AdminLoginCard } from "@/components/admin/AdminLoginCard";
@@ -51,6 +53,7 @@ export default function AdminPage() {
   const [status, setStatus] = useState<AdminSystemStatus | null>(null);
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [pendaftar, setPendaftar] = useState<PendaftarStudentItem[]>([]);
+  const [students, setStudents] = useState<MasterStudentItem[]>([]);
   const [requests, setRequests] = useState<AdminPengajuanItem[]>([]);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -129,11 +132,25 @@ export default function AdminPage() {
         });
       }
 
-      // 4. Pengajuan Akses
+      // 4. Master Mahasiswa (RPC admin_list_students dengan fallback)
+      const { data: studData } = await supabase.rpc("admin_list_students");
+      let parsedStudents = parseMasterStudentsData(studData);
+      if (parsedStudents.length === 0 && pendaftarList.length > 0) {
+        parsedStudents = pendaftarList.map((p) => ({
+          nim: p.nim,
+          nama: p.nama,
+          kelas: p.kelas || "-",
+          registered_at: p.registered_at || null,
+          has_registered: true,
+        }));
+      }
+      setStudents(parsedStudents);
+
+      // 5. Pengajuan Akses
       const { data: reqData } = await supabase.rpc("admin_list_pengajuan");
       setRequests(parsePengajuanData(reqData));
 
-      // 5. Daftar Kelas
+      // 6. Daftar Kelas
       const { data: kData } = await supabase.rpc("daftar_kelas");
       setKelasList(parseKelasData(kData));
 
@@ -364,6 +381,40 @@ export default function AdminPage() {
     showAdminPopup("success", "Pendaftaran Dibatalkan", `Pendaftaran untuk NIM ${nim} berhasil dibatalkan dan kuota dikembalikan.`);
   };
 
+  // Handler Update Mahasiswa
+  const handleUpdateStudent = async (nim: string, nama: string, kelas: string) => {
+    const { error: updErr } = await supabase.rpc("admin_update_student", {
+      p_nim: nim,
+      p_nama: nama,
+      p_kelas: kelas,
+    });
+
+    if (updErr) {
+      // Fallback via admin_import_students
+      const { error: impErr } = await supabase.rpc("admin_import_students", {
+        p_students: [{ nim, nama, kelas: kelas || undefined }],
+      });
+      if (impErr) {
+        showAdminPopup("danger", "Gagal Memperbarui Mahasiswa", impErr.message);
+        throw impErr;
+      }
+    }
+
+    loadAdminData();
+    showAdminPopup("success", "Berhasil", `Data mahasiswa ${nama} (${nim}) berhasil disimpan.`);
+  };
+
+  // Handler Delete Mahasiswa
+  const handleDeleteStudent = async (nim: string) => {
+    const { error } = await supabase.rpc("admin_delete_student", { p_nim: nim });
+    if (error) {
+      showAdminPopup("danger", "Gagal Menghapus Mahasiswa", error.message);
+      throw error;
+    }
+    loadAdminData();
+    showAdminPopup("success", "Berhasil", `Mahasiswa dengan NIM ${nim} berhasil dihapus.`);
+  };
+
   // Handler Reset Data Uji Coba
   const handleResetDataUji = async (confirmCode: string) => {
     const { data, error } = await supabase.rpc("admin_reset_data_uji", {
@@ -489,7 +540,7 @@ export default function AdminPage() {
             className={`admin-nav-item ${activeTab === "import_mahasiswa" ? "active" : ""}`}
             onClick={() => setActiveTab("import_mahasiswa")}
           >
-            <span>Data & Impor Mahasiswa</span>
+            <span>Data & Impor Mahasiswa ({students.length})</span>
             {activeTab === "import_mahasiswa" && <span className="nav-chevron">&gt;</span>}
           </button>
           <button
@@ -560,6 +611,7 @@ export default function AdminPage() {
 
           {activeTab === "import_mahasiswa" && (
             <StudentImport
+              students={students}
               kelasList={kelasList}
               onImportStudents={async (studs: StudentImportRow[]) => {
                 const { data, error } = await supabase.rpc("admin_import_students", {
@@ -575,6 +627,8 @@ export default function AdminPage() {
                 loadAdminData();
                 return { inserted: res?.inserted || 0, updated: res?.updated || 0 };
               }}
+              onUpdateStudent={handleUpdateStudent}
+              onDeleteStudent={handleDeleteStudent}
               onSuccess={(msg) => showAdminPopup("success", "Berhasil", msg)}
               onError={(err) => showAdminPopup("danger", "Gagal", err)}
             />
