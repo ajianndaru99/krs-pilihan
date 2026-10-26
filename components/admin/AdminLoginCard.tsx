@@ -168,7 +168,7 @@ export function AdminLoginCard({
                 <span>Memverifikasi...</span>
               </>
             ) : (
-              <span>Masuk ke Admin Panel →</span>
+              <span>Masuk ke Admin Panel</span>
             )}
           </button>
         </form>
@@ -188,7 +188,7 @@ export function AdminLoginCard({
             transition: "opacity 0.15s ease",
           }}
         >
-          ← Kembali ke Portal Mahasiswa
+          Kembali ke Portal Mahasiswa
         </Link>
       </div>
     </div>

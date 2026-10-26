@@ -328,6 +328,7 @@ export default function StudentPage() {
       interface CekNimResponse {
         ok: boolean;
         error?: string;
+        nama?: string;
         nama_samar?: string;
         kelas?: string;
         sudah_daftar?: boolean;
@@ -351,14 +352,15 @@ export default function StudentPage() {
       if (res.sudah_daftar) {
         setRegisteredData({
           nim: nim.trim(),
-          nama: res.nama_samar || "",
+          nama: res.nama || res.nama_samar || "",
           kelas: res.kelas || "",
         });
         setShowRegisteredModal(true);
         return;
       }
       setStudentInfo({
-        nama_samar: res.nama_samar,
+        nama: res.nama || res.nama_samar,
+        nama_samar: res.nama || res.nama_samar,
         kelas: res.kelas,
         sudah_terdaftar: false,
       });
@@ -374,16 +376,16 @@ export default function StudentPage() {
     }
   };
 
-  // Handler: Masuk Antrian
+  // Handler: Masuk Antrian (Cukup dengan NIM, PIN bersifat opsional)
   const handleJoinQueue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nim.trim() || !pin.trim()) return;
+    if (!nim.trim()) return;
     isExitingRef.current = false;
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc("join_queue", {
         p_nim: nim.trim(),
-        p_pin: pin.trim(),
+        p_pin: pin.trim() || null,
       });
       if (error) {
         showPopup("danger", "Gagal Masuk Antrian", error.message, undefined, undefined, {
@@ -705,15 +707,12 @@ export default function StudentPage() {
         <CheckNimCard
           nim={nim}
           setNim={setNim}
-          pin={pin}
-          setPin={setPin}
           studentInfo={studentInfo}
           loading={loading}
           onCheckNim={handleCheckNim}
           onJoinQueue={handleJoinQueue}
           onResetVerification={() => setStudentInfo(null)}
           onOpenAjukanModal={() => setShowAjukanModal(true)}
-          onOpenLaporModal={() => setShowLaporModal(true)}
         />
       )}
 
@@ -853,7 +852,7 @@ export default function StudentPage() {
                 }}
                 style={{ padding: "0.85rem", fontSize: "0.95rem" }}
               >
-                📄 Lihat Tanda Bukti KRS Anda →
+                📄 Lihat Tanda Bukti KRS Anda
               </button>
 
               <button

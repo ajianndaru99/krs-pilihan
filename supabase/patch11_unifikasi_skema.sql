@@ -65,31 +65,22 @@ BEGIN
         SELECT 1 FROM public.registrations WHERE nim = v_student.nim
     )) INTO v_sudah_daftar;
 
-    v_nama_parts := string_to_array(trim(v_student.nama), ' ');
-    FOR v_idx IN 1..array_length(v_nama_parts, 1) LOOP
-        v_part := v_nama_parts[v_idx];
-        IF length(v_part) <= 2 THEN
-            v_samar := v_samar || v_part || ' ';
-        ELSE
-            v_samar := v_samar || left(v_part, 2) || repeat('*', length(v_part) - 2) || ' ';
-        END IF;
-    END LOOP;
-    v_samar := trim(v_samar);
-
+    -- Mengembalikan nama asli lengkap tanpa sensor/masking bintang
     RETURN jsonb_build_object(
         'ok', true,
         'nim', v_student.nim,
-        'nama_samar', v_samar,
+        'nama', v_student.nama,
+        'nama_samar', v_student.nama,
         'kelas', COALESCE(v_student.kelas, '-'),
-        'butuh_pin', (v_student.pin IS NOT NULL AND trim(v_student.pin) <> '') OR (v_student.pin_hash IS NOT NULL AND trim(v_student.pin_hash) <> ''),
+        'butuh_pin', false,
         'sudah_terdaftar', v_sudah_daftar,
         'portal_open', COALESCE(v_portal_open, false)
     );
 END;
 $$;
 
--- 5. FUNGSI join_queue(p_nim TEXT, p_pin TEXT)
-CREATE OR REPLACE FUNCTION public.join_queue(p_nim TEXT, p_pin TEXT)
+-- 5. FUNGSI join_queue(p_nim TEXT, p_pin TEXT DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.join_queue(p_nim TEXT, p_pin TEXT DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -106,7 +97,6 @@ DECLARE
     v_est_minutes INT;
     v_now TIMESTAMPTZ := now();
     v_sisa_detik INT := 0;
-    v_pin_valid BOOLEAN := true;
 BEGIN
     SELECT * INTO v_settings FROM public.settings WHERE id = 1;
     IF NOT v_settings.portal_open THEN
@@ -118,22 +108,7 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'NIM tidak terdaftar.');
     END IF;
 
-    -- Validasi PIN (mendukung pin plaintext maupun pin_hash)
-    IF (v_student.pin IS NOT NULL AND trim(v_student.pin) <> '') OR (v_student.pin_hash IS NOT NULL AND trim(v_student.pin_hash) <> '') THEN
-        IF p_pin IS NULL OR trim(p_pin) = '' THEN
-            v_pin_valid := false;
-        ELSIF v_student.pin IS NOT NULL AND trim(v_student.pin) <> '' AND trim(p_pin) = trim(v_student.pin) THEN
-            v_pin_valid := true;
-        ELSIF v_student.pin_hash IS NOT NULL AND trim(v_student.pin_hash) <> '' AND encode(extensions.digest(trim(p_pin), 'sha256'), 'hex') = v_student.pin_hash THEN
-            v_pin_valid := true;
-        ELSE
-            v_pin_valid := false;
-        END IF;
-
-        IF NOT v_pin_valid THEN
-            RETURN jsonb_build_object('ok', false, 'error', 'PIN yang Anda masukkan salah.');
-        END IF;
-    END IF;
+    -- Validasi PIN dinonaktifkan: Mahasiswa cukup memasukkan NIM yang terdaftar
 
     IF v_student.registered_at IS NOT NULL OR EXISTS (SELECT 1 FROM public.registrations WHERE nim = v_student.nim) THEN
         RETURN jsonb_build_object('ok', false, 'error', 'Mahasiswa dengan NIM ini sudah menyelesaikan pendaftaran.');

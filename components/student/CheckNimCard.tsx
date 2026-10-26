@@ -6,29 +6,23 @@ import { StudentInfo } from "@/lib/types";
 interface CheckNimCardProps {
   nim: string;
   setNim: (val: string) => void;
-  pin: string;
-  setPin: (val: string) => void;
   studentInfo: StudentInfo | null;
   loading: boolean;
   onCheckNim: (e: React.FormEvent) => void;
   onJoinQueue: (e: React.FormEvent) => void;
   onResetVerification: () => void;
   onOpenAjukanModal: () => void;
-  onOpenLaporModal?: () => void;
 }
 
 export function CheckNimCard({
   nim,
   setNim,
-  pin,
-  setPin,
   studentInfo,
   loading,
   onCheckNim,
   onJoinQueue,
   onResetVerification,
   onOpenAjukanModal,
-  onOpenLaporModal,
 }: CheckNimCardProps) {
   return (
     <div style={{ maxWidth: 460, margin: "2rem auto" }}>
@@ -184,11 +178,11 @@ export function CheckNimCard({
                   <span>Memeriksa Identitas...</span>
                 </>
               ) : (
-                <span>Masuk ke Pemilihan →</span>
+                <span>Periksa NIM</span>
               )}
             </button>
 
-            <div style={{ textAlign: "center", marginTop: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <div style={{ textAlign: "center", marginTop: "1.25rem" }}>
               <button
                 type="button"
                 onClick={onOpenAjukanModal}
@@ -204,22 +198,6 @@ export function CheckNimCard({
               >
                 NIM tidak terdaftar? Ajukan akses di sini
               </button>
-              {onOpenLaporModal && (
-                <button
-                  type="button"
-                  onClick={onOpenLaporModal}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--text-muted)",
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Sudah terdaftar tapi salah pilih? Laporkan kendala ke Admin
-                </button>
-              )}
             </div>
           </form>
         ) : (
@@ -229,7 +207,7 @@ export function CheckNimCard({
                 backgroundColor: "var(--primary-light)",
                 border: "1px solid var(--primary-border)",
                 borderRadius: "var(--radius-lg)",
-                padding: "1.2rem",
+                padding: "1.25rem",
                 marginBottom: "1.5rem",
               }}
             >
@@ -245,13 +223,15 @@ export function CheckNimCard({
               >
                 Data Mahasiswa Terverifikasi
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.45rem" }}>
                 <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>NIM:</span>
                 <strong style={{ fontSize: "0.95rem" }}>{nim}</strong>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.45rem" }}>
                 <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Nama:</span>
-                <strong style={{ fontSize: "0.95rem" }}>{studentInfo.nama_samar || "-"}</strong>
+                <strong style={{ fontSize: "0.95rem", textAlign: "right" }}>
+                  {studentInfo.nama || studentInfo.nama_samar || "-"}
+                </strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Kelas Tetap:</span>
@@ -259,91 +239,29 @@ export function CheckNimCard({
               </div>
             </div>
 
-            <div className="form-group">
-              <label
-                className="form-label"
-                style={{
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  color: "#334155",
-                  marginBottom: "0.5rem",
-                }}
-              >
-                PIN Masuk Mahasiswa
-              </label>
-              <div style={{ position: "relative" }}>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  className="form-control"
-                  placeholder="Masukkan 4 digit terakhir NIM Anda"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-                  disabled={loading}
-                  autoFocus
-                  required
-                  style={{ paddingLeft: "2.6rem" }}
-                />
-                <span
-                  style={{
-                    position: "absolute",
-                    left: "0.95rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "#94a3b8",
-                    display: "flex",
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: "0.8rem",
-                  color: "var(--text-muted)",
-                  marginTop: "0.35rem",
-                  display: "block",
-                }}
-              >
-                * Default PIN adalah 4 digit terakhir NIM Anda (kecuali telah diubah oleh admin).
-              </span>
-            </div>
-
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={onResetVerification}
                 disabled={loading}
+                style={{ padding: "0.85rem 1.15rem" }}
               >
-                ← Ganti NIM
+                Ganti NIM
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                style={{ flex: 1 }}
-                disabled={loading || !pin.trim()}
+                style={{ flex: 1, padding: "0.85rem", fontSize: "0.95rem" }}
+                disabled={loading}
               >
                 {loading ? (
                   <>
                     <span className="spinner" style={{ width: 14, height: 14 }} />
-                    <span>Memproses...</span>
+                    <span>Menghubungkan ke Antrian...</span>
                   </>
                 ) : (
-                  <span>Masuk ke Antrian →</span>
+                  <span>Masuk Antrian</span>
                 )}
               </button>
             </div>

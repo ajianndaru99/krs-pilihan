@@ -163,7 +163,16 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            gap: "0.65rem",
+            marginTop: "1.25rem",
+            flexWrap: "wrap",
+          }}
+        >
           {isConfirm ? (
             <>
               <button
@@ -186,6 +195,46 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
                 {dialog.confirmText || "Konfirmasi"}
               </button>
             </>
+          ) : dialog.actionLink ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onClose}
+                style={{
+                  padding: "0.7rem 1.15rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  order: 1,
+                }}
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const act = dialog.actionLink?.action;
+                  onClose();
+                  if (act) act();
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 190,
+                  padding: "0.7rem 1.15rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.4rem",
+                  order: 2,
+                }}
+              >
+                <span>{dialog.actionLink.icon || "💬"}</span>
+                <span>{dialog.actionLink.text}</span>
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -197,45 +246,6 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
             </button>
           )}
         </div>
-
-        {dialog.actionLink && (
-          <div
-            style={{
-              marginTop: "1.25rem",
-              paddingTop: "0.85rem",
-              borderTop: "1px dashed #cbd5e1",
-              textAlign: "center",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                const act = dialog.actionLink?.action;
-                onClose();
-                if (act) act();
-              }}
-              style={{
-                background: "#f8fafc",
-                border: "1px solid #cbd5e1",
-                color: "var(--primary)",
-                fontWeight: 700,
-                fontSize: "0.825rem",
-                cursor: "pointer",
-                padding: "0.55rem 0.85rem",
-                borderRadius: "var(--radius-md)",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.45rem",
-                width: "100%",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <span>{dialog.actionLink.icon || "💬"}</span>
-              <span>{dialog.actionLink.text}</span>
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

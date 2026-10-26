@@ -377,7 +377,7 @@ export function OfferingSelector({
           disabled={!isCompositionValid || isSubmitting}
           style={{ minHeight: 46, padding: "0.65rem 1.25rem", fontSize: "0.875rem", fontWeight: 800, flexShrink: 0 }}
         >
-          {isSubmitting ? "Menyimpan..." : "Simpan KRS Final →"}
+          {isSubmitting ? "Menyimpan..." : "Simpan KRS Final"}
         </button>
       </div>
     </div>

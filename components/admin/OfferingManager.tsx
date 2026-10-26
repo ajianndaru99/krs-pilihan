@@ -258,11 +258,19 @@ export function OfferingManager({
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "0.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: "0.35rem",
+                borderTop: "1px solid var(--border-color)",
+                paddingTop: "0.75rem",
+              }}
+            >
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ flex: 1, fontSize: "0.8rem" }}
+                style={{ padding: "0.45rem 0.2rem", fontSize: "0.78rem", textAlign: "center" }}
                 onClick={() => setActiveOfferingForSchedule(item)}
               >
                 + Jadwal
@@ -270,7 +278,7 @@ export function OfferingManager({
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ flex: 1, fontSize: "0.8rem" }}
+                style={{ padding: "0.45rem 0.2rem", fontSize: "0.78rem", textAlign: "center" }}
                 onClick={() => {
                   setKuotaModalItem(item);
                   setNewKuotaInput(item.kuota);
@@ -281,7 +289,7 @@ export function OfferingManager({
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ flex: 1, fontSize: "0.8rem" }}
+                style={{ padding: "0.45rem 0.2rem", fontSize: "0.78rem", textAlign: "center" }}
                 onClick={() => handleOpenEdit(item)}
               >
                 Ubah
@@ -289,7 +297,13 @@ export function OfferingManager({
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ color: "var(--danger)", fontSize: "0.8rem" }}
+                style={{
+                  padding: "0.45rem 0.2rem",
+                  fontSize: "0.78rem",
+                  textAlign: "center",
+                  color: "var(--danger)",
+                  borderColor: "#fecaca",
+                }}
                 onClick={() => setOfferingToDelete(item)}
               >
                 Hapus

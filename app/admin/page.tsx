@@ -547,7 +547,6 @@ export default function AdminPage() {
             onClick={() => setActiveTab("offerings")}
           >
             <span>Kelola Kuota ({offerings.length})</span>
-            {activeTab === "offerings" && <span className="nav-chevron">&gt;</span>}
           </button>
           <button
             type="button"
@@ -555,7 +554,6 @@ export default function AdminPage() {
             onClick={() => setActiveTab("pendaftar")}
           >
             <span>Mahasiswa Masuk ({pendaftar.length})</span>
-            {activeTab === "pendaftar" && <span className="nav-chevron">&gt;</span>}
           </button>
 
           {/* DATA MASTER */}
@@ -568,7 +566,6 @@ export default function AdminPage() {
             onClick={() => setActiveTab("import_jadwal")}
           >
             <span>Impor Master Jadwal</span>
-            {activeTab === "import_jadwal" && <span className="nav-chevron">&gt;</span>}
           </button>
           <button
             type="button"
@@ -576,7 +573,6 @@ export default function AdminPage() {
             onClick={() => setActiveTab("import_mahasiswa")}
           >
             <span>Data & Impor Mahasiswa ({students.length})</span>
-            {activeTab === "import_mahasiswa" && <span className="nav-chevron">&gt;</span>}
           </button>
           <button
             type="button"
@@ -584,7 +580,6 @@ export default function AdminPage() {
             onClick={() => setActiveTab("pengajuan")}
           >
             <span>Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})</span>
-            {activeTab === "pengajuan" && <span className="nav-chevron">&gt;</span>}
           </button>
           <button
             type="button"
@@ -608,7 +603,6 @@ export default function AdminPage() {
                 </span>
               )}
             </div>
-            {activeTab === "complaints" && <span className="nav-chevron">&gt;</span>}
           </button>
 
           {/* SISTEM */}
@@ -622,7 +616,6 @@ export default function AdminPage() {
             style={{ color: activeTab === "batal_reset" ? "#ffffff" : "var(--danger)" }}
           >
             <span>Batal & Reset Data</span>
-            {activeTab === "batal_reset" && <span className="nav-chevron">&gt;</span>}
           </button>
         </nav>
 

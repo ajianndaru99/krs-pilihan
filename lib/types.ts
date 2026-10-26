@@ -24,6 +24,7 @@ export interface Offering {
 }
 
 export interface StudentInfo {
+  nama?: string;
   nama_samar?: string;
   kelas?: string;
   butuh_pin?: boolean;

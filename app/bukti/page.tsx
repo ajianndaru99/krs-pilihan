@@ -167,7 +167,7 @@ export default function BuktiPage() {
         }}
       >
         <button type="button" className="btn btn-secondary" onClick={handleBackToHome}>
-          ← Halaman Awal
+          Halaman Awal
         </button>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button type="button" className="btn btn-primary" onClick={handlePrint} style={{ fontWeight: 600 }}>
