@@ -249,6 +249,22 @@ export default function StudentPage() {
     }
   }, [showAjukanModal, kelasList.length]);
 
+  // Deteksi status koneksi offline perangkat
+  const [isOffline, setIsOffline] = useState(false);
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setIsOffline(true);
+    }
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   // Handler: Verifikasi NIM
   const handleCheckNim = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -453,7 +469,33 @@ export default function StudentPage() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: 1080 }}>
+    <>
+      {isOffline && (
+        <div
+          role="status"
+          style={{
+            position: "sticky",
+            top: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#b91c1c",
+            color: "#ffffff",
+            textAlign: "center",
+            padding: "0.55rem 1rem",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.5rem",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+          }}
+        >
+          <span>Koneksi internet terputus. Sesi Anda tetap tersimpan, sistem akan terhubung otomatis saat online kembali.</span>
+        </div>
+      )}
+      <div className="container" style={{ maxWidth: 1080 }}>
       {phase !== "login" && (
         <header
           className="header-banner"
@@ -568,5 +610,6 @@ export default function StudentPage() {
         </p>
       </footer>
     </div>
+    </>
   );
 }
