@@ -236,12 +236,18 @@ AS $$
 DECLARE
     v_student RECORD;
     v_settings RECORD;
-    v_q RECORD;
+    v_cur_token TEXT;
+    v_cur_state TEXT;
+    v_cur_expires_at TIMESTAMPTZ;
+    v_cur_entered_at TIMESTAMPTZ;
+    v_cur_nomor INT;
     v_token TEXT;
+    v_nomor INT;
     v_expires_at TIMESTAMPTZ;
     v_active_count INT;
     v_waiting_pos INT;
     v_est_minutes INT;
+    v_expired_count INT;
     v_now TIMESTAMPTZ := now();
     v_sisa_detik INT := 0;
 BEGIN
@@ -265,66 +271,76 @@ BEGIN
     SET state = 'expired'
     WHERE state = 'active' AND expires_at < v_now;
 
-    -- Periksa antrian yang sudah ada untuk mahasiswa ini
-    SELECT * INTO v_q FROM public.queue
+    -- Periksa antrian yang sedang aktif/waiting untuk mahasiswa ini (menggunakan variabel skalar)
+    SELECT token, state, expires_at, entered_at, nomor
+    INTO v_cur_token, v_cur_state, v_cur_expires_at, v_cur_entered_at, v_cur_nomor
+    FROM public.queue
     WHERE nim = v_student.nim AND state IN ('waiting', 'active', 'menunggu_undian')
     ORDER BY entered_at DESC LIMIT 1;
 
     IF FOUND THEN
-        IF v_q.state = 'active' THEN
-            v_sisa_detik := GREATEST(0, EXTRACT(EPOCH FROM (v_q.expires_at - v_now))::INT);
+        IF v_cur_state = 'active' THEN
+            v_sisa_detik := GREATEST(0, EXTRACT(EPOCH FROM (v_cur_expires_at - v_now))::INT);
             RETURN jsonb_build_object(
                 'ok', true,
                 'state', 'active',
-                'token', v_q.token,
+                'token', v_cur_token,
                 'sisa_detik', v_sisa_detik
             );
-        ELSIF v_q.state = 'waiting' THEN
-            SELECT count(*) INTO v_waiting_pos FROM public.queue WHERE state = 'waiting' AND entered_at <= v_q.entered_at;
+        ELSIF v_cur_state = 'waiting' THEN
+            SELECT count(*) INTO v_waiting_pos FROM public.queue WHERE state = 'waiting' AND entered_at <= v_cur_entered_at;
             v_est_minutes := CEIL(v_waiting_pos::FLOAT / GREATEST(1, v_settings.max_active)::FLOAT * 1.5)::INT;
             RETURN jsonb_build_object(
                 'ok', true,
                 'state', 'waiting',
-                'token', v_q.token,
-                'nomor', v_q.nomor,
+                'token', v_cur_token,
+                'nomor', v_cur_nomor,
                 'posisi', v_waiting_pos,
                 'estimasi_menit', v_est_minutes
             );
         END IF;
     END IF;
 
-    -- Periksa apakah sesi sebelumnya expired dan sudah mencapai batas retry
-    SELECT * INTO v_q FROM public.queue
-    WHERE nim = v_student.nim AND state = 'expired'
-    ORDER BY entered_at DESC LIMIT 1;
+    -- Periksa batas maksimal antri ulang dengan menghitung riwayat expired (kebal error kolom)
+    SELECT count(*) INTO v_expired_count
+    FROM public.queue
+    WHERE nim = v_student.nim AND state = 'expired';
 
-    IF FOUND AND v_q.retry_count >= v_settings.max_requeue THEN
-        RETURN jsonb_build_object('ok', false, 'error', 'Batas maksimal antri ulang Anda telah habis.');
+    IF v_expired_count >= COALESCE(v_settings.max_requeue, 2) THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Batas maksimal antri ulang Anda telah habis. Silakan hubungi admin prodi.');
     END IF;
 
-    -- Hitung slot antrian aktif
+    -- Hitung slot antrian aktif saat ini
     SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active' AND expires_at >= v_now;
     v_token := gen_random_uuid()::TEXT;
 
     IF v_active_count < v_settings.max_active THEN
         v_expires_at := v_now + (v_settings.session_duration_minutes || ' minutes')::INTERVAL;
         v_sisa_detik := v_settings.session_duration_minutes * 60;
-        INSERT INTO public.queue (token, nim, state, activated_at, expires_at, retry_count)
-        VALUES (v_token, v_student.nim, 'active', v_now, v_expires_at, COALESCE(v_q.retry_count, 0));
-        RETURN jsonb_build_object('ok', true, 'token', v_token, 'state', 'active', 'sisa_detik', v_sisa_detik);
+        
+        INSERT INTO public.queue (token, nim, state, activated_at, expires_at)
+        VALUES (v_token, v_student.nim, 'active', v_now, v_expires_at);
+
+        RETURN jsonb_build_object(
+            'ok', true,
+            'token', v_token,
+            'state', 'active',
+            'sisa_detik', v_sisa_detik
+        );
     ELSE
-        INSERT INTO public.queue (token, nim, state, retry_count)
-        VALUES (v_token, v_student.nim, 'waiting', COALESCE(v_q.retry_count, 0));
+        INSERT INTO public.queue (token, nim, state)
+        VALUES (v_token, v_student.nim, 'waiting');
 
         SELECT count(*) INTO v_waiting_pos FROM public.queue WHERE state = 'waiting';
         v_est_minutes := CEIL(v_waiting_pos::FLOAT / GREATEST(1, v_settings.max_active)::FLOAT * 1.5)::INT;
 
-        SELECT nomor INTO v_q FROM public.queue WHERE token = v_token;
+        SELECT nomor INTO v_nomor FROM public.queue WHERE token = v_token;
+
         RETURN jsonb_build_object(
             'ok', true,
             'token', v_token,
             'state', 'waiting',
-            'nomor', v_q.nomor,
+            'nomor', v_nomor,
             'posisi', v_waiting_pos,
             'estimasi_menit', v_est_minutes
         );
