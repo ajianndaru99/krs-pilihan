@@ -50,11 +50,14 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
         style={{
           width: "100%",
           maxWidth: 480,
+          maxHeight: "min(84vh, 620px)",
+          overflowY: "auto",
+          margin: "auto 0",
           backgroundColor: "#ffffff",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
           borderRadius: "var(--radius-xl)",
-          padding: "2rem",
-          border: `1px solid ${getHeaderColor()}`,
+          padding: "1.5rem 1.75rem",
+          border: `1.5px solid ${getHeaderColor()}`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
@@ -194,6 +197,45 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
             </button>
           )}
         </div>
+
+        {dialog.actionLink && (
+          <div
+            style={{
+              marginTop: "1.25rem",
+              paddingTop: "0.85rem",
+              borderTop: "1px dashed #cbd5e1",
+              textAlign: "center",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const act = dialog.actionLink?.action;
+                onClose();
+                if (act) act();
+              }}
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #cbd5e1",
+                color: "var(--primary)",
+                fontWeight: 700,
+                fontSize: "0.825rem",
+                cursor: "pointer",
+                padding: "0.55rem 0.85rem",
+                borderRadius: "var(--radius-md)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.45rem",
+                width: "100%",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <span>{dialog.actionLink.icon || "💬"}</span>
+              <span>{dialog.actionLink.text}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

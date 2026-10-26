@@ -506,7 +506,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="container" style={{ maxWidth: 1240, paddingBottom: "4rem" }}>
+    <div className="container" style={{ maxWidth: "min(1480px, 98vw)", paddingBottom: "4rem" }}>
       <AdminHeader
         portalOpen={portalOpen}
         status={status}

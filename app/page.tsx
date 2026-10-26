@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { Offering, StudentInfo, ModalDialogState } from "@/lib/types";
+import { Offering, StudentInfo, ModalDialogState, ModalDetailItem, ModalActionLink } from "@/lib/types";
 import { findClashBetweenOfferings } from "@/lib/schedule-conflict";
 import { InteractiveModal } from "@/components/student/InteractiveModal";
 import { CheckNimCard } from "@/components/student/CheckNimCard";
@@ -104,8 +104,9 @@ export default function StudentPage() {
       type: "info" | "warning" | "danger" | "confirm",
       title: string,
       message: string,
-      details?: { label: string; value: string }[],
-      onConfirm?: () => void
+      details?: ModalDetailItem[],
+      onConfirm?: () => void,
+      actionLink?: ModalActionLink
     ) => {
       setModalDialog({
         isOpen: true,
@@ -113,6 +114,7 @@ export default function StudentPage() {
         title,
         message,
         details,
+        actionLink,
         onConfirm,
         confirmText: type === "confirm" ? "Ya, Lanjutkan" : undefined,
         cancelText: type === "confirm" ? "Batal" : undefined,
@@ -316,7 +318,11 @@ export default function StudentPage() {
     try {
       const { data, error } = await supabase.rpc("cek_nim", { p_nim: nim.trim() });
       if (error) {
-        showPopup("danger", "Pengecekan Gagal", error.message);
+        showPopup("danger", "Pengecekan Gagal", error.message, undefined, undefined, {
+          text: "Mengalami kendala? Laporkan ke Admin di Sini",
+          action: () => setShowLaporModal(true),
+          icon: "💬",
+        });
         return;
       }
       interface CekNimResponse {
@@ -328,7 +334,18 @@ export default function StudentPage() {
       }
       const res = (data as CekNimResponse) || { ok: false };
       if (!res.ok) {
-        showPopup("danger", "NIM Tidak Ditemukan", res.error || "NIM belum terdaftar.");
+        showPopup(
+          "danger",
+          "NIM Tidak Ditemukan",
+          res.error || "NIM belum terdaftar di sistem KRS.",
+          undefined,
+          undefined,
+          {
+            text: "NIM Belum Terdaftar? Ajukan Verifikasi Akses di Sini",
+            action: () => setShowAjukanModal(true),
+            icon: "📝",
+          }
+        );
         return;
       }
       if (res.sudah_daftar) {
@@ -347,7 +364,11 @@ export default function StudentPage() {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan.";
-      showPopup("danger", "Kesalahan", msg);
+      showPopup("danger", "Kesalahan", msg, undefined, undefined, {
+        text: "Laporkan Kendala Sistem ke Admin",
+        action: () => setShowLaporModal(true),
+        icon: "💬",
+      });
     } finally {
       setLoading(false);
     }
@@ -365,7 +386,11 @@ export default function StudentPage() {
         p_pin: pin.trim(),
       });
       if (error) {
-        showPopup("danger", "Gagal Masuk Antrian", error.message);
+        showPopup("danger", "Gagal Masuk Antrian", error.message, undefined, undefined, {
+          text: "Mengalami Kendala? Laporkan ke Admin di Sini",
+          action: () => setShowLaporModal(true),
+          icon: "💬",
+        });
         return;
       }
       interface JoinQueueResponse {
@@ -380,7 +405,18 @@ export default function StudentPage() {
       }
       const res = (data as JoinQueueResponse) || { ok: false };
       if (!res.ok) {
-        showPopup("warning", "Akses Antrian Ditolak", res.error || "Gagal bergabung ke antrian.");
+        showPopup(
+          "warning",
+          "Akses Antrian Ditolak",
+          res.error || "Gagal bergabung ke antrian.",
+          undefined,
+          undefined,
+          {
+            text: "Mengalami kendala? Laporkan Kendala / Hubungi Admin",
+            action: () => setShowLaporModal(true),
+            icon: "💬",
+          }
+        );
         return;
       }
       const curToken = res.token || "";
@@ -753,10 +789,13 @@ export default function StudentPage() {
             style={{
               width: "100%",
               maxWidth: 480,
+              maxHeight: "min(84vh, 600px)",
+              overflowY: "auto",
+              margin: "auto 0",
               backgroundColor: "#ffffff",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
               borderRadius: "var(--radius-xl)",
-              padding: "2rem",
+              padding: "1.25rem 1.5rem",
               border: "1.5px solid var(--primary-border)",
             }}
           >

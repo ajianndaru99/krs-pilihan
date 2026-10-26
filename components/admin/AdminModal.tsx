@@ -82,10 +82,13 @@ export function AdminModal({ modal, onClose }: AdminModalProps) {
         style={{
           width: "100%",
           maxWidth: 480,
+          maxHeight: "min(84vh, 600px)",
+          overflowY: "auto",
+          margin: "auto 0",
           backgroundColor: "#ffffff",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
           borderRadius: "var(--radius-xl)",
-          padding: "2rem",
+          padding: "1.5rem 1.75rem",
           border: `1px solid ${getHeaderColor()}`,
         }}
       >

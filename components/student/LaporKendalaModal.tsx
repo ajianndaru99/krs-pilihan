@@ -108,10 +108,11 @@ export function LaporKendalaModal({
           backgroundColor: "#ffffff",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
           borderRadius: "var(--radius-xl)",
-          padding: "2rem",
+          padding: "1.25rem 1.5rem",
           border: "1px solid var(--border-color)",
-          maxHeight: "90vh",
+          maxHeight: "min(84vh, 580px)",
           overflowY: "auto",
+          margin: "auto 0",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.85rem" }}>

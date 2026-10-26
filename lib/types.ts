@@ -37,12 +37,19 @@ export interface ModalDetailItem {
   schedule?: string;
 }
 
+export interface ModalActionLink {
+  text: string;
+  action: () => void;
+  icon?: string;
+}
+
 export interface ModalDialogState {
   isOpen: boolean;
   type: "info" | "warning" | "danger" | "confirm";
   title: string;
   message: string;
   details?: ModalDetailItem[];
+  actionLink?: ModalActionLink;
   onConfirm?: () => void;
   confirmText?: string;
   cancelText?: string;

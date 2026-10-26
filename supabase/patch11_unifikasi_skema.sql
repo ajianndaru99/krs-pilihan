@@ -397,7 +397,7 @@ BEGIN
             'kelas', COALESCE(s.kelas, '-'),
             'registered_at', to_char(COALESCE(s.registered_at, now()) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS'),
             'pilihan', COALESCE(p.arr, '[]'::jsonb)
-        ) ORDER BY s.registered_at ASC NULLS LAST, s.nim ASC
+        ) ORDER BY s.registered_at DESC NULLS LAST, s.nim DESC
     ) INTO v_pendaftar
     FROM public.students s
     JOIN (

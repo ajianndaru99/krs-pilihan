@@ -22,13 +22,21 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
     message: "",
   });
 
-  const filtered = pendaftar.filter((item) => {
-    const matchSearch =
-      item.nim.toLowerCase().includes(search.toLowerCase()) ||
-      item.nama.toLowerCase().includes(search.toLowerCase());
-    const matchKelas = filterKelas === "all" || item.kelas === filterKelas;
-    return matchSearch && matchKelas;
-  });
+  const filtered = pendaftar
+    .filter((item) => {
+      const matchSearch =
+        item.nim.toLowerCase().includes(search.toLowerCase()) ||
+        item.nama.toLowerCase().includes(search.toLowerCase());
+      const matchKelas = filterKelas === "all" || item.kelas === filterKelas;
+      return matchSearch && matchKelas;
+    })
+    .sort((a, b) => {
+      // Pastikan data yang paling terakhir input selalu muncul paling atas
+      const timeA = a.registered_at ? new Date(a.registered_at.replace(" ", "T")).getTime() : 0;
+      const timeB = b.registered_at ? new Date(b.registered_at.replace(" ", "T")).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return b.nim.localeCompare(a.nim);
+    });
 
   const handleExportExcel = () => {
     if (pendaftar.length === 0) {
@@ -114,28 +122,30 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
         </select>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem", textAlign: "left" }}>
+      <div style={{ width: "100%", overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
           <thead>
             <tr style={{ backgroundColor: "var(--bg-subtle)", borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ padding: "8px 12px", width: 50 }}>No</th>
-              <th style={{ padding: "8px 12px", width: 130 }}>NIM</th>
-              <th style={{ padding: "8px 12px" }}>Nama Mahasiswa</th>
-              <th style={{ padding: "8px 12px", width: 110 }}>Kelas</th>
-              <th style={{ padding: "8px 12px" }}>Mata Kuliah / Proyek Terpilih</th>
-              <th style={{ padding: "8px 12px", width: 170 }}>Waktu Terdaftar</th>
-              {onBatalDaftar && <th style={{ padding: "8px 12px", width: 90, textAlign: "center" }}>Aksi</th>}
+              <th style={{ padding: "8px 8px", width: 44, textAlign: "center" }}>No</th>
+              <th style={{ padding: "8px 10px", width: 115 }}>NIM</th>
+              <th style={{ padding: "8px 10px", minWidth: 150 }}>Nama Mahasiswa</th>
+              <th style={{ padding: "8px 8px", width: 75 }}>Kelas</th>
+              <th style={{ padding: "8px 10px", minWidth: 200 }}>Mata Kuliah / Proyek Terpilih</th>
+              <th style={{ padding: "8px 10px", width: 140 }}>Waktu Terdaftar</th>
+              {onBatalDaftar && <th style={{ padding: "8px 8px", width: 85, textAlign: "center" }}>Aksi</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length > 0 ? (
               filtered.map((item, idx) => (
                 <tr key={item.nim} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                  <td style={{ padding: "8px 12px", textAlign: "center" }}>{idx + 1}</td>
-                  <td style={{ padding: "8px 12px", fontWeight: 700 }}>{item.nim}</td>
-                  <td style={{ padding: "8px 12px" }}>{item.nama}</td>
-                  <td style={{ padding: "8px 12px" }}>{item.kelas}</td>
-                  <td style={{ padding: "8px 12px" }}>
+                  <td style={{ padding: "7px 8px", textAlign: "center", color: "var(--text-muted)" }}>{idx + 1}</td>
+                  <td style={{ padding: "7px 10px", fontWeight: 700, fontFamily: "var(--font-mono)", fontSize: "0.825rem" }}>
+                    {item.nim}
+                  </td>
+                  <td style={{ padding: "7px 10px", fontWeight: 600 }}>{item.nama}</td>
+                  <td style={{ padding: "7px 8px" }}>{item.kelas}</td>
+                  <td style={{ padding: "7px 10px" }}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                       {item.pilihan.map((p, pIdx) => (
                         <span

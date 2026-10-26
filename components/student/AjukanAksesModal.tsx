@@ -87,10 +87,13 @@ export function AjukanAksesModal({
         className="card"
         style={{
           width: "100%",
-          maxWidth: 520,
+          maxWidth: 500,
+          maxHeight: "min(84vh, 580px)",
+          overflowY: "auto",
+          margin: "auto 0",
           backgroundColor: "#ffffff",
           borderRadius: "var(--radius-lg)",
-          padding: "1.75rem",
+          padding: "1.25rem 1.5rem",
           boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
         }}
       >
