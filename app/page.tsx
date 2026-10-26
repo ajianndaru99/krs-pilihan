@@ -95,6 +95,21 @@ export default function StudentPage() {
     }
   }, [selectedIds]);
 
+  // Sinkronisasi sesi: jika sessionStorage tidak memiliki token aktif, kembalikan ke login
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const curToken = sessionStorage.getItem("token");
+      const curNim = sessionStorage.getItem("nim");
+      if ((!curToken || !curNim) && phase !== "login") {
+        setPhase("login");
+        setNim("");
+        setToken("");
+        setStudentInfo(null);
+        setSelectedIds([]);
+      }
+    }
+  }, [phase]);
+
   const closeModal = useCallback(() => {
     setModalDialog((prev) => ({ ...prev, isOpen: false }));
   }, []);

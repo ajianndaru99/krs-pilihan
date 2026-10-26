@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Offering } from "@/lib/types";
+import { SelectedOfferingsSummary } from "./SelectedOfferingsSummary";
 
 interface OfferingSelectorProps {
   offerings: Offering[];
@@ -200,6 +201,14 @@ export function OfferingSelector({
           </button>
         </div>
       </div>
+
+      {/* Ringkasan Mata Kuliah & Proyek yang Dipilih */}
+      <SelectedOfferingsSummary
+        selectedOfferings={selectedOfferings}
+        needMatkul={needMatkul}
+        needProyek={needProyek}
+        onRemoveOffering={onToggleOffering}
+      />
 
       {/* Grid Kartu Mata Kuliah */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(285px, 1fr))", gap: "1rem" }}>

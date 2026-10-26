@@ -10,9 +10,7 @@ interface StudentListTableProps {
   onUpdateStudent: (nim: string, nama: string, kelas: string) => Promise<void>;
   onDeleteStudent?: (nim: string) => Promise<void>;
   onRequestDelete?: (student: MasterStudentItem) => void;
-  onResetQueue?: (nim: string, nama: string) => Promise<void>;
   onBatalDaftar?: (nim: string, nama: string) => Promise<void>;
-  onResetAllExpiredQueue?: () => Promise<void>;
 }
 
 export function StudentListTable({
@@ -20,9 +18,7 @@ export function StudentListTable({
   kelasList,
   onUpdateStudent,
   onRequestDelete,
-  onResetQueue,
   onBatalDaftar,
-  onResetAllExpiredQueue,
 }: StudentListTableProps) {
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
@@ -92,33 +88,8 @@ export function StudentListTable({
           </select>
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-          {onResetAllExpiredQueue && (
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary"
-              onClick={onResetAllExpiredQueue}
-              style={{
-                fontSize: "0.775rem",
-                padding: "5px 12px",
-                borderRadius: "var(--radius-full)",
-                color: "#b45309",
-                backgroundColor: "#fef3c7",
-                borderColor: "#fde68a",
-                fontWeight: 700,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                cursor: "pointer",
-              }}
-              title="Bersihkan seluruh sesi antrian kadaluarsa agar mahasiswa dapat antri kembali"
-            >
-              🧹 Bersihkan Sesi Expired
-            </button>
-          )}
-          <div style={{ fontSize: "0.825rem", color: "var(--text-muted)" }}>
-            Menampilkan <strong>{filtered.length}</strong> dari <strong>{students.length}</strong> mahasiswa
-          </div>
+        <div style={{ fontSize: "0.825rem", color: "var(--text-muted)" }}>
+          Menampilkan <strong>{filtered.length}</strong> dari <strong>{students.length}</strong> mahasiswa
         </div>
       </div>
 
@@ -132,7 +103,7 @@ export function StudentListTable({
               <th style={{ padding: "10px 12px" }}>Nama Lengkap Mahasiswa</th>
               <th style={{ padding: "10px 12px", width: 110 }}>Kelas Tetap</th>
               <th style={{ padding: "10px 12px", width: 140, textAlign: "center" }}>Status KRS</th>
-              <th style={{ padding: "10px 12px", width: 200, textAlign: "center" }}>Aksi</th>
+              <th style={{ padding: "10px 12px", width: 140, textAlign: "center" }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -217,27 +188,6 @@ export function StudentListTable({
                       >
                         Edit
                       </button>
-
-                      {onResetQueue && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-secondary"
-                          style={{
-                            padding: "3px 8px",
-                            fontSize: "0.725rem",
-                            borderRadius: "var(--radius-sm)",
-                            color: "#b45309",
-                            backgroundColor: "#fef3c7",
-                            borderColor: "#fde68a",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                          onClick={() => onResetQueue(item.nim, item.nama)}
-                          title="Hapus antrian mahasiswa ini dan reset batas kadaluarsa"
-                        >
-                          Reset Sesi
-                        </button>
-                      )}
 
                       {item.has_registered && onBatalDaftar && (
                         <button
