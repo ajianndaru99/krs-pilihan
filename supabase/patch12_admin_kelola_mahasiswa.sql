@@ -3,12 +3,19 @@
 -- Sistem Pemilihan KRS Mata Kuliah Pilihan — FAPERTA INSTIPER Yogyakarta
 -- ==============================================================================
 
--- 1. Fungsi RPC untuk menampilkan daftar master mahasiswa bagi Admin
+-- 1. Hapus fungsi lama terlebih dahulu agar tidak terjadi konflik tipe kembalian
+DROP FUNCTION IF EXISTS public.admin_list_students();
+DROP FUNCTION IF EXISTS public.admin_update_student(VARCHAR, VARCHAR, VARCHAR);
+DROP FUNCTION IF EXISTS public.admin_update_student(TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.admin_delete_student(VARCHAR);
+DROP FUNCTION IF EXISTS public.admin_delete_student(TEXT);
+
+-- 2. Fungsi RPC untuk menampilkan daftar master mahasiswa bagi Admin (Tipe TEXT konsisten)
 CREATE OR REPLACE FUNCTION public.admin_list_students()
 RETURNS TABLE(
-    nim VARCHAR(20),
-    nama VARCHAR(100),
-    kelas VARCHAR(50),
+    nim TEXT,
+    nama TEXT,
+    kelas TEXT,
     registered_at TIMESTAMPTZ,
     has_registered BOOLEAN
 )
@@ -23,9 +30,9 @@ BEGIN
 
     RETURN QUERY
     SELECT 
-        s.nim,
-        s.nama,
-        COALESCE(s.kelas, '-') AS kelas,
+        s.nim::TEXT,
+        s.nama::TEXT,
+        COALESCE(s.kelas, '-')::TEXT AS kelas,
         s.registered_at,
         (s.registered_at IS NOT NULL) AS has_registered
     FROM public.students s
@@ -33,11 +40,11 @@ BEGIN
 END;
 $$;
 
--- 2. Fungsi RPC untuk memperbarui data mahasiswa (Nama & Kelas)
+-- 3. Fungsi RPC untuk memperbarui data mahasiswa (Nama & Kelas)
 CREATE OR REPLACE FUNCTION public.admin_update_student(
-    p_nim VARCHAR(20),
-    p_nama VARCHAR(100),
-    p_kelas VARCHAR(50)
+    p_nim TEXT,
+    p_nama TEXT,
+    p_kelas TEXT
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -45,9 +52,9 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-    v_clean_nim VARCHAR(20) := trim(p_nim);
-    v_clean_nama VARCHAR(100) := trim(p_nama);
-    v_clean_kelas VARCHAR(50) := NULLIF(trim(p_kelas), '');
+    v_clean_nim TEXT := trim(p_nim);
+    v_clean_nama TEXT := trim(p_nama);
+    v_clean_kelas TEXT := NULLIF(trim(p_kelas), '');
 BEGIN
     IF NOT public.is_admin() THEN
         RAISE EXCEPTION 'Akses ditolak: Hanya untuk administrator';
@@ -74,15 +81,15 @@ BEGIN
 END;
 $$;
 
--- 3. Fungsi RPC untuk menghapus data master mahasiswa
-CREATE OR REPLACE FUNCTION public.admin_delete_student(p_nim VARCHAR(20))
+-- 4. Fungsi RPC untuk menghapus data master mahasiswa
+CREATE OR REPLACE FUNCTION public.admin_delete_student(p_nim TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-    v_clean_nim VARCHAR(20) := trim(p_nim);
+    v_clean_nim TEXT := trim(p_nim);
 BEGIN
     IF NOT public.is_admin() THEN
         RAISE EXCEPTION 'Akses ditolak: Hanya untuk administrator';
@@ -112,5 +119,5 @@ $$;
 
 -- Hak Akses (Security Definier hanya untuk authenticated admin)
 GRANT EXECUTE ON FUNCTION public.admin_list_students() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_update_student(VARCHAR, VARCHAR, VARCHAR) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_delete_student(VARCHAR) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_student(TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_student(TEXT) TO authenticated;
