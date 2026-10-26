@@ -10,6 +10,9 @@ interface StudentListTableProps {
   onUpdateStudent: (nim: string, nama: string, kelas: string) => Promise<void>;
   onDeleteStudent?: (nim: string) => Promise<void>;
   onRequestDelete?: (student: MasterStudentItem) => void;
+  onResetQueue?: (nim: string, nama: string) => Promise<void>;
+  onBatalDaftar?: (nim: string, nama: string) => Promise<void>;
+  onResetAllExpiredQueue?: () => Promise<void>;
 }
 
 export function StudentListTable({
@@ -17,6 +20,9 @@ export function StudentListTable({
   kelasList,
   onUpdateStudent,
   onRequestDelete,
+  onResetQueue,
+  onBatalDaftar,
+  onResetAllExpiredQueue,
 }: StudentListTableProps) {
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
@@ -86,8 +92,33 @@ export function StudentListTable({
           </select>
         </div>
 
-        <div style={{ fontSize: "0.825rem", color: "var(--text-muted)" }}>
-          Menampilkan <strong>{filtered.length}</strong> dari <strong>{students.length}</strong> mahasiswa
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+          {onResetAllExpiredQueue && (
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary"
+              onClick={onResetAllExpiredQueue}
+              style={{
+                fontSize: "0.775rem",
+                padding: "5px 12px",
+                borderRadius: "var(--radius-full)",
+                color: "#b45309",
+                backgroundColor: "#fef3c7",
+                borderColor: "#fde68a",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                cursor: "pointer",
+              }}
+              title="Bersihkan seluruh sesi antrian kadaluarsa agar mahasiswa dapat antri kembali"
+            >
+              🧹 Bersihkan Sesi Expired
+            </button>
+          )}
+          <div style={{ fontSize: "0.825rem", color: "var(--text-muted)" }}>
+            Menampilkan <strong>{filtered.length}</strong> dari <strong>{students.length}</strong> mahasiswa
+          </div>
         </div>
       </div>
 
@@ -96,12 +127,12 @@ export function StudentListTable({
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem", textAlign: "left" }}>
           <thead>
             <tr style={{ backgroundColor: "var(--bg-subtle)", borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ padding: "10px 12px", width: 50, textAlign: "center" }}>No</th>
-              <th style={{ padding: "10px 12px", width: 140 }}>NIM</th>
+              <th style={{ padding: "10px 12px", width: 45, textAlign: "center" }}>No</th>
+              <th style={{ padding: "10px 12px", width: 130 }}>NIM</th>
               <th style={{ padding: "10px 12px" }}>Nama Lengkap Mahasiswa</th>
-              <th style={{ padding: "10px 12px", width: 120 }}>Kelas Tetap</th>
-              <th style={{ padding: "10px 12px", width: 150, textAlign: "center" }}>Status KRS</th>
-              <th style={{ padding: "10px 12px", width: 130, textAlign: "center" }}>Aksi</th>
+              <th style={{ padding: "10px 12px", width: 110 }}>Kelas Tetap</th>
+              <th style={{ padding: "10px 12px", width: 140, textAlign: "center" }}>Status KRS</th>
+              <th style={{ padding: "10px 12px", width: 200, textAlign: "center" }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -169,29 +200,70 @@ export function StudentListTable({
                     )}
                   </td>
                   <td style={{ padding: "10px 12px", textAlign: "center" }}>
-                    <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                    <div style={{ display: "inline-flex", gap: "5px", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
                       <button
                         type="button"
                         className="btn btn-sm btn-secondary"
                         style={{
-                          padding: "3px 10px",
-                          fontSize: "0.75rem",
+                          padding: "3px 8px",
+                          fontSize: "0.725rem",
                           borderRadius: "var(--radius-sm)",
                           color: "var(--primary)",
                           borderColor: "var(--primary-border)",
                           backgroundColor: "var(--primary-light)",
+                          fontWeight: 600,
                         }}
                         onClick={() => setSelectedStudentForEdit(item)}
                       >
                         Edit
                       </button>
-                      {onRequestDelete && (
+
+                      {onResetQueue && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secondary"
+                          style={{
+                            padding: "3px 8px",
+                            fontSize: "0.725rem",
+                            borderRadius: "var(--radius-sm)",
+                            color: "#b45309",
+                            backgroundColor: "#fef3c7",
+                            borderColor: "#fde68a",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => onResetQueue(item.nim, item.nama)}
+                          title="Hapus antrian mahasiswa ini dan reset batas kadaluarsa"
+                        >
+                          Reset Sesi
+                        </button>
+                      )}
+
+                      {item.has_registered && onBatalDaftar && (
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-danger"
                           style={{
                             padding: "3px 8px",
-                            fontSize: "0.75rem",
+                            fontSize: "0.725rem",
+                            borderRadius: "var(--radius-sm)",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => onBatalDaftar(item.nim, item.nama)}
+                          title="Batalkan pilihan KRS mahasiswa ini agar kuota kembali dan bisa memilih ulang"
+                        >
+                          Batal KRS
+                        </button>
+                      )}
+
+                      {onRequestDelete && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          style={{
+                            padding: "3px 7px",
+                            fontSize: "0.725rem",
                             borderRadius: "var(--radius-sm)",
                           }}
                           onClick={() => onRequestDelete(item)}
@@ -203,6 +275,7 @@ export function StudentListTable({
                   </td>
                 </tr>
               ))
+
             ) : (
               <tr>
                 <td colSpan={6} style={{ padding: "2.5rem 1rem", textAlign: "center", color: "var(--text-muted)" }}>

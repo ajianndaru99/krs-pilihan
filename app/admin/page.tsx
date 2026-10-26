@@ -395,6 +395,67 @@ export default function AdminPage() {
     showAdminPopup("success", "Pendaftaran Dibatalkan", `Pendaftaran untuk NIM ${nim} berhasil dibatalkan dan kuota dikembalikan.`);
   };
 
+  // Handler Batal Daftar dari Tabel Mahasiswa (dengan konfirmasi dialog)
+  const handleBatalDaftarWithConfirm = async (nim: string, nama: string) => {
+    showAdminPopup(
+      "danger",
+      "Batalkan Pemilihan KRS",
+      `Apakah Anda yakin ingin membatalkan pemilihan KRS untuk ${nama} (${nim})? Seluruh kuota kelas yang dipilih akan dikembalikan dan mahasiswa dapat memilih ulang.`,
+      undefined,
+      async () => {
+        await handleBatalDaftar(nim);
+      }
+    );
+  };
+
+  // Handler Reset Antrian Per Mahasiswa (Buka Kunci Batas Antri Ulang)
+  const handleResetQueueStudent = async (nim: string, nama: string) => {
+    showAdminPopup(
+      "confirm",
+      "Reset Sesi Antrian Mahasiswa",
+      `Apakah Anda yakin ingin mereset antrian untuk ${nama} (${nim})? Riwayat kadaluarsa akan dibersihkan sehingga mahasiswa dapat langsung masuk antrian kembali dengan jatah penuh.`,
+      undefined,
+      async () => {
+        const { data, error } = await supabase.rpc("admin_reset_queue_student", { p_nim: nim });
+        if (error) {
+          showAdminPopup("danger", "Gagal Mereset Antrian", error.message);
+          return;
+        }
+        const res = data as { ok?: boolean; message?: string; error?: string } | null;
+        if (res?.ok) {
+          loadAdminData();
+          showAdminPopup("success", "Antrian Direset", res.message || `Sesi antrian untuk NIM ${nim} berhasil direset.`);
+        } else {
+          showAdminPopup("danger", "Gagal Mereset Antrian", res?.error || "Gagal mereset antrian.");
+        }
+      }
+    );
+  };
+
+  // Handler Bersihkan Seluruh Sesi Kadaluarsa Secara Massal
+  const handleResetAllExpiredQueue = async () => {
+    showAdminPopup(
+      "confirm",
+      "Bersihkan Seluruh Sesi Kadaluarsa",
+      "Apakah Anda yakin ingin membersihkan seluruh sesi antrian yang kedaluwarsa? Mahasiswa yang sebelumnya tertahan batas waktu akan dapat langsung antri kembali.",
+      undefined,
+      async () => {
+        const { data, error } = await supabase.rpc("admin_reset_all_expired_queue");
+        if (error) {
+          showAdminPopup("danger", "Gagal Membersihkan Sesi", error.message);
+          return;
+        }
+        const res = data as { ok?: boolean; message?: string; error?: string } | null;
+        if (res?.ok) {
+          loadAdminData();
+          showAdminPopup("success", "Selesai", res.message || "Seluruh antrian kadaluarsa berhasil dibersihkan.");
+        } else {
+          showAdminPopup("danger", "Gagal", res?.error || "Gagal membersihkan antrian.");
+        }
+      }
+    );
+  };
+
   // Handler Update Mahasiswa
   const handleUpdateStudent = async (nim: string, nama: string, kelas: string) => {
     const { error: updErr } = await supabase.rpc("admin_update_student", {
@@ -681,6 +742,9 @@ export default function AdminPage() {
               }}
               onUpdateStudent={handleUpdateStudent}
               onDeleteStudent={handleDeleteStudent}
+              onResetQueue={handleResetQueueStudent}
+              onBatalDaftar={handleBatalDaftarWithConfirm}
+              onResetAllExpiredQueue={handleResetAllExpiredQueue}
               onSuccess={(msg) => showAdminPopup("success", "Berhasil", msg)}
               onError={(err) => showAdminPopup("danger", "Gagal", err)}
             />

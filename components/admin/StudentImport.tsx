@@ -12,6 +12,9 @@ interface StudentImportProps {
   onImportStudents: (students: StudentImportRow[]) => Promise<{ inserted: number; updated: number }>;
   onUpdateStudent?: (nim: string, nama: string, kelas: string) => Promise<void>;
   onDeleteStudent?: (nim: string) => Promise<void>;
+  onResetQueue?: (nim: string, nama: string) => Promise<void>;
+  onBatalDaftar?: (nim: string, nama: string) => Promise<void>;
+  onResetAllExpiredQueue?: () => Promise<void>;
   onSuccess: (msg: string) => void;
   onError: (err: string) => void;
   kelasList?: string[];
@@ -22,6 +25,9 @@ export function StudentImport({
   onImportStudents,
   onUpdateStudent,
   onDeleteStudent,
+  onResetQueue,
+  onBatalDaftar,
+  onResetAllExpiredQueue,
   onSuccess,
   onError,
   kelasList = [],
@@ -300,6 +306,9 @@ export function StudentImport({
             }
           }}
           onRequestDelete={(stud) => setStudentToDelete(stud)}
+          onResetQueue={onResetQueue}
+          onBatalDaftar={onBatalDaftar}
+          onResetAllExpiredQueue={onResetAllExpiredQueue}
         />
       )}
 

@@ -1833,3 +1833,66 @@ GRANT EXECUTE ON FUNCTION public.lapor_kendala_mahasiswa(TEXT, TEXT, TEXT, TEXT,
 GRANT EXECUTE ON FUNCTION public.admin_list_complaints() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_resolve_complaint(INT, TEXT, TEXT) TO authenticated;
 
+-- ==============================================================================
+-- 21. RESET ANTRIAN & SESI KADALUARSA (ADMIN)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.admin_reset_queue_student(p_nim TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_clean_nim TEXT := trim(p_nim);
+    v_deleted_count INT := 0;
+    v_student_nama TEXT := '';
+BEGIN
+    IF NOT public.is_admin() THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Akses ditolak: Hanya untuk administrator prodi.');
+    END IF;
+
+    IF v_clean_nim = '' THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'NIM mahasiswa tidak boleh kosong.');
+    END IF;
+
+    SELECT nama INTO v_student_nama FROM public.students WHERE nim = v_clean_nim;
+
+    DELETE FROM public.queue WHERE nim = v_clean_nim;
+    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'message', format('Sesi antrian untuk %s (NIM %s) berhasil direset (%s antrian dibersihkan). Mahasiswa dapat langsung masuk antrian kembali.', COALESCE(v_student_nama, v_clean_nim), v_clean_nim, v_deleted_count),
+        'deleted_count', v_deleted_count
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_reset_all_expired_queue()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_deleted_count INT := 0;
+BEGIN
+    IF NOT public.is_admin() THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Akses ditolak: Hanya untuk administrator prodi.');
+    END IF;
+
+    DELETE FROM public.queue WHERE state = 'expired';
+    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'message', format('Seluruh sesi kadaluarsa berhasil dibersihkan (%s sesi). Mahasiswa yang tertahan batas waktu kini dapat masuk antrian kembali.', v_deleted_count),
+        'deleted_count', v_deleted_count
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_reset_queue_student(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_reset_all_expired_queue() TO authenticated;
+
+
