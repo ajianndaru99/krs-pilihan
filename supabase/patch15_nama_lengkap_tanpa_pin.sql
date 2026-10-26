@@ -70,11 +70,14 @@ DECLARE
     v_nomor INT;
     v_expires_at TIMESTAMPTZ;
     v_active_count INT;
+    v_waiting_count INT;
     v_waiting_pos INT;
     v_est_minutes INT;
-    v_expired_count INT;
     v_now TIMESTAMPTZ := now();
     v_sisa_detik INT := 0;
+    v_last_expired_at TIMESTAMPTZ;
+    v_cooldown_seconds INT := 120;
+    v_sisa_cooldown INT := 0;
 BEGIN
     SELECT * INTO v_settings FROM public.settings WHERE id = 1;
     IF NOT v_settings.portal_open THEN
@@ -126,20 +129,35 @@ BEGIN
         END IF;
     END IF;
 
-    -- Periksa batas maksimal antri ulang dengan menghitung riwayat expired (kebal error kolom)
-    SELECT count(*) INTO v_expired_count
-    FROM public.queue
-    WHERE nim = v_student.nim AND state = 'expired';
+    -- Hitung slot antrian aktif dan antrian tunggu saat ini
+    SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active' AND expires_at >= v_now;
+    SELECT count(*) INTO v_waiting_count FROM public.queue WHERE state = 'waiting';
 
-    IF v_expired_count >= COALESCE(v_settings.max_requeue, 2) THEN
-        RETURN jsonb_build_object('ok', false, 'error', 'Batas maksimal antri ulang Anda telah habis. Silakan hubungi admin prodi.');
+    -- Periksa waktu kedaluwarsa terakhir mahasiswa ini
+    SELECT expires_at INTO v_last_expired_at
+    FROM public.queue
+    WHERE nim = v_student.nim AND state = 'expired'
+    ORDER BY entered_at DESC LIMIT 1;
+
+    -- LOGIKA FLEKSIBEL OPSI 4:
+    -- Jika portal sedang PADAT dan mahasiswa baru saja kedaluwarsa dalam 2 menit terakhir:
+    IF (v_active_count >= v_settings.max_active OR v_waiting_count > 0) AND v_last_expired_at IS NOT NULL THEN
+        v_sisa_cooldown := v_cooldown_seconds - EXTRACT(EPOCH FROM (v_now - v_last_expired_at))::INT;
+        IF v_sisa_cooldown > 0 THEN
+            RETURN jsonb_build_object(
+                'ok', false,
+                'error', format('Sesi Anda sebelumnya berakhir. Karena antrian saat ini sedang padat, silakan tunggu %s detik lagi sebelum mencoba antri kembali.', v_sisa_cooldown),
+                'cooldown', true,
+                'sisa_detik', v_sisa_cooldown
+            );
+        END IF;
     END IF;
 
-    -- Hitung slot antrian aktif saat ini
-    SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active' AND expires_at >= v_now;
+    -- Buat token sesi baru
     v_token := gen_random_uuid()::TEXT;
 
-    IF v_active_count < v_settings.max_active THEN
+    -- KONDISI SEPI: Langsung Aktif
+    IF v_active_count < v_settings.max_active AND v_waiting_count = 0 THEN
         v_expires_at := v_now + (v_settings.session_duration_minutes || ' minutes')::INTERVAL;
         v_sisa_detik := v_settings.session_duration_minutes * 60;
         
@@ -153,6 +171,7 @@ BEGIN
             'sisa_detik', v_sisa_detik
         );
     ELSE
+        -- KONDISI PADAT: Masuk antrian tunggu di urutan paling belakang
         INSERT INTO public.queue (token, nim, state)
         VALUES (v_token, v_student.nim, 'waiting');
 
