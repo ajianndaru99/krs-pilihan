@@ -100,13 +100,20 @@ body {
   box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .header-banner h1 {
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.02em;
+  text-align: center;
+  margin: 0;
 }
 
 .header-banner p {

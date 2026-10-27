@@ -848,25 +848,41 @@ export default function StudentPage() {
           className="header-banner"
           style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            gap: "1.25rem",
-            marginBottom: "2rem",
-            flexWrap: "wrap",
+            justifyContent: "center",
+            textAlign: "center",
+            gap: "0.85rem",
+            marginBottom: "1.75rem",
+            padding: "1.5rem 1.25rem",
           }}
         >
           <Image
             src="/logo-instiper.png"
             alt="Logo INSTIPER"
-            width={42}
-            height={42}
+            width={52}
+            height={52}
             priority
-            style={{ objectFit: "contain", flexShrink: 0 }}
+            style={{
+              objectFit: "contain",
+              display: "block",
+              margin: "0 auto",
+            }}
           />
-          <div style={{ flex: 1, minWidth: 260 }}>
-            <h1 style={{ fontSize: "1.45rem", fontWeight: 800, color: "var(--text-main)", margin: 0, letterSpacing: "-0.02em" }}>
-              Sistem Pemilihan Mata Kuliah Pilihan
-            </h1>
-          </div>
+          <h1
+            style={{
+              fontSize: "clamp(1.2rem, 4vw, 1.45rem)",
+              fontWeight: 800,
+              color: "var(--text-main)",
+              margin: 0,
+              letterSpacing: "-0.02em",
+              textAlign: "center",
+              lineHeight: 1.3,
+              maxWidth: 420,
+            }}
+          >
+            Sistem Pemilihan Mata Kuliah Pilihan
+          </h1>
         </header>
       )}
 
