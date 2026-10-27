@@ -97,10 +97,8 @@ export default function BuktiPage() {
   const handleBackToHome = () => {
     if (typeof window !== "undefined") {
       sessionStorage.clear();
-      window.location.href = "/";
-    } else {
-      router.replace("/");
     }
+    router.replace("/");
   };
 
   if (loading) {

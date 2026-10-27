@@ -26,14 +26,14 @@ export function CheckNimCard({
 }: CheckNimCardProps) {
   return (
     <div style={{ maxWidth: 460, margin: "2rem auto" }}>
-      {/* Header Branding — Reference Gambar 2 */}
+      {/* Header Branding — Clean & Professional */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           textAlign: "center",
-          marginBottom: "1.75rem",
+          marginBottom: "1.25rem",
           width: "100%",
         }}
       >
@@ -43,14 +43,14 @@ export function CheckNimCard({
             justifyContent: "center",
             alignItems: "center",
             width: "100%",
-            marginBottom: "1.25rem",
+            marginBottom: "0.85rem",
           }}
         >
           <Image
             src="/logo-instiper.png"
             alt="Logo INSTIPER"
-            width={150}
-            height={135}
+            width={56}
+            height={52}
             priority
             style={{
               objectFit: "contain",
@@ -61,12 +61,12 @@ export function CheckNimCard({
         </div>
         <h1
           style={{
-            fontSize: "2rem",
+            fontSize: "1.45rem",
             fontWeight: 800,
             color: "var(--primary)",
             letterSpacing: "-0.025em",
             textTransform: "uppercase",
-            margin: "0 0 0.35rem",
+            margin: "0 0 0.25rem",
             textAlign: "center",
             width: "100%",
           }}
@@ -75,10 +75,10 @@ export function CheckNimCard({
         </h1>
         <p
           style={{
-            fontSize: "0.875rem",
+            fontSize: "0.8rem",
             fontWeight: 700,
             color: "var(--text-muted)",
-            letterSpacing: "0.08em",
+            letterSpacing: "0.06em",
             textTransform: "uppercase",
             margin: 0,
             textAlign: "center",
@@ -93,7 +93,7 @@ export function CheckNimCard({
       <div
         className="card"
         style={{
-          padding: "2.25rem 2rem",
+          padding: "clamp(1.5rem, 5vw, 2.25rem) clamp(1.15rem, 4vw, 2rem)",
           borderRadius: "var(--radius-xl)",
           backgroundColor: "#ffffff",
           boxShadow: "var(--shadow-card)",
@@ -170,7 +170,7 @@ export function CheckNimCard({
               type="submit"
               className="btn btn-primary btn-block"
               disabled={loading || !nim.trim()}
-              style={{ padding: "0.9rem", fontSize: "0.95rem" }}
+              style={{ padding: "0.9rem", fontSize: "0.95rem", minHeight: 48 }}
             >
               {loading ? (
                 <>
@@ -239,20 +239,20 @@ export function CheckNimCard({
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={onResetVerification}
                 disabled={loading}
-                style={{ padding: "0.85rem 1.15rem" }}
+                style={{ padding: "0.85rem 1.15rem", minHeight: 48 }}
               >
                 Ganti NIM
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                style={{ flex: 1, padding: "0.85rem", fontSize: "0.95rem" }}
+                style={{ flex: 1, padding: "0.85rem", fontSize: "0.95rem", minHeight: 48 }}
                 disabled={loading}
               >
                 {loading ? (

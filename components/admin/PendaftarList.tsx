@@ -60,7 +60,7 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
           "Pilihan Ke": oIdx + 1,
           "Mata Kuliah / Proyek": opt.nama,
           Jenis: opt.jenis,
-          Topik: opt.topik || "-",
+          "Kelas Pilihan": opt.kelas || (opt.jenis === "proyek" ? "Semua" : "A"),
           "Waktu Registrasi": formatWIBDateTime(p.registered_at).full,
         });
       });
@@ -158,7 +158,7 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
                             color: p.jenis === "matkul" ? "#0369a1" : "#b45309",
                           }}
                         >
-                          {p.nama}
+                          {p.nama} {p.kelas ? `(Kls ${p.kelas})` : ""}
                         </span>
                       ))}
                     </div>

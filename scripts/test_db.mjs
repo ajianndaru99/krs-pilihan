@@ -184,10 +184,21 @@ async function runTestSuite() {
     return data.ok === false || "Token palsu diloloskan oleh queue_status!";
   });
 
+  // Cari NIM yang belum menyelesaikan pendaftaran untuk testing alur antrian
+  let candidateTestNim = "2110211006";
+  for (let i = 6; i <= 35; i++) {
+    const nimToCheck = `2110211${String(i).padStart(3, "0")}`;
+    const { data } = await supabase.rpc("cek_nim", { p_nim: nimToCheck });
+    if (data?.ok && !data.sudah_daftar && !data.sudah_terdaftar) {
+      candidateTestNim = nimToCheck;
+      break;
+    }
+  }
+
   let activeTestToken = "";
   await assertTest("Bisnis: join_queue() menghasilkan token aktif untuk mahasiswa valid", async () => {
     const { data, error } = await supabase.rpc("join_queue", {
-      p_nim: "2110211002",
+      p_nim: candidateTestNim,
       p_pin: "",
     });
     if (error) return `Error RPC: ${error.message}`;
@@ -201,11 +212,36 @@ async function runTestSuite() {
   await assertTest("Bisnis: queue_status() merespons data valid untuk token aktif", async () => {
     if (!activeTestToken) return "Token aktif belum tersedia";
     const { data, error } = await supabase.rpc("queue_status", {
-      p_nim: "2110211002",
+      p_nim: candidateTestNim,
       p_token: activeTestToken,
     });
     if (error) return `Error RPC: ${error.message}`;
     return data.ok === true && (data.state === "active" || data.state === "waiting") || `Respons tidak valid: ${JSON.stringify(data)}`;
+  });
+
+  await assertTest("Bisnis: ajukan_akses() 4-parameter berhasil menyimpan pengajuan", async () => {
+    const dummyNim = `99${Date.now().toString().slice(-6)}`;
+    const { data, error } = await supabase.rpc("ajukan_akses", {
+      p_nim: dummyNim,
+      p_nama: "Mahasiswa Uji Otomatis",
+      p_kelas: "A",
+      p_catatan: "Pengajuan akses otomatis dari test suite",
+    });
+    if (error) return `Error RPC: ${error.message}`;
+    return data?.ok === true || `Gagal ajukan_akses 4-param: ${JSON.stringify(data)}`;
+  });
+
+  await assertTest("Bisnis: ajukan_akses() 5-parameter berhasil menyimpan pengajuan", async () => {
+    const dummyNim = `98${Date.now().toString().slice(-6)}`;
+    const { data, error } = await supabase.rpc("ajukan_akses", {
+      p_nim: dummyNim,
+      p_nama: "Mahasiswa Uji Otomatis 5P",
+      p_kelas: "B",
+      p_alasan: "Alasan uji otomatis",
+      p_kontak: "081234567890",
+    });
+    if (error) return `Error RPC: ${error.message}`;
+    return data?.ok === true || `Gagal ajukan_akses 5-param: ${JSON.stringify(data)}`;
   });
 
   await assertTest("Bisnis: daftar() menolak pendaftaran tanpa token / sesi valid", async () => {

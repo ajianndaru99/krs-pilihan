@@ -13,7 +13,8 @@ export interface OfferingSchedule {
 export interface Offering {
   id: number;
   nama: string;
-  topik: string;
+  kelas?: string;
+  topik?: string;
   jenis: "matkul" | "proyek";
   kuota: number;
   terisi: number;
@@ -60,7 +61,8 @@ export interface PendaftarOfferingItem {
   id: number;
   nama: string;
   jenis: string;
-  topik: string;
+  kelas?: string;
+  topik?: string;
 }
 
 export interface PendaftarStudentItem {

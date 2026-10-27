@@ -292,6 +292,30 @@ export default function AdminPage() {
     );
   };
 
+  // Handler Sapu Sesi Menggantung / Idle
+  const handleSapuSesi = async () => {
+    try {
+      setIsRefreshing(true);
+      const { data, error } = await supabase.rpc("admin_sapu_sesi");
+      if (error) {
+        showAdminPopup("danger", "Gagal Menyapu Sesi", error.message);
+        return;
+      }
+      const res = data as { ok?: boolean; message?: string; error?: string } | null;
+      if (res?.ok) {
+        showAdminPopup("info", "Pembersihan Sesi Selesai", res.message || "Sesi aktif tertahan berhasil dibersihkan.");
+        await loadAdminData(true);
+      } else {
+        showAdminPopup("danger", "Gagal", res?.error || "Gagal menyapu sesi.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
+      showAdminPopup("danger", "Kesalahan", msg);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Handler Kuota
   const handleUpdateKuota = async (offeringId: number, newKuota: number) => {
     const { error } = await supabase.rpc("admin_update_kuota", {
@@ -526,6 +550,7 @@ export default function AdminPage() {
         onTogglePortal={handleTogglePortal}
         onLogout={handleLogout}
         onRefresh={loadAdminData}
+        onSapuSesi={handleSapuSesi}
         isRefreshing={isRefreshing}
         lastSyncTime={lastSyncTime}
       />

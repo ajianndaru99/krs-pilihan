@@ -97,8 +97,9 @@ Jika kaprodi memutuskan untuk menambah kapasitas pada mata kuliah yang sudah pen
 ### 3.4 Sesi Mahasiswa Kedaluwarsa (Expired)
 Jika durasi 5 menit mahasiswa habis sebelum menekan tombol simpan:
 - Status antrian mahasiswa berubah menjadi `expired`.
-- Mahasiswa diberi kesempatan antri ulang hingga maksimal 2 kali.
-- Bila jatah antri ulang habis, mahasiswa diminta menunggu putaran berikutnya saat antrian mereda.
+- Sesuai kebijakan antrian fleksibel (Opsi 4): mahasiswa **TIDAK diblokir permanen** dan bebas mencoba kembali hingga berhasil menyelesaikan KRS.
+- **Kondisi sepi (slot aktif longgar):** mahasiswa dapat langsung masuk ke status aktif seketika.
+- **Kondisi padat (slot aktif penuh):** mahasiswa dikenakan jeda santun (*cooldown* 2 menit) sebelum dapat bergabung kembali ke antrian tunggu (*waiting*) di urutan belakang, guna memberi kesempatan adil bagi mahasiswa lain.
 
 ---
 

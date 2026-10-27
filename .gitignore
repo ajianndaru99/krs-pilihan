@@ -44,3 +44,8 @@ next-env.d.ts
 # archives
 *.zip
 
+# python cache
+__pycache__/
+*.py[cod]
+*$py.class
+

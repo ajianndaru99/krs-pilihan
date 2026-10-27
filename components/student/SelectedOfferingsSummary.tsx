@@ -169,7 +169,7 @@ export function SelectedOfferingsSummary({
                         border: `1px solid ${isMatkul ? "var(--primary-border)" : "#ddd6fe"}`,
                       }}
                     >
-                      {isMatkul ? "Mata Kuliah" : "Proyek Terapan"}
+                      {isMatkul ? `Matkul • Kelas ${item.kelas || "A"}` : "Proyek Terapan"}
                     </span>
 
                     <button
@@ -200,17 +200,11 @@ export function SelectedOfferingsSummary({
                       fontWeight: 700,
                       color: "var(--text-title)",
                       lineHeight: 1.3,
-                      marginBottom: "0.25rem",
+                      marginBottom: "0.35rem",
                     }}
                   >
                     {item.nama}
                   </div>
-
-                  {item.topik && (
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.35rem" }}>
-                      Topik: <strong>{item.topik}</strong>
-                    </div>
-                  )}
                 </div>
 
                 <div
@@ -226,7 +220,7 @@ export function SelectedOfferingsSummary({
                     gap: "4px",
                   }}
                 >
-                  <span style={{ fontSize: "0.8rem" }}>🕒</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Jadwal:</span>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {scheduleText}
                   </span>

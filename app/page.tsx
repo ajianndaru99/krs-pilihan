@@ -64,7 +64,20 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshingQuota, setIsRefreshingQuota] = useState(false);
-  const [kelasList, setKelasList] = useState<string[]>([]);
+  const [kelasList, setKelasList] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("krs_cached_daftar_kelas");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed as string[];
+        }
+      } catch {
+        // Abaikan parsing galat
+      }
+    }
+    return [];
+  });
   const [showAjukanModal, setShowAjukanModal] = useState(false);
   const [showLaporModal, setShowLaporModal] = useState(false);
   const [showRegisteredModal, setShowRegisteredModal] = useState(false);
@@ -83,6 +96,8 @@ export default function StudentPage() {
   const sessionEndTimeRef = useRef<number | null>(null);
   const isExitingRef = useRef(false);
   const pollFailCountRef = useRef(0);
+  const isPollingInFlightRef = useRef(false);
+  const [isServerBusy, setIsServerBusy] = useState(false);
 
   // Simpan selectedIds ke sessionStorage agar pilihan tidak hilang saat refresh
   useEffect(() => {
@@ -101,14 +116,47 @@ export default function StudentPage() {
       const curToken = sessionStorage.getItem("token");
       const curNim = sessionStorage.getItem("nim");
       if ((!curToken || !curNim) && phase !== "login") {
-        setPhase("login");
-        setNim("");
-        setToken("");
-        setStudentInfo(null);
-        setSelectedIds([]);
+        const timer = setTimeout(() => {
+          setPhase("login");
+          setNim("");
+          setToken("");
+          setStudentInfo(null);
+          setSelectedIds([]);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
   }, [phase]);
+
+  // Pelepasan otomatis sesi aktif saat tab/browser ditutup oleh mahasiswa
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (typeof window === "undefined") return;
+      const curNim = sessionStorage.getItem("nim");
+      const curToken = sessionStorage.getItem("token");
+      if (curNim && curToken) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (supabaseUrl && anonKey) {
+          fetch(`${supabaseUrl}/rest/v1/rpc/batal_sesi_antrian`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: anonKey,
+              Authorization: `Bearer ${anonKey}`,
+            },
+            body: JSON.stringify({ p_nim: curNim, p_token: curToken }),
+            keepalive: true,
+          }).catch(() => {});
+        }
+      }
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, []);
 
   const closeModal = useCallback(() => {
     setModalDialog((prev) => ({ ...prev, isOpen: false }));
@@ -180,11 +228,15 @@ export default function StudentPage() {
     [showPopup]
   );
 
-  // Polling status antrian
+  // Polling status antrian dengan proteksi in-flight, adaptive delay, dan jitter
   const checkQueueStatus = useCallback(
-    async (curNim: string, curToken: string) => {
-      if (isExitingRef.current) return;
-      if (typeof window !== "undefined" && !sessionStorage.getItem("token")) return;
+    async (curNim: string, curToken: string): Promise<boolean> => {
+      if (isExitingRef.current) return false;
+      if (typeof window !== "undefined" && !sessionStorage.getItem("token")) return false;
+      if (isPollingInFlightRef.current) return false;
+
+      isPollingInFlightRef.current = true;
+      const startTime = Date.now();
 
       try {
         const { data, error } = await supabase.rpc("queue_status", {
@@ -192,13 +244,17 @@ export default function StudentPage() {
           p_token: curToken,
         });
 
-        if (isExitingRef.current) return;
+        const elapsed = Date.now() - startTime;
+        // Jika server membutuhkan waktu > 1.8 detik untuk merespons, tandai bahwa traffic sedang padat
+        setIsServerBusy(elapsed > 1800);
+
+        if (isExitingRef.current) return false;
         if (error) {
           pollFailCountRef.current += 1;
           if (pollFailCountRef.current >= 3) {
-            setNetworkWarning("Koneksi ke server tidak stabil. Sedang mencoba menghubungkan kembali...");
+            setNetworkWarning("Koneksi ke server padat. Sistem tetap mengamankan giliran Anda...");
           }
-          return;
+          return false;
         }
 
         pollFailCountRef.current = 0;
@@ -224,7 +280,7 @@ export default function StudentPage() {
           setPhase("login");
           setNim("");
           setToken("");
-          return;
+          return false;
         }
 
         setQueueState(res.state || "");
@@ -241,42 +297,90 @@ export default function StudentPage() {
         if (res.state === "active") {
           setPhase("select");
           fetchOfferings(curNim, curToken);
+          return false; // Berhenti polling antrian ruang tunggu
         } else if (res.state === "done") {
           router.push("/bukti");
+          return false;
         }
+
+        return true; // Lanjutkan polling
       } catch (err: unknown) {
         pollFailCountRef.current += 1;
         if (pollFailCountRef.current >= 3) {
           const msg = err instanceof Error ? err.message : "Gangguan jaringan";
           setNetworkWarning(`Koneksi terganggu (${msg}). Sistem tetap mencoba menghubungkan kembali...`);
         }
+        return true;
+      } finally {
+        isPollingInFlightRef.current = false;
       }
     },
     [fetchOfferings, router]
   );
 
-  // Setup interval polling saat fase queue
+  // Setup chained polling saat fase queue (Anti-overlap + Jitter + Adaptive delay)
   useEffect(() => {
     if (phase === "queue" && nim && token) {
       isExitingRef.current = false;
-      const runPoll = () => {
-        void checkQueueStatus(nim, token);
+      let isMounted = true;
+      let timerId: NodeJS.Timeout | null = null;
+
+      const scheduleNextPoll = (delayMs: number) => {
+        if (!isMounted) return;
+        timerId = setTimeout(async () => {
+          if (!isMounted) return;
+          const shouldContinue = await checkQueueStatus(nim, token);
+          if (shouldContinue && isMounted) {
+            // Adaptive delay: jika server sibuk, beri jeda lebih lama (14-16s)
+            // Tambahkan jitter acak 0-2500ms agar 300 mahasiswa tidak menembak di detik yang sama
+            const jitter = Math.floor(Math.random() * 2500);
+            const baseDelay = isServerBusy ? 14000 : QUEUE_POLL_INTERVAL_MS;
+            scheduleNextPoll(baseDelay + jitter);
+          }
+        }, delayMs);
       };
-      runPoll();
-      pollTimerRef.current = setInterval(runPoll, QUEUE_POLL_INTERVAL_MS);
+
+      // Jalankan polling pertama secara asinkron lewat timer terpisah
+      timerId = setTimeout(() => {
+        if (!isMounted) return;
+        void checkQueueStatus(nim, token).then((shouldContinue) => {
+          if (shouldContinue && isMounted) {
+            const jitter = Math.floor(Math.random() * 2000);
+            scheduleNextPoll(QUEUE_POLL_INTERVAL_MS + jitter);
+          }
+        });
+      }, 0);
+
       return () => {
-        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        isMounted = false;
+        if (timerId) clearTimeout(timerId);
       };
     }
-  }, [phase, nim, token, checkQueueStatus]);
+  }, [phase, nim, token, checkQueueStatus, isServerBusy]);
 
-  // Polling kuota otomatis setiap 10 detik saat fase select
+  // Polling kuota otomatis saat fase select dengan chained timeout & anti-overlap
   useEffect(() => {
     if (phase === "select" && nim && token) {
-      const quotaInterval = setInterval(() => {
-        void fetchOfferings(nim, token, true);
-      }, 10000);
-      return () => clearInterval(quotaInterval);
+      let isMounted = true;
+      let timerId: NodeJS.Timeout | null = null;
+
+      const scheduleQuotaPoll = () => {
+        if (!isMounted) return;
+        // Jitter 10s + 0-3s
+        const delay = 10000 + Math.floor(Math.random() * 3000);
+        timerId = setTimeout(async () => {
+          if (!isMounted) return;
+          await fetchOfferings(nim, token, true);
+          if (isMounted) scheduleQuotaPoll();
+        }, delay);
+      };
+
+      scheduleQuotaPoll();
+
+      return () => {
+        isMounted = false;
+        if (timerId) clearTimeout(timerId);
+      };
     }
   }, [phase, nim, token, fetchOfferings]);
 
@@ -298,12 +402,21 @@ export default function StudentPage() {
     }
   }, [phase, showPopup]);
 
-  // Load daftar kelas saat modal ajukan dibuka
+  // Load daftar kelas saat modal ajukan dibuka jika belum terisi
   useEffect(() => {
     if (showAjukanModal && kelasList.length === 0) {
+      let isMounted = true;
       supabase.rpc("daftar_kelas").then(({ data }) => {
-        if (Array.isArray(data)) setKelasList(data as string[]);
+        if (isMounted && Array.isArray(data)) {
+          setKelasList(data as string[]);
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("krs_cached_daftar_kelas", JSON.stringify(data));
+          }
+        }
       });
+      return () => {
+        isMounted = false;
+      };
     }
   }, [showAjukanModal, kelasList.length]);
 
@@ -604,6 +717,12 @@ export default function StudentPage() {
           clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
         }
+
+        // Lepaskan sesi aktif di database seketika agar kuota antrian tidak tertahan 5 menit
+        if (nim && token) {
+          void supabase.rpc("batal_sesi_antrian", { p_nim: nim, p_token: token }).then(() => {}, () => {});
+        }
+
         if (typeof window !== "undefined") {
           sessionStorage.clear();
         }
@@ -690,8 +809,8 @@ export default function StudentPage() {
           <Image
             src="/logo-instiper.png"
             alt="Logo INSTIPER"
-            width={64}
-            height={64}
+            width={42}
+            height={42}
             priority
             style={{ objectFit: "contain", flexShrink: 0 }}
           />
@@ -738,6 +857,8 @@ export default function StudentPage() {
           queuePosition={queuePosition}
           estMinutes={estMinutes}
           canRequeue={canRequeue}
+          isServerBusy={isServerBusy}
+          studentName={studentInfo?.nama || studentInfo?.nama_samar}
           onRequeue={() => handleJoinQueue({ preventDefault: () => {} } as React.FormEvent)}
           onExit={handleRequestExit}
         />

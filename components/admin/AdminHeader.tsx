@@ -9,6 +9,7 @@ interface AdminHeaderProps {
   onTogglePortal: () => void;
   onLogout: () => void;
   onRefresh?: () => void;
+  onSapuSesi?: () => void;
   isRefreshing?: boolean;
   lastSyncTime?: string;
 }
@@ -19,6 +20,7 @@ export function AdminHeader({
   onTogglePortal,
   onLogout,
   onRefresh,
+  onSapuSesi,
   isRefreshing,
   lastSyncTime,
 }: AdminHeaderProps) {
@@ -51,8 +53,8 @@ export function AdminHeader({
           <Image
             src="/logo-instiper.png"
             alt="Logo INSTIPER"
-            width={52}
-            height={52}
+            width={40}
+            height={40}
             priority
             style={{ objectFit: "contain", flexShrink: 0 }}
           />
@@ -200,6 +202,31 @@ export function AdminHeader({
               {status.active_queue ?? 0} <span style={{ fontSize: "1.25rem", opacity: 0.65 }}>/ {status.max_active ?? 30}</span>
             </div>
             <div className="stat-sub">Kapasitas Slot Bersamaan</div>
+            {onSapuSesi && (status.active_queue ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={onSapuSesi}
+                disabled={isRefreshing}
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "3px 8px",
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  backgroundColor: "#ffffff",
+                  color: "#b45309",
+                  border: "1px solid #fde68a",
+                  borderRadius: "var(--radius-sm)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+                title="Bersihkan sesi mahasiswa yang sudah keluar atau idle"
+              >
+                <span>🧹</span>
+                <span>Sapukan Sesi Tertahan</span>
+              </button>
+            )}
           </div>
 
           {/* Card 4: Antrian Menunggu (Soft Green) */}

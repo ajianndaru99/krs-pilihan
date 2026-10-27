@@ -63,7 +63,7 @@ export function OfferingManager({
   const filtered = offerings.filter((o) => {
     const matchSearch =
       o.nama.toLowerCase().includes(search.toLowerCase()) ||
-      (o.topik && o.topik.toLowerCase().includes(search.toLowerCase()));
+      (o.kelas && o.kelas.toLowerCase().includes(search.toLowerCase()));
     const matchJenis = filterJenis === "all" || o.jenis === filterJenis;
     return matchSearch && matchJenis;
   });
@@ -151,7 +151,7 @@ export function OfferingManager({
           <input
             type="text"
             className="form-control"
-            placeholder="Cari mata kuliah atau topik..."
+            placeholder="Cari mata kuliah atau kelas (A-E)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -209,8 +209,19 @@ export function OfferingManager({
               <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-body)", marginBottom: "0.25rem" }}>
                 {item.nama}
               </h3>
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-                Topik: <strong>{item.topik || "-"}</strong>
+              <div style={{ fontSize: "0.85rem", color: "var(--text-body)", marginBottom: "0.75rem" }}>
+                Kelas:{" "}
+                <span
+                  style={{
+                    fontWeight: 800,
+                    padding: "2px 8px",
+                    backgroundColor: "#f1f5f9",
+                    borderRadius: "var(--radius-sm)",
+                    color: "var(--primary)",
+                  }}
+                >
+                  {item.kelas || (item.jenis === "proyek" ? "Semua" : "A")}
+                </span>
               </div>
 
               {/* Jadwal Terplot */}
@@ -457,13 +468,13 @@ export function OfferingManager({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Topik</label>
+                <label className="form-label">Kelas (A - E / Semua)</label>
                 <input
                   type="text"
                   className="form-control"
                   value={topik}
-                  onChange={(e) => setTopik(e.target.value)}
-                  placeholder="Contoh: Bioteknologi"
+                  onChange={(e) => setTopik(e.target.value.toUpperCase())}
+                  placeholder="Contoh: A, B, C, D, E, atau Semua"
                 />
               </div>
 

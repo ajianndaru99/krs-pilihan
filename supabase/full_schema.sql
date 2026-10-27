@@ -4,6 +4,7 @@
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- ----------------------------------------------------------------------------
 -- 1. TABEL UTAMA & RLS
@@ -52,6 +53,7 @@ ON CONFLICT (email) DO NOTHING;
 CREATE TABLE IF NOT EXISTS public.offerings (
     id SERIAL PRIMARY KEY,
     nama TEXT NOT NULL,
+    kelas VARCHAR(10) DEFAULT 'A',
     topik TEXT,
     jenis TEXT NOT NULL CHECK (jenis IN ('matkul', 'proyek')),
     kuota INT NOT NULL DEFAULT 30
@@ -92,6 +94,8 @@ CREATE TABLE IF NOT EXISTS public.queue (
 );
 CREATE INDEX IF NOT EXISTS idx_queue_state ON public.queue(state, nomor);
 CREATE INDEX IF NOT EXISTS idx_queue_nim ON public.queue(nim);
+CREATE INDEX IF NOT EXISTS idx_queue_waiting_fifo ON public.queue(nomor ASC) WHERE state = 'waiting';
+CREATE INDEX IF NOT EXISTS idx_queue_active_exp ON public.queue(expires_at) WHERE state = 'active';
 
 -- 1.8 Registrasi Final Mahasiswa
 CREATE TABLE IF NOT EXISTS public.registrations (
@@ -254,7 +258,7 @@ DECLARE
     v_cooldown_seconds INT := 120;
     v_sisa_cooldown INT := 0;
 BEGIN
-    SELECT * INTO v_settings FROM public.settings WHERE id = 1;
+    SELECT * INTO v_settings FROM public.settings WHERE id = 1 FOR UPDATE;
     IF NOT v_settings.portal_open THEN
         RETURN jsonb_build_object('ok', false, 'error', 'Portal pemilihan saat ini sedang DITUTUP oleh administrator prodi.');
     END IF;
@@ -375,75 +379,78 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
-    v_q RECORD;
-    v_settings RECORD;
-    v_active_count INT;
-    v_next_waiting RECORD;
-    v_pos INT;
-    v_est_minutes INT;
+    v_state TEXT;
+    v_nomor INT;
+    v_expires_at TIMESTAMPTZ;
+    v_posisi INT := 0;
+    v_active_count INT := 0;
+    v_max_active INT := 30;
+    v_session_min INT := 5;
+    v_sisa_detik INT := 0;
+    v_est_menit INT := 0;
+    v_now TIMESTAMPTZ := now();
+    v_next_token TEXT;
 BEGIN
-    SELECT * INTO v_settings FROM public.settings WHERE id = 1;
+    SELECT max_active, session_duration_minutes INTO v_max_active, v_session_min FROM public.settings WHERE id = 1;
 
-    -- Promosikan antrian kadaluarsa
+    -- Update sesi yang sudah lewat batas waktu
     UPDATE public.queue
-    SET state = 'expired',
-        retry_count = retry_count + 1
-    WHERE state = 'active' AND expires_at < now();
+    SET state = 'expired'
+    WHERE state = 'active' AND expires_at < v_now;
 
-    -- Isi kuota aktif yang kosong dari antrian waiting teratas
-    SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active' AND expires_at >= now();
-    WHILE v_active_count < v_settings.max_active LOOP
-        SELECT * INTO v_next_waiting FROM public.queue
-        WHERE state = 'waiting'
-        ORDER BY id ASC
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED;
+    SELECT state, nomor, expires_at INTO v_state, v_nomor, v_expires_at
+    FROM public.queue
+    WHERE token = p_token AND nim = trim(p_nim);
 
-        EXIT WHEN NOT FOUND;
-
-        UPDATE public.queue
-        SET state = 'active',
-            expires_at = now() + (v_settings.session_duration_minutes * INTERVAL '1 minute')
-        WHERE id = v_next_waiting.id;
-
-        v_active_count := v_active_count + 1;
-    END LOOP;
-
-    -- Periksa status antrian mahasiswa yang meminta
-    SELECT * INTO v_q FROM public.queue WHERE token = p_token AND nim = trim(p_nim);
     IF NOT FOUND THEN
-        RETURN jsonb_build_object('ok', false, 'error', 'Token antrian tidak valid.');
+        RETURN jsonb_build_object('ok', false, 'error', 'Sesi antrian tidak ditemukan.');
     END IF;
 
-    IF v_q.state = 'active' THEN
-        RETURN jsonb_build_object(
-            'ok', true,
-            'state', 'active',
-            'token', v_q.token,
-            'sisa_detik', GREATEST(0, EXTRACT(EPOCH FROM (v_q.expires_at - now()))::INT)
-        );
-    ELSIF v_q.state = 'waiting' THEN
-        SELECT count(*) INTO v_pos FROM public.queue WHERE state = 'waiting' AND id <= v_q.id;
-        v_est_minutes := CEIL(v_pos::FLOAT / GREATEST(1, v_settings.max_active)::FLOAT * 1.5)::INT;
-        RETURN jsonb_build_object(
-            'ok', true,
-            'state', 'waiting',
-            'token', v_q.token,
-            'nomor', v_q.queue_number,
-            'posisi', v_pos,
-            'estimasi_menit', v_est_minutes
-        );
-    ELSIF v_q.state = 'expired' THEN
-        RETURN jsonb_build_object(
-            'ok', true,
-            'state', 'expired',
-            'bisa_antri_lagi', (v_q.retry_count < v_settings.max_requeue)
-        );
-    ELSIF v_q.state = 'done' THEN
-        RETURN jsonb_build_object('ok', true, 'state', 'done');
+    IF v_state = 'active' THEN
+        v_sisa_detik := GREATEST(0, EXTRACT(EPOCH FROM (v_expires_at - v_now))::INT);
+        IF v_sisa_detik = 0 THEN
+            UPDATE public.queue SET state = 'expired' WHERE token = p_token;
+            v_state := 'expired';
+        END IF;
+    ELSIF v_state = 'waiting' THEN
+        -- Promosikan antrian teratas jika ada slot active yang kosong
+        SELECT count(*) INTO v_active_count FROM public.queue WHERE state = 'active' AND expires_at >= v_now;
+        IF v_active_count < v_max_active THEN
+            -- Ambil nomor antrian waiting paling awal dengan SKIP LOCKED untuk mencegah race condition
+            SELECT token INTO v_next_token 
+            FROM public.queue 
+            WHERE state = 'waiting' 
+            ORDER BY nomor ASC 
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED;
+
+            IF v_next_token = p_token THEN
+                UPDATE public.queue
+                SET state = 'active', 
+                    activated_at = v_now, 
+                    expires_at = v_now + (v_session_min || ' minutes')::interval
+                WHERE token = p_token;
+                
+                v_state := 'active';
+                v_sisa_detik := v_session_min * 60;
+            END IF;
+        END IF;
+
+        IF v_state = 'waiting' THEN
+            SELECT count(*) INTO v_posisi FROM public.queue WHERE state = 'waiting' AND nomor < v_nomor;
+            v_est_menit := CEIL((v_posisi + 1)::FLOAT / GREATEST(1, v_max_active)::FLOAT * 1.5)::INT;
+        END IF;
     END IF;
 
-    RETURN jsonb_build_object('ok', false, 'error', 'Status antrian tidak dikenal.');
+    RETURN jsonb_build_object(
+        'ok', true,
+        'state', v_state,
+        'token', p_token,
+        'nomor', v_nomor,
+        'posisi', CASE WHEN v_state = 'waiting' THEN v_posisi + 1 ELSE 0 END,
+        'estimasi_menit', v_est_menit,
+        'sisa_detik', v_sisa_detik
+    );
 END;
 $$;
 
@@ -477,8 +484,8 @@ BEGIN
         jsonb_build_object(
             'id', o.id,
             'nama', o.nama,
-            'topik', COALESCE(o.topik, ''),
             'jenis', o.jenis,
+            'kelas', COALESCE(o.kelas, 'A'),
             'kuota', o.kuota,
             'terisi', COALESCE(r.cnt, 0),
             'sisa', GREATEST(0, o.kuota - COALESCE(r.cnt, 0)),
@@ -493,8 +500,19 @@ BEGIN
                       AND s.jam_mulai < cs.jam_selesai
                       AND cs.jam_mulai < s.jam_selesai
                 )
+            ),
+            'bentrok', (
+                v_student.kelas IS NOT NULL AND EXISTS (
+                    SELECT 1
+                    FROM public.schedules s
+                    JOIN public.class_schedules cs ON cs.kelas = v_student.kelas
+                    WHERE s.offering_id = o.id
+                      AND lower(trim(s.hari)) = lower(trim(cs.hari))
+                      AND s.jam_mulai < cs.jam_selesai
+                      AND cs.jam_mulai < s.jam_selesai
+                )
             )
-        )
+        ) ORDER BY o.jenis DESC, o.kelas ASC, o.nama ASC
     ) INTO v_pilihan
     FROM public.offerings o
     LEFT JOIN (
@@ -542,15 +560,15 @@ DECLARE
     v_off_id INT;
     v_matkul_count INT := 0;
     v_proyek_count INT := 0;
-    v_topik_arr TEXT[] := ARRAY[]::TEXT[];
+    v_nama_arr TEXT[] := ARRAY[]::TEXT[];
+    v_current_terisi INT;
 BEGIN
     SELECT * INTO v_settings FROM public.settings WHERE id = 1;
     IF NOT v_settings.portal_open THEN
         RETURN jsonb_build_object('ok', false, 'error', 'Portal pendaftaran saat ini ditutup.');
     END IF;
 
-    -- 1. KUNCI BARIS MAHASISWA SECARA EKSKLUSIF (FOR UPDATE)
-    -- Seluruh request paralel pada NIM ini akan mengantri di baris ini hingga transaksi pertama selesai
+    -- 1. Kunci baris mahasiswa eksklusif (mencegah pendaftaran ganda dari NIM yang sama)
     SELECT * INTO v_student FROM public.students 
     WHERE nim = trim(p_nim) 
     FOR UPDATE;
@@ -559,7 +577,6 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Mahasiswa tidak ditemukan.');
     END IF;
 
-    -- Periksa apakah sudah terdaftar setelah mengunci baris
     IF v_student.registered_at IS NOT NULL OR EXISTS (SELECT 1 FROM public.registrations WHERE nim = v_student.nim) THEN
         RETURN jsonb_build_object('ok', false, 'error', 'Anda sudah pernah menyelesaikan pendaftaran.');
     END IF;
@@ -578,32 +595,47 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', format('Jumlah pilihan harus tepat %s matkul dan %s proyek.', v_settings.need_matkul, v_settings.need_proyek));
     END IF;
 
-    -- 4. Kunci baris offerings secara deterministik (urut ID ASC) untuk mencegah deadlock & cek kuota
+    -- 4. KUNCI BARIS OFFERINGS TERPISAH SECARA DETERMINISTIK (urut ID ASC)
+    -- Ini menjamin transaksi konkuren pada offering yang sama mengantri di sini.
+    -- Ketika transaksi unblock, statement baru di bawah akan melihat data snapshot terbaru (Read Committed)
+    -- yang sudah dicommit oleh pendaftar sebelumnya.
+    PERFORM 1 FROM public.offerings 
+    WHERE id = ANY(p_offering_ids) 
+    ORDER BY id ASC 
+    FOR UPDATE;
+
+    -- 5. Periksa kuota dan aturan bisnis pada snapshot segar setelah kunci dipegang
     FOR v_off IN
-        SELECT o.*, 
-               COALESCE((SELECT count(*) FROM public.registrations r WHERE r.offering_id = o.id), 0)::INT AS terisi
+        SELECT o.*
         FROM public.offerings o
         WHERE o.id = ANY(p_offering_ids)
         ORDER BY o.id ASC
-        FOR UPDATE OF o
     LOOP
+        -- Hitung pendaftar terisi terkini secara presisi dari registrations
+        SELECT count(*)::INT INTO v_current_terisi
+        FROM public.registrations
+        WHERE offering_id = v_off.id;
+
+        IF v_current_terisi >= v_off.kuota THEN
+            RETURN jsonb_build_object(
+                'ok', false,
+                'error', format('Kuota untuk mata kuliah "%s" (Kelas %s) sudah penuh (%s/%s). Silakan pilih kelas atau mata kuliah lain.', v_off.nama, COALESCE(v_off.kelas, 'A'), v_current_terisi, v_off.kuota)
+            );
+        END IF;
+
         IF v_off.jenis = 'matkul' THEN
             v_matkul_count := v_matkul_count + 1;
         ELSIF v_off.jenis = 'proyek' THEN
             v_proyek_count := v_proyek_count + 1;
         END IF;
 
-        IF v_off.topik IS NOT NULL AND v_off.topik <> '' THEN
-            IF v_off.topik = ANY(v_topik_arr) THEN
-                RETURN jsonb_build_object('ok', false, 'error', format('Topik mata kuliah kembar terdeteksi: %s.', v_off.topik));
-            END IF;
-            v_topik_arr := array_append(v_topik_arr, v_off.topik);
+        -- Validasi: Mahasiswa tidak boleh memilih mata kuliah dengan NAMA yang sama dua kali (di kelas berbeda)
+        IF v_off.nama = ANY(v_nama_arr) THEN
+            RETURN jsonb_build_object('ok', false, 'error', format('Mata kuliah "%s" dipilih lebih dari satu kali.', v_off.nama));
         END IF;
+        v_nama_arr := array_append(v_nama_arr, v_off.nama);
 
-        IF v_off.terisi >= v_off.kuota THEN
-            RETURN jsonb_build_object('ok', false, 'error', format('Kuota untuk %s sudah penuh.', v_off.nama));
-        END IF;
-
+        -- Cek bentrok dengan jadwal kelas tetap mahasiswa
         IF v_student.kelas IS NOT NULL AND trim(v_student.kelas) <> '' THEN
             IF EXISTS (
                 SELECT 1
@@ -614,7 +646,7 @@ BEGIN
                   AND s.jam_mulai < cs.jam_selesai
                   AND cs.jam_mulai < s.jam_selesai
             ) THEN
-                RETURN jsonb_build_object('ok', false, 'error', format('Pilihan %s bentrok dengan jadwal kelas tetap Anda.', v_off.nama));
+                RETURN jsonb_build_object('ok', false, 'error', format('Pilihan %s (Kelas %s) bentrok dengan jadwal kelas tetap Anda.', v_off.nama, COALESCE(v_off.kelas, 'A')));
             END IF;
         END IF;
     END LOOP;
@@ -623,7 +655,7 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', format('Komposisi pilihan harus tepat %s matkul dan %s proyek.', v_settings.need_matkul, v_settings.need_proyek));
     END IF;
 
-    -- Cek bentrok jadwal antar mata kuliah pilihan
+    -- Cek bentrok jadwal antar mata kuliah pilihan yang dipilih
     IF EXISTS (
         SELECT 1
         FROM public.schedules s1
@@ -637,7 +669,7 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Terdapat bentrok jadwal antar mata kuliah pilihan yang Anda pilih.');
     END IF;
 
-    -- Update status mahasiswa secara bersyarat dan atomik
+    -- 6. Simpan pendaftaran secara atomik
     UPDATE public.students 
     SET registered_at = now() 
     WHERE nim = v_student.nim AND registered_at IS NULL;
@@ -749,12 +781,12 @@ END;
 $$;
 
 -- 9. HARDENING ajukan_akses()
+-- 9. HARDENING ajukan_akses(): MENYIMPAN KE KOLOM CATATAN (4 & 5 PARAMETER)
 CREATE OR REPLACE FUNCTION public.ajukan_akses(
     p_nim TEXT,
     p_nama TEXT,
     p_kelas TEXT,
-    p_alasan TEXT,
-    p_kontak TEXT DEFAULT ''
+    p_catatan TEXT
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -765,8 +797,7 @@ DECLARE
     v_nim TEXT := trim(p_nim);
     v_nama TEXT := trim(p_nama);
     v_kelas TEXT := trim(p_kelas);
-    v_alasan TEXT := trim(p_alasan);
-    v_kontak TEXT := trim(p_kontak);
+    v_catatan TEXT := trim(p_catatan);
     v_id INT;
 BEGIN
     IF v_nim = '' OR length(v_nim) < 5 THEN
@@ -777,8 +808,8 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Nama lengkap wajib diisi.');
     END IF;
 
-    IF v_alasan = '' THEN
-        RETURN jsonb_build_object('ok', false, 'error', 'Alasan pengajuan wajib diisi.');
+    IF v_catatan = '' THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Catatan / alasan pengajuan wajib diisi.');
     END IF;
 
     IF EXISTS (
@@ -794,15 +825,34 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'NIM Anda sudah terdaftar di sistem. Silakan login langsung.');
     END IF;
 
-    INSERT INTO public.access_requests (nim, nama, kelas, alasan, kontak, status)
-    VALUES (v_nim, v_nama, NULLIF(v_kelas, ''), v_alasan, NULLIF(v_kontak, ''), 'pending')
+    INSERT INTO public.access_requests (nim, nama, kelas, catatan, status)
+    VALUES (v_nim, v_nama, NULLIF(v_kelas, ''), v_catatan, 'pending')
     RETURNING id INTO v_id;
 
-    RETURN jsonb_build_object(
-        'ok', true,
-        'message', 'Pengajuan akses berhasil dikirim. Admin akan segera memverifikasi.',
-        'id', v_id
-    );
+    RETURN jsonb_build_object('ok', true, 'message', 'Pengajuan akses berhasil dikirim.', 'id', v_id);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ajukan_akses(
+    p_nim TEXT,
+    p_nama TEXT,
+    p_kelas TEXT,
+    p_alasan TEXT,
+    p_kontak TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_gabungan TEXT;
+BEGIN
+    v_gabungan := CASE 
+        WHEN NULLIF(trim(p_kontak), '') IS NOT NULL THEN trim(p_alasan) || ' (Kontak: ' || trim(p_kontak) || ')'
+        ELSE trim(p_alasan)
+    END;
+    RETURN public.ajukan_akses(p_nim, p_nama, p_kelas, v_gabungan);
 END;
 $$;
 
@@ -1185,7 +1235,7 @@ CREATE OR REPLACE FUNCTION public.admin_import_students(p_students JSONB)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
     v_item JSONB;
@@ -1489,6 +1539,7 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
 
 -- Berikan izin HANYA untuk fungsi publik mahasiswa kepada anon dan authenticated
 GRANT EXECUTE ON FUNCTION public.cek_nim(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ajukan_akses(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ajukan_akses(TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.join_queue(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.queue_status(TEXT, TEXT) TO anon, authenticated;
@@ -1498,7 +1549,7 @@ GRANT EXECUTE ON FUNCTION public.daftar(TEXT, TEXT, INT[]) TO anon, authenticate
 GRANT EXECUTE ON FUNCTION public.hasil_saya(TEXT, TEXT) TO anon, authenticated;
 
 -- Berikan izin fungsi admin HANYA kepada role authenticated (dan divalidasi oleh is_admin())
-GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.admin_status() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_toggle_portal(BOOLEAN) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_offerings() TO authenticated;
@@ -1851,5 +1902,92 @@ $$;
 GRANT EXECUTE ON FUNCTION public.lapor_kendala_mahasiswa(TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_complaints() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_resolve_complaint(INT, TEXT, TEXT) TO authenticated;
+
+-- ==============================================================================
+-- 10. PELEPASAN SESI AKTIF & PEMBERSIHAN SESI MENGGANTUNG (PATCH 21)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.batal_sesi_antrian(p_nim TEXT, p_token TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_next_token TEXT;
+    v_max_active INT := 30;
+    v_session_min INT := 5;
+    v_now TIMESTAMPTZ := now();
+    v_cur_state TEXT;
+BEGIN
+    SELECT state INTO v_cur_state
+    FROM public.queue
+    WHERE token = p_token AND nim = trim(p_nim);
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('ok', true, 'message', 'Sesi tidak ditemukan.');
+    END IF;
+
+    -- Ubah status sesi menjadi expired seketika
+    UPDATE public.queue
+    SET state = 'expired'
+    WHERE token = p_token AND nim = trim(p_nim) AND state IN ('active', 'waiting', 'menunggu_undian');
+
+    -- Jika yang keluar berstatus active, segera promosikan mahasiswa di antrian waiting teratas
+    IF v_cur_state = 'active' THEN
+        SELECT max_active, session_duration_minutes INTO v_max_active, v_session_min FROM public.settings WHERE id = 1;
+
+        SELECT token INTO v_next_token 
+        FROM public.queue 
+        WHERE state = 'waiting' 
+        ORDER BY nomor ASC 
+        LIMIT 1 
+        FOR UPDATE SKIP LOCKED;
+
+        IF v_next_token IS NOT NULL THEN
+            UPDATE public.queue
+            SET state = 'active', 
+                activated_at = v_now, 
+                expires_at = v_now + (v_session_min || ' minutes')::interval
+            WHERE token = v_next_token;
+        END IF;
+    END IF;
+
+    RETURN jsonb_build_object('ok', true, 'message', 'Sesi pemilihan berhasil dilepaskan.');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.batal_sesi_antrian(TEXT, TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_sapu_sesi()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_cleaned INT := 0;
+    v_now TIMESTAMPTZ := now();
+BEGIN
+    IF NOT public.is_admin() THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Akses ditolak: Hanya untuk akun administrator.');
+    END IF;
+
+    -- Bersihkan semua sesi aktif yang sudah lewat masa berlaku
+    UPDATE public.queue
+    SET state = 'expired'
+    WHERE state = 'active' AND expires_at < v_now;
+
+    GET DIAGNOSTICS v_cleaned = ROW_COUNT;
+
+    RETURN jsonb_build_object(
+        'ok', true, 
+        'message', format('%s sesi menggantung berhasil dibersihkan.', v_cleaned),
+        'cleaned', v_cleaned
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_sapu_sesi() TO authenticated;
+
 
 
