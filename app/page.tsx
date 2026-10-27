@@ -852,33 +852,46 @@ export default function StudentPage() {
             alignItems: "center",
             justifyContent: "center",
             textAlign: "center",
-            gap: "0.85rem",
-            marginBottom: "1.75rem",
-            padding: "1.5rem 1.25rem",
+            gap: "0.75rem",
+            marginBottom: "1.25rem",
+            padding: "1.35rem 1.15rem",
+            width: "100%",
           }}
         >
-          <Image
-            src="/logo-instiper.png"
-            alt="Logo INSTIPER"
-            width={52}
-            height={52}
-            priority
+          <div
+            className="logo-container"
             style={{
-              objectFit: "contain",
-              display: "block",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              width: "100%",
               margin: "0 auto",
             }}
-          />
+          >
+            <Image
+              src="/logo-instiper.png"
+              alt="Logo INSTIPER"
+              width={54}
+              height={54}
+              priority
+              style={{
+                objectFit: "contain",
+                display: "block",
+                margin: "0 auto",
+              }}
+            />
+          </div>
           <h1
             style={{
-              fontSize: "clamp(1.2rem, 4vw, 1.45rem)",
+              fontSize: "clamp(1.15rem, 4.5vw, 1.45rem)",
               fontWeight: 800,
               color: "var(--text-main)",
-              margin: 0,
+              margin: "0 auto",
               letterSpacing: "-0.02em",
               textAlign: "center",
               lineHeight: 1.3,
               maxWidth: 420,
+              width: "100%",
             }}
           >
             Sistem Pemilihan Mata Kuliah Pilihan

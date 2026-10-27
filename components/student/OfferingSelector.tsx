@@ -466,7 +466,7 @@ export function OfferingSelector({
               >
                 {/* Kolom Kiri: Badge Kelas & Info Utama */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.35rem", flexWrap: "wrap" }}>
                     <span
                       style={{
                         fontSize: "0.7rem",
@@ -518,8 +518,8 @@ export function OfferingSelector({
                       fontSize: "0.95rem",
                       fontWeight: 700,
                       color: "var(--text-main)",
-                      margin: "0 0 0.2rem",
-                      lineHeight: 1.3,
+                      margin: "0 0 0.35rem 0",
+                      lineHeight: 1.35,
                       wordBreak: "break-word",
                     }}
                   >
@@ -529,7 +529,7 @@ export function OfferingSelector({
                   {/* Jadwal Ringkas */}
                   <div
                     style={{
-                      fontSize: "0.725rem",
+                      fontSize: "0.75rem",
                       color: "var(--text-muted)",
                       display: "flex",
                       alignItems: "center",
@@ -796,11 +796,15 @@ export function OfferingSelector({
             onClick={() => setShowDropUp(!showDropUp)}
             style={{
               minHeight: 44,
-              padding: "0.55rem 0.85rem",
-              fontSize: "0.8rem",
+              padding: "0.55rem 0.95rem",
+              fontSize: "0.825rem",
               fontWeight: 700,
               backgroundColor: showDropUp ? "var(--primary-light)" : "#ffffff",
               color: showDropUp ? "var(--primary)" : "var(--text-main)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
             }}
           >
             {showDropUp ? "Tutup" : "Periksa"}
@@ -813,10 +817,14 @@ export function OfferingSelector({
             disabled={!isCompositionValid || isSubmitting}
             style={{
               minHeight: 44,
-              padding: "0.55rem 1.15rem",
+              padding: "0.55rem 1.25rem",
               fontSize: "0.85rem",
               fontWeight: 800,
               flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
             }}
           >
             {isSubmitting ? "Menyimpan..." : "Daftar KRS"}
