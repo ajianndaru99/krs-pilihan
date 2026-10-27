@@ -21,6 +21,7 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
   };
 
   const getBadgeText = () => {
+    if (dialog.title.toUpperCase().includes("PERHATIAN")) return "PERHATIAN";
     if (isDanger) return "PERHATIAN";
     if (isWarning) return "PERINGATAN";
     if (isConfirm) return "KONFIRMASI";
@@ -240,9 +241,16 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
               type="button"
               className={isDanger ? "btn btn-danger" : "btn btn-primary"}
               onClick={onClose}
-              style={{ minWidth: 100, padding: "0.75rem 1.35rem" }}
+              style={{
+                width: "100%",
+                padding: "0.85rem 1.35rem",
+                fontSize: "0.95rem",
+                fontWeight: 700,
+                borderRadius: "var(--radius-lg)",
+                cursor: "pointer",
+              }}
             >
-              Tutup
+              {dialog.confirmText || (dialog.title.toUpperCase().includes("PERHATIAN") ? "Saya Mengerti & Lanjutkan" : "Tutup")}
             </button>
           )}
         </div>

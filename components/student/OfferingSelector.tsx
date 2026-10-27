@@ -11,6 +11,7 @@ interface OfferingSelectorProps {
   needProyek: number;
   isSubmitting: boolean;
   isRefreshingQuota?: boolean;
+  hasQueue?: boolean;
   onRefreshQuota?: () => void;
   onToggleOffering: (offering: Offering) => void;
   onSubmitSelection: () => void;
@@ -25,6 +26,7 @@ export function OfferingSelector({
   needProyek,
   isSubmitting,
   isRefreshingQuota,
+  hasQueue = false,
   onRefreshQuota,
   onToggleOffering,
   onSubmitSelection,
@@ -120,69 +122,73 @@ export function OfferingSelector({
           backdropFilter: "blur(12px)",
           borderRadius: "var(--radius-lg)",
           boxShadow: "0 6px 20px -4px rgba(0, 0, 0, 0.08)",
-          border: "1.5px solid var(--primary-border)",
+          border: hasQueue ? "1.5px solid var(--warning)" : "1.5px solid var(--primary-border)",
           padding: "0.75rem 1rem",
           marginBottom: "1rem",
         }}
       >
-        {/* Baris 1: Countdown Waktu Saja (+ Refresh kecil opsional) */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "0.6rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
-            <span
-              style={{
-                fontSize: "0.7rem",
-                fontWeight: 800,
-                color: "var(--text-muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              SISA WAKTU
-            </span>
-            <span
-              style={{
-                fontSize: "1.35rem",
-                fontWeight: 800,
-                color: timerColor,
-                fontFamily: "var(--font-mono)",
-                lineHeight: 1,
-              }}
-            >
-              {formatTimer(remainingSeconds)}
-            </span>
-          </div>
+        {/* Baris 1: Countdown Waktu (HANYA tampil jika hasQueue === true) */}
+        {hasQueue && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "0.6rem",
+              paddingBottom: "0.45rem",
+              borderBottom: "1px dashed var(--border-color)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+              <span
+                style={{
+                  fontSize: "0.7rem",
+                  fontWeight: 800,
+                  color: "#d97706",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                SISA WAKTU
+              </span>
+              <span
+                style={{
+                  fontSize: "1.35rem",
+                  fontWeight: 800,
+                  color: timerColor,
+                  fontFamily: "var(--font-mono)",
+                  lineHeight: 1,
+                }}
+              >
+                {formatTimer(remainingSeconds)}
+              </span>
+            </div>
 
-          {onRefreshQuota && (
-            <button
-              type="button"
-              onClick={onRefreshQuota}
-              disabled={isRefreshingQuota}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--text-muted)",
-                fontSize: "0.725rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "3px",
-                padding: "2px 6px",
-              }}
-              title="Perbarui kuota terkini"
-            >
-              <span>🔄</span>
-              <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
-            </button>
-          )}
-        </div>
+            {onRefreshQuota && (
+              <button
+                type="button"
+                onClick={onRefreshQuota}
+                disabled={isRefreshingQuota}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  fontSize: "0.725rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  padding: "2px 6px",
+                }}
+                title="Perbarui kuota terkini"
+              >
+                <span>🔄</span>
+                <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Baris 2: Tabs Pilihan Kelas Horizontal (Semua, A - E, Proyek) */}
         <div
@@ -284,68 +290,102 @@ export function OfferingSelector({
           )}
         </div>
 
-        {/* Baris 4: Filter Kuota (Semua, Tersedia, Penuh) */}
+        {/* Baris 4: Filter Kuota (Semua, Tersedia, Penuh) + Refresh jika !hasQueue */}
         <div
           style={{
-            display: "inline-flex",
-            backgroundColor: "var(--bg-subtle)",
-            padding: "2px",
-            borderRadius: "var(--radius-full)",
-            border: "1px solid var(--border-color)",
-            gap: "2px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "0.4rem",
           }}
         >
-          <button
-            type="button"
-            onClick={() => setQuotaFilter("all")}
+          <div
             style={{
-              padding: "0.3rem 0.75rem",
+              display: "inline-flex",
+              backgroundColor: "var(--bg-subtle)",
+              padding: "2px",
               borderRadius: "var(--radius-full)",
-              border: "none",
-              fontSize: "0.725rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              backgroundColor: quotaFilter === "all" ? "#ffffff" : "transparent",
-              color: quotaFilter === "all" ? "var(--text-main)" : "var(--text-muted)",
-              boxShadow: quotaFilter === "all" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+              border: "1px solid var(--border-color)",
+              gap: "2px",
             }}
           >
-            Semua
-          </button>
-          <button
-            type="button"
-            onClick={() => setQuotaFilter("available")}
-            style={{
-              padding: "0.3rem 0.75rem",
-              borderRadius: "var(--radius-full)",
-              border: "none",
-              fontSize: "0.725rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              backgroundColor: quotaFilter === "available" ? "#ffffff" : "transparent",
-              color: quotaFilter === "available" ? "var(--success)" : "var(--text-muted)",
-              boxShadow: quotaFilter === "available" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-            }}
-          >
-            Tersedia ({availableCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setQuotaFilter("full")}
-            style={{
-              padding: "0.3rem 0.75rem",
-              borderRadius: "var(--radius-full)",
-              border: "none",
-              fontSize: "0.725rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              backgroundColor: quotaFilter === "full" ? "#ffffff" : "transparent",
-              color: quotaFilter === "full" ? "var(--danger)" : "var(--text-muted)",
-              boxShadow: quotaFilter === "full" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-            }}
-          >
-            Penuh ({fullCount})
-          </button>
+            <button
+              type="button"
+              onClick={() => setQuotaFilter("all")}
+              style={{
+                padding: "0.3rem 0.75rem",
+                borderRadius: "var(--radius-full)",
+                border: "none",
+                fontSize: "0.725rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                backgroundColor: quotaFilter === "all" ? "#ffffff" : "transparent",
+                color: quotaFilter === "all" ? "var(--text-main)" : "var(--text-muted)",
+                boxShadow: quotaFilter === "all" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+              }}
+            >
+              Semua
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuotaFilter("available")}
+              style={{
+                padding: "0.3rem 0.75rem",
+                borderRadius: "var(--radius-full)",
+                border: "none",
+                fontSize: "0.725rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                backgroundColor: quotaFilter === "available" ? "#ffffff" : "transparent",
+                color: quotaFilter === "available" ? "var(--success)" : "var(--text-muted)",
+                boxShadow: quotaFilter === "available" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+              }}
+            >
+              Tersedia ({availableCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuotaFilter("full")}
+              style={{
+                padding: "0.3rem 0.75rem",
+                borderRadius: "var(--radius-full)",
+                border: "none",
+                fontSize: "0.725rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                backgroundColor: quotaFilter === "full" ? "#ffffff" : "transparent",
+                color: quotaFilter === "full" ? "var(--danger)" : "var(--text-muted)",
+                boxShadow: quotaFilter === "full" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+              }}
+            >
+              Penuh ({fullCount})
+            </button>
+          </div>
+
+          {!hasQueue && onRefreshQuota && (
+            <button
+              type="button"
+              onClick={onRefreshQuota}
+              disabled={isRefreshingQuota}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                fontSize: "0.725rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "3px",
+                padding: "2px 6px",
+              }}
+              title="Perbarui kuota terkini"
+            >
+              <span>🔄</span>
+              <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
+            </button>
+          )}
         </div>
       </div>
 

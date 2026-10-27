@@ -98,6 +98,8 @@ export default function StudentPage() {
   const pollFailCountRef = useRef(0);
   const isPollingInFlightRef = useRef(false);
   const [isServerBusy, setIsServerBusy] = useState(false);
+  const [hasQueue, setHasQueue] = useState(false);
+  const hasShownQueueAlertRef = useRef(false);
 
   // Simpan selectedIds ke sessionStorage agar pilihan tidak hilang saat refresh
   useEffect(() => {
@@ -206,7 +208,15 @@ export default function StudentPage() {
           return;
         }
 
-        const res = (data as { ok?: boolean; error?: string; pilihan?: Offering[] }) || {};
+        interface ListOfferingsResponse {
+          ok?: boolean;
+          error?: string;
+          pilihan?: Offering[];
+          ada_antrian?: boolean;
+          sisa_detik?: number;
+        }
+
+        const res = (data as ListOfferingsResponse) || {};
         if (res.ok === false) {
           if (!isSilent) {
             showPopup("danger", "Akses Pilihan Ditolak", res.error || "Gagal memuat mata kuliah.");
@@ -215,6 +225,24 @@ export default function StudentPage() {
         }
 
         setOfferings(res.pilihan || []);
+
+        if (res.ada_antrian) {
+          setHasQueue(true);
+          if (!hasShownQueueAlertRef.current) {
+            hasShownQueueAlertRef.current = true;
+            showPopup(
+              "warning",
+              "PERHATIAN!",
+              "Saat ini mahasiswa lain sedang menunggu antrian. Anda memiliki waktu maksimal 5 MENIT untuk menyelesaikan pemilihan KRS Anda."
+            );
+          }
+          if (typeof res.sisa_detik === "number" && res.sisa_detik > 0) {
+            setRemainingSeconds(res.sisa_detik);
+            sessionEndTimeRef.current = Date.now() + res.sisa_detik * 1000;
+          }
+        } else {
+          setHasQueue(false);
+        }
       } catch (err: unknown) {
         if (!isSilent) {
           const msg = err instanceof Error ? err.message : "Terjadi kesalahan jaringan.";
@@ -268,6 +296,7 @@ export default function StudentPage() {
           estimasi_menit?: number;
           sisa_detik?: number;
           bisa_antri_lagi?: boolean;
+          ada_antrian?: boolean;
           error?: string;
         }
 
@@ -289,6 +318,10 @@ export default function StudentPage() {
         setEstMinutes(res.estimasi_menit ?? null);
         setCanRequeue(res.bisa_antri_lagi !== false);
 
+        if (typeof res.ada_antrian === "boolean") {
+          setHasQueue(res.ada_antrian);
+        }
+
         if (typeof res.sisa_detik === "number" && res.sisa_detik > 0) {
           setRemainingSeconds(res.sisa_detik);
           sessionEndTimeRef.current = Date.now() + res.sisa_detik * 1000;
@@ -296,6 +329,19 @@ export default function StudentPage() {
 
         if (res.state === "active") {
           setPhase("select");
+          if (res.ada_antrian) {
+            setHasQueue(true);
+            if (!hasShownQueueAlertRef.current) {
+              hasShownQueueAlertRef.current = true;
+              showPopup(
+                "warning",
+                "PERHATIAN!",
+                "Saat ini mahasiswa lain sedang menunggu antrian. Anda memiliki waktu maksimal 5 MENIT untuk menyelesaikan pemilihan KRS Anda."
+              );
+            }
+          } else {
+            setHasQueue(false);
+          }
           fetchOfferings(curNim, curToken);
           return false; // Berhenti polling antrian ruang tunggu
         } else if (res.state === "done") {
@@ -315,7 +361,7 @@ export default function StudentPage() {
         isPollingInFlightRef.current = false;
       }
     },
-    [fetchOfferings, router]
+    [fetchOfferings, router, showPopup]
   );
 
   // Setup chained polling saat fase queue (Anti-overlap + Jitter + Adaptive delay)
@@ -726,6 +772,8 @@ export default function StudentPage() {
         if (typeof window !== "undefined") {
           sessionStorage.clear();
         }
+        hasShownQueueAlertRef.current = false;
+        setHasQueue(false);
         setPhase("login");
         setNim("");
         setToken("");
@@ -815,24 +863,9 @@ export default function StudentPage() {
             style={{ objectFit: "contain", flexShrink: 0 }}
           />
           <div style={{ flex: 1, minWidth: 260 }}>
-            <div
-              style={{
-                fontSize: "0.75rem",
-                fontWeight: 700,
-                color: "var(--primary)",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                marginBottom: "0.2rem",
-              }}
-            >
-              Institut Pertanian STIPER Yogyakarta • Fakultas Pertanian
-            </div>
             <h1 style={{ fontSize: "1.45rem", fontWeight: 800, color: "var(--text-main)", margin: 0, letterSpacing: "-0.02em" }}>
               Sistem Pemilihan Mata Kuliah Pilihan
             </h1>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem", margin: 0 }}>
-              Portal Resmi Pendaftaran Mata Kuliah & Proyek Pilihan Semester Berjalan
-            </p>
           </div>
         </header>
       )}
@@ -869,6 +902,7 @@ export default function StudentPage() {
           offerings={offerings}
           selectedIds={selectedIds}
           remainingSeconds={remainingSeconds}
+          hasQueue={hasQueue}
           needMatkul={NEED_MATKUL}
           needProyek={NEED_PROYEK}
           isSubmitting={isSubmitting}
