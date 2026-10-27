@@ -193,28 +193,9 @@ export default function BuktiPage() {
               />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", justifyContent: "center" }}>
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  backgroundColor: "#ecfdf5",
-                  color: "#059669",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 800,
-                  fontSize: "0.85rem",
-                  flexShrink: 0,
-                }}
-              >
-                ✓
-              </div>
-              <h3 style={{ fontSize: "1.15rem", fontWeight: 800, margin: 0, color: "#0f172a" }}>
-                Bukti Registrasi KRS
-              </h3>
-            </div>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0, color: "#0f172a" }}>
+              Bukti Registrasi KRS
+            </h3>
             <p style={{ fontSize: "0.775rem", color: "#64748b", margin: "3px 0 0" }}>
               Tercatat secara elektronik di sistem akademik
             </p>

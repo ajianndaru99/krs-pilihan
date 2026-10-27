@@ -150,7 +150,7 @@ export function StudentListTable({
                           whiteSpace: "nowrap",
                         }}
                       >
-                        ✓ Sudah Memilih
+                        Sudah Memilih
                       </span>
                     ) : (
                       <span

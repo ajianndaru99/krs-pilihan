@@ -14,7 +14,7 @@ interface OfferingSelectorProps {
   onRefreshQuota?: () => void;
   onToggleOffering: (offering: Offering) => void;
   onSubmitSelection: () => void;
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 export function OfferingSelector({
@@ -28,7 +28,6 @@ export function OfferingSelector({
   onRefreshQuota,
   onToggleOffering,
   onSubmitSelection,
-  onLogout,
 }: OfferingSelectorProps) {
   // Filter state
   const [selectedClassTab, setSelectedClassTab] = useState<string>("all");
@@ -521,7 +520,7 @@ export function OfferingSelector({
                       justifyContent: "center",
                     }}
                   >
-                    {isSelected ? "Terpilih ✓" : isFull ? "Penuh" : "Pilih"}
+                    {isSelected ? "Terpilih" : isFull ? "Penuh" : "Pilih"}
                   </button>
                 </div>
               </div>
@@ -583,56 +582,31 @@ export function OfferingSelector({
                 borderTopRightRadius: "var(--radius-xl)",
               }}
             >
-              <div>
-                <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--text-main)" }}>
-                  Mata Kuliah Terpilih ({selectedOfferings.length} dari {needMatkul + needProyek})
-                </h4>
-                <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  Klik tanda ✕ Batal untuk mengganti mata kuliah
-                </p>
-              </div>
+              <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--text-main)" }}>
+                Mata Kuliah Terpilih ({selectedOfferings.length} dari {needMatkul + needProyek})
+              </h4>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  style={{
-                    background: "none",
-                    border: "1px solid #fecaca",
-                    backgroundColor: "#fef2f2",
-                    color: "var(--danger)",
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    padding: "0.35rem 0.65rem",
-                    borderRadius: "var(--radius-sm)",
-                    cursor: "pointer",
-                  }}
-                  title="Batalkan sesi antrian dan keluar"
-                >
-                  Keluar Sesi
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDropUp(false)}
-                  style={{
-                    background: "#e2e8f0",
-                    border: "none",
-                    color: "var(--text-main)",
-                    fontSize: "0.85rem",
-                    fontWeight: 800,
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                  }}
-                  title="Tutup ringkasan"
-                >
-                  ✕
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowDropUp(false)}
+                style={{
+                  background: "#e2e8f0",
+                  border: "none",
+                  color: "var(--text-main)",
+                  fontSize: "0.85rem",
+                  fontWeight: 800,
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+                title="Tutup ringkasan"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Isi Daftar Pilihan (TANPA JADWAL WAKTU SESUAI INSTRUKSI USER) */}
@@ -719,45 +693,6 @@ export function OfferingSelector({
                 })
               )}
             </div>
-
-            {/* Footer Drop-Up dengan Tombol Simpan KRS */}
-            <div
-              style={{
-                padding: "0.75rem 1.15rem",
-                borderTop: "1px solid var(--border-color)",
-                backgroundColor: "#f8fafc",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "0.75rem",
-              }}
-            >
-              <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>
-                {isCompositionValid
-                  ? "✓ Siap disimpan"
-                  : `Kurang ${needMatkul - matkulSelected > 0 ? `${needMatkul - matkulSelected} Matkul` : ""} ${
-                      needProyek - proyekSelected > 0 ? `${needProyek - proyekSelected} Proyek` : ""
-                    }`}
-              </div>
-
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setShowDropUp(false);
-                  onSubmitSelection();
-                }}
-                disabled={!isCompositionValid || isSubmitting}
-                style={{
-                  minHeight: 44,
-                  padding: "0.55rem 1.25rem",
-                  fontSize: "0.85rem",
-                  fontWeight: 800,
-                }}
-              >
-                {isSubmitting ? "Menyimpan..." : "Daftar KRS Sekarang"}
-              </button>
-            </div>
           </div>
         </>
       )}
@@ -809,9 +744,7 @@ export function OfferingSelector({
               lineHeight: 1.2,
             }}
           >
-            {isCompositionValid
-              ? "Lengkap Siap Simpan ✓"
-              : `${matkulSelected}/${needMatkul} Matkul, ${proyekSelected}/${needProyek} Proyek`}
+            {`${matkulSelected}/${needMatkul} Matkul, ${proyekSelected}/${needProyek} Proyek`}
           </div>
         </div>
 
