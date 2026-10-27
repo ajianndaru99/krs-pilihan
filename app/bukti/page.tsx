@@ -17,7 +17,8 @@ interface BuktiData {
       id: number;
       nama: string;
       jenis: string;
-      topik: string;
+      kelas?: string;
+      topik?: string;
       jadwal?: Array<{
         hari: string;
         jam_mulai: string;
@@ -122,7 +123,7 @@ export default function BuktiPage() {
             halaman utama.
           </p>
           <button type="button" className="btn btn-primary btn-block" onClick={handleBackToHome}>
-            Kembali ke Halaman Awal
+            Halaman Awal
           </button>
         </div>
       </div>
@@ -140,7 +141,7 @@ export default function BuktiPage() {
             <span>{errorMessage}</span>
           </div>
           <button type="button" className="btn btn-primary btn-block" onClick={handleBackToHome}>
-            Kembali ke Halaman Awal
+            Halaman Awal
           </button>
         </div>
       </div>
@@ -153,32 +154,7 @@ export default function BuktiPage() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: 850, paddingBottom: "2rem" }}>
-      {/* Tombol Navigasi Layar (disembunyikan saat dicetak) */}
-      <div
-        className="no-print"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.25rem",
-          gap: "0.75rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <button type="button" className="btn btn-secondary" onClick={handleBackToHome}>
-          Halaman Awal
-        </button>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button type="button" className="btn btn-primary" onClick={handlePrint} style={{ fontWeight: 600 }}>
-            📄 Cetak Bukti (A4 / PDF)
-          </button>
-          <button type="button" className="btn btn-danger" onClick={handleBackToHome}>
-            Keluar
-          </button>
-        </div>
-      </div>
-
+    <div className="container" style={{ maxWidth: 850, paddingBottom: "3rem" }}>
       {/* =========================================================================
           TAMPILAN KHUSUS LAYAR HP (Layar <= 640px)
           Dioptimalkan agar pas di layar tanpa horizontal scrolling dan nyaman dibaca.
@@ -188,41 +164,60 @@ export default function BuktiPage() {
         <div
           className="card"
           style={{
-            padding: "1.25rem",
+            padding: "1.35rem 1.25rem",
             backgroundColor: "#ffffff",
             border: "1px solid var(--border-color)",
             borderRadius: "var(--radius-lg)",
             boxShadow: "var(--shadow-card)",
-            marginBottom: "1.25rem",
+            marginBottom: "1rem",
           }}
         >
-          {/* Header Status Sukses */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                backgroundColor: "#ecfdf5",
-                color: "#059669",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                fontSize: "1.1rem",
-                flexShrink: 0,
-              }}
-            >
-              ✓
+          {/* Logo Kampus & Header Status (Foto 3: Logo INSTIPER & Judul 'Bukti Registrasi KRS') */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+              marginBottom: "1.15rem",
+            }}
+          >
+            <div style={{ marginBottom: "0.6rem" }}>
+              <Image
+                src="/logo-instiper.png"
+                alt="Logo INSTIPER"
+                width={52}
+                height={52}
+                priority
+                style={{ objectFit: "contain", display: "block", margin: "0 auto" }}
+              />
             </div>
-            <div>
-              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "#0f172a" }}>
-                Bukti Registrasi KRS Sah
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", justifyContent: "center" }}>
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  backgroundColor: "#ecfdf5",
+                  color: "#059669",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 800,
+                  fontSize: "0.85rem",
+                  flexShrink: 0,
+                }}
+              >
+                ✓
+              </div>
+              <h3 style={{ fontSize: "1.15rem", fontWeight: 800, margin: 0, color: "#0f172a" }}>
+                Bukti Registrasi KRS
               </h3>
-              <p style={{ fontSize: "0.775rem", color: "#64748b", margin: 0 }}>
-                Tercatat secara elektronik di sistem akademik
-              </p>
             </div>
+            <p style={{ fontSize: "0.775rem", color: "#64748b", margin: "3px 0 0" }}>
+              Tercatat secara elektronik di sistem akademik
+            </p>
           </div>
 
           {/* Kartu Profil Mahasiswa Ringkas */}
@@ -264,107 +259,93 @@ export default function BuktiPage() {
           </h4>
           <div style={{ display: "grid", gap: "0.75rem" }}>
             {pendaftaran.pilihan && pendaftaran.pilihan.length > 0 ? (
-              pendaftaran.pilihan.map((item, idx) => (
-                <div
-                  key={item.id}
-                  style={{
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "var(--radius-md)",
-                    padding: "0.85rem",
-                    backgroundColor: "#ffffff",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.35rem" }}>
-                    <span
-                      style={{
-                        backgroundColor: "#e0f2fe",
-                        color: "#0284c7",
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        padding: "2px 7px",
-                        borderRadius: "4px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      #{idx + 1}
-                    </span>
-                    <strong style={{ fontSize: "0.9rem", color: "#0f172a", flex: 1, lineHeight: 1.35 }}>
-                      {item.nama}
-                    </strong>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", margin: "0.4rem 0" }}>
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        padding: "2px 8px",
-                        borderRadius: "100px",
-                        backgroundColor: "#f1f5f9",
-                        color: "#475569",
-                        textTransform: "capitalize",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {item.jenis}
-                    </span>
-                    {item.topik && (
+              pendaftaran.pilihan.map((item, idx) => {
+                const isProyek = item.jenis === "proyek";
+                const kelasDisplay = isProyek ? "Proyek" : `Kelas ${item.kelas || "A"}`;
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "var(--radius-md)",
+                      padding: "0.85rem",
+                      backgroundColor: "#ffffff",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.35rem" }}>
                       <span
                         style={{
+                          backgroundColor: "#e0f2fe",
+                          color: "#0284c7",
                           fontSize: "0.75rem",
+                          fontWeight: 700,
+                          padding: "2px 7px",
+                          borderRadius: "4px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        #{idx + 1}
+                      </span>
+                      <strong style={{ fontSize: "0.9rem", color: "#0f172a", flex: 1, lineHeight: 1.35 }}>
+                        {item.nama}
+                      </strong>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", margin: "0.4rem 0" }}>
+                      <span
+                        style={{
+                          fontSize: "0.725rem",
                           padding: "2px 8px",
                           borderRadius: "100px",
-                          backgroundColor: "#fef3c7",
-                          color: "#b45309",
+                          backgroundColor: "#f1f5f9",
+                          color: "#475569",
                           fontWeight: 600,
                         }}
                       >
-                        Topik: {item.topik}
+                        {isProyek ? "Proyek Terapan" : "Mata Kuliah"}
                       </span>
-                    )}
-                  </div>
+                      <span
+                        style={{
+                          fontSize: "0.725rem",
+                          padding: "2px 8px",
+                          borderRadius: "100px",
+                          backgroundColor: isProyek ? "#fef3c7" : "#e0f2fe",
+                          color: isProyek ? "#b45309" : "#0369a1",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {kelasDisplay}
+                      </span>
+                    </div>
 
-                  <div
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "#334155",
-                      backgroundColor: "#f8fafc",
-                      padding: "0.5rem 0.65rem",
-                      borderRadius: "4px",
-                      marginTop: "0.4rem",
-                    }}
-                  >
-                    <span style={{ fontWeight: 600 }}>🕒 Jadwal:</span>{" "}
-                    {item.jadwal && item.jadwal.length > 0
-                      ? item.jadwal
-                          .map(
-                            (j) =>
-                              `${j.hari}, ${j.jam_mulai} - ${j.jam_selesai}${j.ruang ? ` (${j.ruang})` : ""}`
-                          )
-                          .join("; ")
-                      : "Jadwal belum ditentukan"}
+                    <div
+                      style={{
+                        fontSize: "0.775rem",
+                        color: "#334155",
+                        backgroundColor: "#f8fafc",
+                        padding: "0.45rem 0.65rem",
+                        borderRadius: "4px",
+                        marginTop: "0.35rem",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600 }}>🕒 Jadwal:</span>{" "}
+                      {item.jadwal && item.jadwal.length > 0
+                        ? item.jadwal
+                            .map(
+                              (j) =>
+                                `${j.hari}, ${j.jam_mulai}–${j.jam_selesai}${j.ruang ? ` (${j.ruang})` : ""}`
+                            )
+                            .join("; ")
+                        : "Jadwal belum ditentukan"}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", textAlign: "center" }}>
                 Belum ada data mata kuliah yang tersimpan.
               </p>
             )}
-          </div>
-
-          {/* Tombol Cetak Bawah untuk HP */}
-          <div style={{ marginTop: "1.25rem", display: "grid", gap: "0.5rem" }}>
-            <button
-              type="button"
-              className="btn btn-primary btn-block"
-              onClick={handlePrint}
-              style={{ fontWeight: 700, padding: "0.75rem" }}
-            >
-              📄 Cetak / Unduh PDF (A4 Formal)
-            </button>
-            <p style={{ fontSize: "0.725rem", color: "#64748b", textAlign: "center", margin: 0 }}>
-              * Tombol di atas akan membuka cetak PDF resmi format A4 1 halaman.
-            </p>
           </div>
         </div>
       </div>
@@ -482,7 +463,7 @@ export default function BuktiPage() {
                 <th style={{ padding: "6px 8px", width: 36, textAlign: "center" }}>No</th>
                 <th style={{ padding: "6px 8px" }}>Mata Kuliah / Proyek</th>
                 <th style={{ padding: "6px 8px", width: 80 }}>Jenis</th>
-                <th style={{ padding: "6px 8px", width: 120 }}>Topik</th>
+                <th style={{ padding: "6px 8px", width: 80 }}>Kelas</th>
                 <th style={{ padding: "6px 8px" }}>Jadwal & Ruang</th>
               </tr>
             </thead>
@@ -493,13 +474,15 @@ export default function BuktiPage() {
                     <td style={{ padding: "5px 8px", textAlign: "center" }}>{index + 1}</td>
                     <td style={{ padding: "5px 8px", fontWeight: 600 }}>{item.nama}</td>
                     <td style={{ padding: "5px 8px", textTransform: "capitalize" }}>{item.jenis}</td>
-                    <td style={{ padding: "5px 8px" }}>{item.topik || "-"}</td>
+                    <td style={{ padding: "5px 8px", fontWeight: 700 }}>
+                      {item.kelas || (item.jenis === "proyek" ? "Semua" : "A")}
+                    </td>
                     <td style={{ padding: "5px 8px", fontSize: "0.8rem" }}>
                       {item.jadwal && item.jadwal.length > 0
                         ? item.jadwal
                             .map(
                               (j) =>
-                                `${j.hari}, ${j.jam_mulai} - ${j.jam_selesai}${j.ruang ? ` (${j.ruang})` : ""}`
+                                `${j.hari}, ${j.jam_mulai}–${j.jam_selesai}${j.ruang ? ` (${j.ruang})` : ""}`
                             )
                             .join("; ")
                         : "-"}
@@ -562,6 +545,49 @@ export default function BuktiPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* =========================================================================
+          TOMBOL NAVIGASI BAWAH (Foto 3: Semua Tombol di Bawah & Tanpa Tombol Keluar)
+          ========================================================================= */}
+      <div
+        className="no-print"
+        style={{
+          marginTop: "1.75rem",
+          display: "flex",
+          gap: "0.75rem",
+          justifyContent: "center",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handlePrint}
+          style={{
+            fontWeight: 700,
+            padding: "0.75rem 1.5rem",
+            minHeight: 46,
+            fontSize: "0.9rem",
+          }}
+        >
+          📄 Cetak Bukti (A4 / PDF)
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleBackToHome}
+          style={{
+            fontWeight: 700,
+            padding: "0.75rem 1.5rem",
+            minHeight: 46,
+            fontSize: "0.9rem",
+          }}
+        >
+          Halaman Awal
+        </button>
       </div>
     </div>
   );

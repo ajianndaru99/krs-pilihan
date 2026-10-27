@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { Offering } from "@/lib/types";
-import { SelectedOfferingsSummary } from "./SelectedOfferingsSummary";
 
 interface OfferingSelectorProps {
   offerings: Offering[];
@@ -35,7 +34,7 @@ export function OfferingSelector({
   const [selectedClassTab, setSelectedClassTab] = useState<string>("all");
   const [quotaFilter, setQuotaFilter] = useState<"all" | "available" | "full">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [showSummaryDrawer, setShowSummaryDrawer] = useState<boolean>(false);
+  const [showDropUp, setShowDropUp] = useState<boolean>(false);
 
   const selectedOfferings = useMemo(
     () => offerings.filter((o) => selectedIds.includes(o.id)),
@@ -110,8 +109,8 @@ export function OfferingSelector({
   const fullCount = offerings.filter((o) => o.sisa <= 0).length;
 
   return (
-    <div className="has-mobile-bottom-bar" style={{ paddingBottom: "5.5rem" }}>
-      {/* 1. STICKY TOP CONTROLLER (Timer + Status + Action) */}
+    <div className="has-mobile-bottom-bar" style={{ paddingBottom: "6rem" }}>
+      {/* 1. STICKY TOP CONTROLLER (Foto 1: HANYA Countdown Waktu, Pilihan Kelas, Cari & Kuota Tersedia/Penuh) */}
       <div
         className="card"
         style={{
@@ -127,99 +126,77 @@ export function OfferingSelector({
           marginBottom: "1rem",
         }}
       >
+        {/* Baris 1: Countdown Waktu Saja (+ Refresh kecil opsional) */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            flexWrap: "wrap",
-            gap: "0.75rem",
+            marginBottom: "0.6rem",
           }}
         >
-          {/* Sisa Waktu & Status Pemilihan */}
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <div>
-              <div style={{ fontSize: "0.675rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                Sisa Waktu
-              </div>
-              <div style={{ fontSize: "1.25rem", fontWeight: 800, color: timerColor, fontFamily: "var(--font-mono)", lineHeight: 1.1 }}>
-                {formatTimer(remainingSeconds)}
-              </div>
-            </div>
-
-            <div style={{ height: 26, width: 1, backgroundColor: "var(--border-color)" }} />
-
-            <div>
-              <div style={{ fontSize: "0.675rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                Status Pilihan
-              </div>
-              <div style={{ fontSize: "0.825rem", fontWeight: 700 }}>
-                Matkul:{" "}
-                <span style={{ color: matkulSelected === needMatkul ? "var(--success)" : "var(--primary)" }}>
-                  {matkulSelected}/{needMatkul}
-                </span>{" "}
-                • Proyek:{" "}
-                <span style={{ color: proyekSelected === needProyek ? "var(--success)" : "var(--primary)" }}>
-                  {proyekSelected}/{needProyek}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Tombol Aksi Cepat (Refresh, Keluar, Toggle Summary) */}
-          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-            {onRefreshQuota && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onRefreshQuota}
-                disabled={isRefreshingQuota}
-                style={{ fontSize: "0.75rem", padding: "0.45rem 0.65rem" }}
-                title="Perbarui kuota terkini"
-              >
-                {isRefreshingQuota ? "..." : "Refresh Kuota"}
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setShowSummaryDrawer(!showSummaryDrawer)}
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+            <span
               style={{
-                fontSize: "0.75rem",
-                padding: "0.45rem 0.75rem",
-                backgroundColor: showSummaryDrawer ? "var(--primary-light)" : undefined,
-                color: showSummaryDrawer ? "var(--primary)" : undefined,
-                fontWeight: 700,
+                fontSize: "0.7rem",
+                fontWeight: 800,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
               }}
             >
-              {showSummaryDrawer ? "Tutup Pilihan" : `Lihat Pilihan (${selectedIds.length})`}
-            </button>
+              SISA WAKTU
+            </span>
+            <span
+              style={{
+                fontSize: "1.35rem",
+                fontWeight: 800,
+                color: timerColor,
+                fontFamily: "var(--font-mono)",
+                lineHeight: 1,
+              }}
+            >
+              {formatTimer(remainingSeconds)}
+            </span>
+          </div>
 
+          {onRefreshQuota && (
             <button
               type="button"
-              className="btn btn-secondary"
-              onClick={onLogout}
-              style={{ fontSize: "0.75rem", padding: "0.45rem 0.65rem", color: "var(--danger)" }}
+              onClick={onRefreshQuota}
+              disabled={isRefreshingQuota}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                fontSize: "0.725rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "3px",
+                padding: "2px 6px",
+              }}
+              title="Perbarui kuota terkini"
             >
-              Keluar
+              <span>🔄</span>
+              <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
             </button>
-          </div>
+          )}
         </div>
 
-        {/* 2. STICKY HORIZONTAL CLASS TABS (A - E, Proyek, Semua) */}
+        {/* Baris 2: Tabs Pilihan Kelas Horizontal (Semua, A - E, Proyek) */}
         <div
           style={{
-            marginTop: "0.75rem",
-            paddingTop: "0.65rem",
-            borderTop: "1px solid var(--border-subtle)",
             display: "flex",
             alignItems: "center",
-            gap: "0.4rem",
+            gap: "0.35rem",
             overflowX: "auto",
             WebkitOverflowScrolling: "touch",
             scrollbarWidth: "none",
             msOverflowStyle: "none",
+            paddingBottom: "2px",
+            marginBottom: "0.55rem",
           }}
         >
           {[
@@ -239,24 +216,24 @@ export function OfferingSelector({
                 onClick={() => setSelectedClassTab(tab.id)}
                 style={{
                   flexShrink: 0,
-                  padding: "0.4rem 0.85rem",
+                  padding: "0.35rem 0.8rem",
                   borderRadius: "var(--radius-full)",
                   border: isActive ? "1.5px solid var(--primary)" : "1px solid var(--border-color)",
                   backgroundColor: isActive ? "var(--primary)" : "#ffffff",
                   color: isActive ? "#ffffff" : "var(--text-main)",
-                  fontSize: "0.8rem",
+                  fontSize: "0.775rem",
                   fontWeight: isActive ? 800 : 600,
                   cursor: "pointer",
                   transition: "all 0.15s ease",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: "0.35rem",
+                  gap: "0.3rem",
                 }}
               >
                 <span>{tab.label}</span>
                 <span
                   style={{
-                    fontSize: "0.7rem",
+                    fontSize: "0.68rem",
                     padding: "1px 5px",
                     borderRadius: "var(--radius-full)",
                     backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-subtle)",
@@ -270,129 +247,110 @@ export function OfferingSelector({
           })}
         </div>
 
-        {/* 3. QUICK SEARCH & QUOTA FILTER BAR */}
+        {/* Baris 3: Kolom Cari Nama Mata Kuliah */}
+        <div style={{ position: "relative", marginBottom: "0.55rem" }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Cari nama mata kuliah..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              fontSize: "0.8rem",
+              padding: "0.45rem 0.75rem",
+              height: 36,
+              backgroundColor: "#f8fafc",
+              borderRadius: "var(--radius-md)",
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                padding: 2,
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Baris 4: Filter Kuota (Semua, Tersedia, Penuh) */}
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            marginTop: "0.65rem",
-            flexWrap: "wrap",
+            display: "inline-flex",
+            backgroundColor: "var(--bg-subtle)",
+            padding: "2px",
+            borderRadius: "var(--radius-full)",
+            border: "1px solid var(--border-color)",
+            gap: "2px",
           }}
         >
-          <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Cari nama mata kuliah..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                fontSize: "0.8rem",
-                padding: "0.45rem 0.75rem",
-                height: 36,
-                backgroundColor: "#f8fafc",
-              }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                style={{
-                  position: "absolute",
-                  right: 8,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  padding: 2,
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div
+          <button
+            type="button"
+            onClick={() => setQuotaFilter("all")}
             style={{
-              display: "inline-flex",
-              backgroundColor: "var(--bg-subtle)",
-              padding: "2px",
+              padding: "0.3rem 0.75rem",
               borderRadius: "var(--radius-full)",
-              border: "1px solid var(--border-color)",
-              gap: "2px",
-              flexShrink: 0,
+              border: "none",
+              fontSize: "0.725rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              backgroundColor: quotaFilter === "all" ? "#ffffff" : "transparent",
+              color: quotaFilter === "all" ? "var(--text-main)" : "var(--text-muted)",
+              boxShadow: quotaFilter === "all" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
             }}
           >
-            <button
-              type="button"
-              onClick={() => setQuotaFilter("all")}
-              style={{
-                padding: "0.3rem 0.65rem",
-                borderRadius: "var(--radius-full)",
-                border: "none",
-                fontSize: "0.725rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                backgroundColor: quotaFilter === "all" ? "#ffffff" : "transparent",
-                color: quotaFilter === "all" ? "var(--text-main)" : "var(--text-muted)",
-                boxShadow: quotaFilter === "all" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-              }}
-            >
-              Semua
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuotaFilter("available")}
-              style={{
-                padding: "0.3rem 0.65rem",
-                borderRadius: "var(--radius-full)",
-                border: "none",
-                fontSize: "0.725rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                backgroundColor: quotaFilter === "available" ? "#ffffff" : "transparent",
-                color: quotaFilter === "available" ? "var(--success)" : "var(--text-muted)",
-                boxShadow: quotaFilter === "available" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-              }}
-            >
-              Tersedia ({availableCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuotaFilter("full")}
-              style={{
-                padding: "0.3rem 0.65rem",
-                borderRadius: "var(--radius-full)",
-                border: "none",
-                fontSize: "0.725rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                backgroundColor: quotaFilter === "full" ? "#ffffff" : "transparent",
-                color: quotaFilter === "full" ? "var(--danger)" : "var(--text-muted)",
-                boxShadow: quotaFilter === "full" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-              }}
-            >
-              Penuh ({fullCount})
-            </button>
-          </div>
+            Semua
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuotaFilter("available")}
+            style={{
+              padding: "0.3rem 0.75rem",
+              borderRadius: "var(--radius-full)",
+              border: "none",
+              fontSize: "0.725rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              backgroundColor: quotaFilter === "available" ? "#ffffff" : "transparent",
+              color: quotaFilter === "available" ? "var(--success)" : "var(--text-muted)",
+              boxShadow: quotaFilter === "available" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            Tersedia ({availableCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuotaFilter("full")}
+            style={{
+              padding: "0.3rem 0.75rem",
+              borderRadius: "var(--radius-full)",
+              border: "none",
+              fontSize: "0.725rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              backgroundColor: quotaFilter === "full" ? "#ffffff" : "transparent",
+              color: quotaFilter === "full" ? "var(--danger)" : "var(--text-muted)",
+              boxShadow: quotaFilter === "full" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            Penuh ({fullCount})
+          </button>
         </div>
       </div>
 
-      {/* Ringkasan Pilihan yang bisa di-toggle atau otomatis tampil jika ada pilihan */}
-      {showSummaryDrawer && (
-        <SelectedOfferingsSummary
-          selectedOfferings={selectedOfferings}
-          needMatkul={needMatkul}
-          needProyek={needProyek}
-          onRemoveOffering={onToggleOffering}
-        />
-      )}
-
-      {/* DAFTAR MATA KULIAH: FORMAT KOMPAK MOBILE-FIRST */}
+      {/* 2. DAFTAR MATA KULIAH: FORMAT BARIS KOMPAK */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
         {filteredOfferings.length === 0 ? (
           <div
@@ -435,7 +393,7 @@ export function OfferingSelector({
             const scheduleShort =
               item.jadwal && item.jadwal.length > 0
                 ? item.jadwal
-                    .map((s) => `${s.hari} ${s.jam_mulai.slice(0, 5)}-${s.jam_selesai.slice(0, 5)}`)
+                    .map((s) => `${s.hari} ${s.jam_mulai.slice(0, 5)}–${s.jam_selesai.slice(0, 5)}`)
                     .join(", ")
                 : "Jadwal belum ditentukan";
 
@@ -470,7 +428,6 @@ export function OfferingSelector({
                 {/* Kolom Kiri: Badge Kelas & Info Utama */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
-                    {/* Badge Kelas (A-E / Proyek) */}
                     <span
                       style={{
                         fontSize: "0.7rem",
@@ -486,7 +443,6 @@ export function OfferingSelector({
                       {kelasDisplay}
                     </span>
 
-                    {/* Kuota Status Badge */}
                     <span
                       style={{
                         fontSize: "0.7rem",
@@ -548,7 +504,7 @@ export function OfferingSelector({
                   </div>
                 </div>
 
-                {/* Kolom Kanan: Tombol Pilih / Terpilih (Touch Target Ramah HP) */}
+                {/* Kolom Kanan: Tombol Pilih */}
                 <div style={{ flexShrink: 0 }}>
                   <button
                     type="button"
@@ -574,7 +530,239 @@ export function OfferingSelector({
         )}
       </div>
 
-      {/* 4. FLOATING BOTTOM BAR (THUMB ZONE FRIENDLY) */}
+      {/* 3. AUTO DROP-UP SHEET (Foto 2: Pop-up / Drop-Up Otomatis dari Bawah Layar) */}
+      {showDropUp && (
+        <>
+          {/* Backdrop gelap semi-transparan untuk menutup drop-up jika diklik di luar */}
+          <div
+            onClick={() => setShowDropUp(false)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(15, 23, 42, 0.45)",
+              zIndex: 990,
+              backdropFilter: "blur(2px)",
+              animation: "fadeIn 0.15s ease-out",
+            }}
+          />
+
+          {/* Drawer Drop-Up Mengambang */}
+          <div
+            style={{
+              position: "fixed",
+              bottom: "64px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "100%",
+              maxWidth: 580,
+              maxHeight: "75vh",
+              backgroundColor: "#ffffff",
+              borderTopLeftRadius: "var(--radius-xl)",
+              borderTopRightRadius: "var(--radius-xl)",
+              border: "1.5px solid var(--primary-border)",
+              boxShadow: "0 -8px 30px rgba(0, 0, 0, 0.16)",
+              zIndex: 995,
+              display: "flex",
+              flexDirection: "column",
+              animation: "slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
+            {/* Header Drop-Up */}
+            <div
+              style={{
+                padding: "0.85rem 1.15rem",
+                borderBottom: "1px solid var(--border-color)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                backgroundColor: "#f8fafc",
+                borderTopLeftRadius: "var(--radius-xl)",
+                borderTopRightRadius: "var(--radius-xl)",
+              }}
+            >
+              <div>
+                <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--text-main)" }}>
+                  Mata Kuliah Terpilih ({selectedOfferings.length} dari {needMatkul + needProyek})
+                </h4>
+                <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Klik tanda ✕ Batal untuk mengganti mata kuliah
+                </p>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  style={{
+                    background: "none",
+                    border: "1px solid #fecaca",
+                    backgroundColor: "#fef2f2",
+                    color: "var(--danger)",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    padding: "0.35rem 0.65rem",
+                    borderRadius: "var(--radius-sm)",
+                    cursor: "pointer",
+                  }}
+                  title="Batalkan sesi antrian dan keluar"
+                >
+                  Keluar Sesi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDropUp(false)}
+                  style={{
+                    background: "#e2e8f0",
+                    border: "none",
+                    color: "var(--text-main)",
+                    fontSize: "0.85rem",
+                    fontWeight: 800,
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                  title="Tutup ringkasan"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Isi Daftar Pilihan (TANPA JADWAL WAKTU SESUAI INSTRUKSI USER) */}
+            <div
+              style={{
+                padding: "1rem 1.15rem",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.6rem",
+              }}
+            >
+              {selectedOfferings.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                  Belum ada mata kuliah yang dipilih.
+                  <br />
+                  <span style={{ fontSize: "0.775rem" }}>Silakan klik tombol <strong>Pilih</strong> pada daftar kelas.</span>
+                </div>
+              ) : (
+                selectedOfferings.map((item) => {
+                  const isProyek = item.jenis === "proyek";
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "0.75rem 0.85rem",
+                        backgroundColor: "#f8fafc",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "var(--radius-md)",
+                        gap: "0.65rem",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.2rem" }}>
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: 800,
+                              padding: "2px 6px",
+                              borderRadius: "var(--radius-sm)",
+                              backgroundColor: isProyek ? "#fef3c7" : "#e0f2fe",
+                              color: isProyek ? "#b45309" : "#0369a1",
+                              border: `1px solid ${isProyek ? "#fde68a" : "#bae6fd"}`,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {isProyek ? "PROYEK" : `KELAS ${item.kelas || "A"}`}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.875rem",
+                            fontWeight: 700,
+                            color: "var(--text-main)",
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {item.nama}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onToggleOffering(item)}
+                        style={{
+                          background: "#fee2e2",
+                          border: "1px solid #fecaca",
+                          color: "#b91c1c",
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          padding: "0.4rem 0.75rem",
+                          borderRadius: "var(--radius-sm)",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                      >
+                        ✕ Batal
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer Drop-Up dengan Tombol Simpan KRS */}
+            <div
+              style={{
+                padding: "0.75rem 1.15rem",
+                borderTop: "1px solid var(--border-color)",
+                backgroundColor: "#f8fafc",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "0.75rem",
+              }}
+            >
+              <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)" }}>
+                {isCompositionValid
+                  ? "✓ Siap disimpan"
+                  : `Kurang ${needMatkul - matkulSelected > 0 ? `${needMatkul - matkulSelected} Matkul` : ""} ${
+                      needProyek - proyekSelected > 0 ? `${needProyek - proyekSelected} Proyek` : ""
+                    }`}
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setShowDropUp(false);
+                  onSubmitSelection();
+                }}
+                disabled={!isCompositionValid || isSubmitting}
+                style={{
+                  minHeight: 44,
+                  padding: "0.55rem 1.25rem",
+                  fontSize: "0.85rem",
+                  fontWeight: 800,
+                }}
+              >
+                {isSubmitting ? "Menyimpan..." : "Daftar KRS Sekarang"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 4. FLOATING BOTTOM BAR (Foto 2: Auto Drop-Up Trigger & Status) */}
       <div
         style={{
           position: "fixed",
@@ -593,9 +781,25 @@ export function OfferingSelector({
           gap: "0.75rem",
         }}
       >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Total Dipilih: {selectedIds.length} / {needMatkul + needProyek}
+        {/* Area Status Kiri (Bisa diklik untuk Auto Drop-Up) */}
+        <div
+          onClick={() => setShowDropUp(!showDropUp)}
+          style={{ flex: 1, cursor: "pointer", userSelect: "none" }}
+          title="Klik untuk melihat mata kuliah yang sudah diambil"
+        >
+          <div
+            style={{
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <span>TOTAL DIPILIH: {selectedIds.length} / {needMatkul + needProyek}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--primary)" }}>{showDropUp ? "▼" : "▲"}</span>
           </div>
           <div
             style={{
@@ -611,19 +815,22 @@ export function OfferingSelector({
           </div>
         </div>
 
+        {/* Tombol Aksi Kanan: Periksa & Daftar KRS */}
         <div style={{ display: "flex", gap: "0.45rem", alignItems: "center" }}>
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => setShowSummaryDrawer(!showSummaryDrawer)}
+            onClick={() => setShowDropUp(!showDropUp)}
             style={{
               minHeight: 44,
               padding: "0.55rem 0.85rem",
               fontSize: "0.8rem",
               fontWeight: 700,
+              backgroundColor: showDropUp ? "var(--primary-light)" : "#ffffff",
+              color: showDropUp ? "var(--primary)" : "var(--text-main)",
             }}
           >
-            {showSummaryDrawer ? "Sembunyikan" : "Periksa"}
+            {showDropUp ? "Tutup" : "Periksa"}
           </button>
 
           <button
