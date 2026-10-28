@@ -20,6 +20,7 @@ DELETE FROM public.registrations;
 DELETE FROM public.queue;
 DELETE FROM public.schedules;
 DELETE FROM public.offerings;
+UPDATE public.students SET registered_at = NULL;
 
 -- Reset sequence
 ALTER SEQUENCE public.offerings_id_seq RESTART WITH 1;
