@@ -253,7 +253,7 @@ export default function BuktiPage() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--text-muted)" }}>Waktu Daftar</span>
-              <span style={{ fontSize: "0.8rem", color: "#475569" }}>
+              <span style={{ fontSize: "0.8rem", color: "#475569" }} suppressHydrationWarning>
                 {pendaftaran.waktu_daftar ? new Date(pendaftaran.waktu_daftar).toLocaleString("id-ID") : "-"}
               </span>
             </div>
@@ -466,7 +466,7 @@ export default function BuktiPage() {
           </div>
           <div>
             <span style={{ color: "#64748b", display: "inline-block", width: 110 }}>Waktu Terdaftar:</span>
-            <span>{pendaftaran.waktu_daftar ? new Date(pendaftaran.waktu_daftar).toLocaleString("id-ID") : "-"}</span>
+            <span suppressHydrationWarning>{pendaftaran.waktu_daftar ? new Date(pendaftaran.waktu_daftar).toLocaleString("id-ID") : "-"}</span>
           </div>
         </div>
 

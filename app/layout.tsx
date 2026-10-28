@@ -28,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`${plusJakartaSans.variable} ${jetbrainsMono.variable}`}>
-      <body className={plusJakartaSans.className}>
+      <body className={plusJakartaSans.className} suppressHydrationWarning>
         <main>{children}</main>
       </body>
     </html>
