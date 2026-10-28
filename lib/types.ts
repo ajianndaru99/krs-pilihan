@@ -30,6 +30,10 @@ export interface StudentInfo {
   kelas?: string;
   butuh_pin?: boolean;
   sudah_terdaftar?: boolean;
+  pesan_admin?: string;
+  status_kendala?: string;
+  status_pengajuan?: string;
+  tipe_pesan?: string;
 }
 
 export interface ModalDetailItem {
@@ -81,7 +85,9 @@ export interface AdminPengajuanItem {
   alasan: string;
   kontak: string;
   status: string;
+  catatan_admin?: string;
   created_at: string;
+  resolved_at?: string | null;
 }
 
 export interface AdminSystemStatus {

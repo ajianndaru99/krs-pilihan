@@ -170,20 +170,30 @@ export function OfferingSelector({
                 onClick={onRefreshQuota}
                 disabled={isRefreshingQuota}
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--text-muted)",
+                  backgroundColor: "#ffffff",
+                  border: "1.5px solid var(--border-color)",
+                  borderRadius: "var(--radius-full)",
+                  color: isRefreshingQuota ? "var(--primary)" : "var(--text-main)",
                   fontSize: "0.725rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
+                  fontWeight: 700,
+                  cursor: isRefreshingQuota ? "wait" : "pointer",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: "3px",
-                  padding: "2px 6px",
+                  gap: "4px",
+                  padding: "0.25rem 0.65rem",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                  transition: "all 0.15s ease",
                 }}
                 title="Perbarui kuota terkini"
               >
-                <span>🔄</span>
+                <span
+                  style={{
+                    display: "inline-block",
+                    animation: isRefreshingQuota ? "spin 1s linear infinite" : "none",
+                  }}
+                >
+                  🔄
+                </span>
                 <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
               </button>
             )}
@@ -191,65 +201,123 @@ export function OfferingSelector({
         )}
 
         {/* Baris 2: Tabs Pilihan Kelas Horizontal (Semua, A - E, Proyek) */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.35rem",
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-            paddingBottom: "2px",
-            marginBottom: "0.55rem",
-          }}
-        >
-          {[
-            { id: "all", label: "Semua", count: classCounts.all },
-            { id: "A", label: "Kelas A", count: classCounts.A },
-            { id: "B", label: "Kelas B", count: classCounts.B },
-            { id: "C", label: "Kelas C", count: classCounts.C },
-            { id: "D", label: "Kelas D", count: classCounts.D },
-            { id: "E", label: "Kelas E", count: classCounts.E },
-            { id: "proyek", label: "Proyek Terapan", count: classCounts.proyek },
-          ].map((tab) => {
-            const isActive = selectedClassTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSelectedClassTab(tab.id)}
-                style={{
-                  flexShrink: 0,
-                  padding: "0.35rem 0.8rem",
-                  borderRadius: "var(--radius-full)",
-                  border: isActive ? "1.5px solid var(--primary)" : "1px solid var(--border-color)",
-                  backgroundColor: isActive ? "var(--primary)" : "#ffffff",
-                  color: isActive ? "#ffffff" : "var(--text-main)",
-                  fontSize: "0.775rem",
-                  fontWeight: isActive ? 800 : 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.3rem",
-                }}
-              >
-                <span>{tab.label}</span>
-                <span
-                  style={{
-                    fontSize: "0.68rem",
-                    padding: "1px 5px",
-                    borderRadius: "var(--radius-full)",
-                    backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-subtle)",
-                    color: isActive ? "#ffffff" : "var(--text-muted)",
-                  }}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
+        <div style={{ marginBottom: "0.55rem" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "0.3rem",
+              padding: "0 2px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              PILIHAN KELAS
+            </span>
+            <span
+              style={{
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                color: "var(--primary)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "2px",
+                backgroundColor: "var(--primary-light, #ecfdf5)",
+                padding: "1px 6px",
+                borderRadius: "var(--radius-full)",
+              }}
+            >
+              <span>↔ Geser pilihan kelas</span>
+              <span style={{ fontSize: "0.75rem" }}>›</span>
+            </span>
+          </div>
+
+          <div style={{ position: "relative" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                overflowX: "auto",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                paddingBottom: "2px",
+              }}
+            >
+              {[
+                { id: "all", label: "Semua", count: classCounts.all },
+                { id: "A", label: "Kelas A", count: classCounts.A },
+                { id: "B", label: "Kelas B", count: classCounts.B },
+                { id: "C", label: "Kelas C", count: classCounts.C },
+                { id: "D", label: "Kelas D", count: classCounts.D },
+                { id: "E", label: "Kelas E", count: classCounts.E },
+                { id: "proyek", label: "Proyek Terapan", count: classCounts.proyek },
+              ].map((tab) => {
+                const isActive = selectedClassTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSelectedClassTab(tab.id)}
+                    style={{
+                      flexShrink: 0,
+                      padding: "0.35rem 0.8rem",
+                      borderRadius: "var(--radius-full)",
+                      border: isActive ? "1.5px solid var(--primary)" : "1px solid var(--border-color)",
+                      backgroundColor: isActive ? "var(--primary)" : "#ffffff",
+                      color: isActive ? "#ffffff" : "var(--text-main)",
+                      fontSize: "0.775rem",
+                      fontWeight: isActive ? 800 : 600,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                    }}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      style={{
+                        fontSize: "0.68rem",
+                        padding: "1px 5px",
+                        borderRadius: "var(--radius-full)",
+                        backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-subtle)",
+                        color: isActive ? "#ffffff" : "var(--text-muted)",
+                      }}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Visual gradient hint di tepi kanan agar terlihat bisa digeser */}
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 2,
+                width: 24,
+                background: "linear-gradient(to right, transparent, rgba(255, 255, 255, 0.95))",
+                pointerEvents: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+              }}
+            >
+              <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", opacity: 0.7 }}>›</span>
+            </div>
+          </div>
         </div>
 
         {/* Baris 3: Kolom Cari Nama Mata Kuliah */}
@@ -369,21 +437,32 @@ export function OfferingSelector({
               onClick={onRefreshQuota}
               disabled={isRefreshingQuota}
               style={{
-                background: "none",
-                border: "none",
-                color: "var(--text-muted)",
-                fontSize: "0.725rem",
-                fontWeight: 600,
-                cursor: "pointer",
+                backgroundColor: "#ffffff",
+                border: "1.5px solid var(--border-color)",
+                borderRadius: "var(--radius-full)",
+                color: isRefreshingQuota ? "var(--primary)" : "var(--text-main)",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: isRefreshingQuota ? "wait" : "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "3px",
-                padding: "2px 6px",
+                gap: "5px",
+                padding: "0.35rem 0.85rem",
+                boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+                transition: "all 0.15s ease",
               }}
               title="Perbarui kuota terkini"
             >
-              <span>🔄</span>
-              <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
+              <span
+                style={{
+                  display: "inline-block",
+                  animation: isRefreshingQuota ? "spin 1s linear infinite" : "none",
+                  fontSize: "0.85rem",
+                }}
+              >
+                🔄
+              </span>
+              <span>{isRefreshingQuota ? "Memuat Kuota..." : "Refresh Kuota"}</span>
             </button>
           )}
         </div>

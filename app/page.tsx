@@ -83,6 +83,12 @@ export default function StudentPage() {
   const [showRegisteredModal, setShowRegisteredModal] = useState(false);
   const [registeredData, setRegisteredData] = useState<{ nim: string; nama?: string; kelas?: string } | null>(null);
   const [networkWarning, setNetworkWarning] = useState<string | null>(null);
+  const [adminNotice, setAdminNotice] = useState<{
+    type: "pending" | "rejected" | "info";
+    title: string;
+    message: string;
+    instruction?: string;
+  } | null>(null);
 
   // State Modal Dialog Interaktif
   const [modalDialog, setModalDialog] = useState<ModalDialogState>({
@@ -506,9 +512,38 @@ export default function StudentPage() {
         nama_samar?: string;
         kelas?: string;
         sudah_daftar?: boolean;
+        sudah_terdaftar?: boolean;
+        pesan_admin?: string;
+        status_kendala?: string;
+        status_pengajuan?: string;
+        tipe_pesan?: string;
       }
       const res = (data as CekNimResponse) || { ok: false };
+
+      // Jika NIM belum terdaftar dan memiliki riwayat pengajuan akses (pending / rejected)
+      if (!res.ok && res.status_pengajuan) {
+        if (res.status_pengajuan === "rejected") {
+          setAdminNotice({
+            type: "rejected",
+            title: "Pengajuan Akses Ditolak",
+            message: res.pesan_admin || "Pengajuan akses Anda belum dapat disetujui oleh admin.",
+            instruction: "Silakan datang langsung ke Loket Admin FAPERTA untuk verifikasi lebih lanjut.",
+          });
+        } else {
+          setAdminNotice({
+            type: "pending",
+            title: "Pengajuan Akses Sedang Diproses",
+            message: res.pesan_admin
+              ? `Pesan dari Admin: "${res.pesan_admin}"`
+              : "Pengajuan verifikasi akses Anda sedang menunggu persetujuan admin prodi.",
+            instruction: "Mohon menunggu atau hubungi Loket Admin FAPERTA jika mendesak.",
+          });
+        }
+        return;
+      }
+
       if (!res.ok) {
+        setAdminNotice(null);
         showPopup(
           "danger",
           "NIM Tidak Ditemukan",
@@ -523,7 +558,12 @@ export default function StudentPage() {
         );
         return;
       }
-      if (res.sudah_daftar) {
+
+      // Bersihkan notice jika NIM valid
+      setAdminNotice(null);
+
+      const isRegistered = res.sudah_daftar || res.sudah_terdaftar;
+      if (isRegistered) {
         setRegisteredData({
           nim: nim.trim(),
           nama: res.nama || res.nama_samar || "",
@@ -532,11 +572,14 @@ export default function StudentPage() {
         setShowRegisteredModal(true);
         return;
       }
+
       setStudentInfo({
         nama: res.nama || res.nama_samar,
         nama_samar: res.nama || res.nama_samar,
         kelas: res.kelas,
         sudah_terdaftar: false,
+        pesan_admin: res.pesan_admin,
+        status_kendala: res.status_kendala,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan.";
@@ -881,6 +924,20 @@ export default function StudentPage() {
               }}
             />
           </div>
+          <div
+            style={{
+              fontSize: "clamp(0.85rem, 3.2vw, 0.95rem)",
+              fontWeight: 700,
+              color: "var(--primary)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              margin: "0.4rem auto 0.25rem",
+              textAlign: "center",
+              width: "100%",
+            }}
+          >
+            Fakultas Pertanian INSTIPER Yogyakarta
+          </div>
           <h1
             style={{
               fontSize: "clamp(1.15rem, 4.5vw, 1.45rem)",
@@ -905,9 +962,14 @@ export default function StudentPage() {
           setNim={setNim}
           studentInfo={studentInfo}
           loading={loading}
+          adminNotice={adminNotice}
+          onClearNotice={() => setAdminNotice(null)}
           onCheckNim={handleCheckNim}
           onJoinQueue={handleJoinQueue}
-          onResetVerification={() => setStudentInfo(null)}
+          onResetVerification={() => {
+            setStudentInfo(null);
+            setAdminNotice(null);
+          }}
           onOpenAjukanModal={() => setShowAjukanModal(true)}
         />
       )}

@@ -185,8 +185,8 @@ async function runTestSuite() {
   });
 
   // Cari NIM yang belum menyelesaikan pendaftaran untuk testing alur antrian
-  let candidateTestNim = "2110211006";
-  for (let i = 6; i <= 35; i++) {
+  let candidateTestNim = "2110211050";
+  for (let i = 1; i <= 150; i++) {
     const nimToCheck = `2110211${String(i).padStart(3, "0")}`;
     const { data } = await supabase.rpc("cek_nim", { p_nim: nimToCheck });
     if (data?.ok && !data.sudah_daftar && !data.sudah_terdaftar) {

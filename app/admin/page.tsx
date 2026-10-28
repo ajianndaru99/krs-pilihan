@@ -398,14 +398,79 @@ export default function AdminPage() {
   };
 
   // Handler Setujui Pengajuan
-  const handleApproveRequest = async (id: number) => {
-    const { error } = await supabase.rpc("admin_setujui_pengajuan", { p_id: id });
+  const handleApproveRequest = async (id: number, catatan?: string) => {
+    const { data, error } = await supabase.rpc("admin_setujui_pengajuan", {
+      p_id: id,
+      p_catatan: catatan || null,
+    });
     if (error) {
       showAdminPopup("danger", "Gagal Menyetujui", error.message);
-      return;
+      throw error;
+    }
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (res?.ok === false) {
+      showAdminPopup("danger", "Gagal Menyetujui", res.error || "Gagal menyetujui pengajuan.");
+      throw new Error(res.error || "Gagal menyetujui.");
     }
     loadAdminData();
     showAdminPopup("success", "Pengajuan Disetujui", "Mahasiswa bersangkutan kini dapat login dan mendaftar.");
+  };
+
+  // Handler Tolak Pengajuan
+  const handleRejectRequest = async (id: number, catatan: string) => {
+    const { data, error } = await supabase.rpc("admin_tolak_pengajuan", {
+      p_id: id,
+      p_catatan: catatan,
+    });
+    if (error) {
+      showAdminPopup("danger", "Gagal Menolak Pengajuan", error.message);
+      throw error;
+    }
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (res?.ok === false) {
+      showAdminPopup("danger", "Gagal Menolak", res.error || "Gagal memproses penolakan.");
+      throw new Error(res.error || "Gagal menolak.");
+    }
+    loadAdminData();
+    showAdminPopup("success", "Pengajuan Ditolak", "Pengajuan akses mahasiswa telah ditolak dengan catatan yang tersimpan.");
+  };
+
+  // Handler Balas Pengajuan
+  const handleReplyRequest = async (id: number, catatan: string) => {
+    const { data, error } = await supabase.rpc("admin_balas_pengajuan", {
+      p_id: id,
+      p_catatan: catatan,
+    });
+    if (error) {
+      showAdminPopup("danger", "Gagal Menyimpan Balasan", error.message);
+      throw error;
+    }
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (res?.ok === false) {
+      showAdminPopup("danger", "Gagal Menyimpan", res.error || "Gagal memproses pesan.");
+      throw new Error(res.error || "Gagal menyimpan balasan.");
+    }
+    loadAdminData();
+    showAdminPopup("success", "Pesan Balasan Tersimpan", "Pesan akan muncul saat mahasiswa memasukkan NIM di halaman login.");
+  };
+
+  // Handler Balas Kendala Mahasiswa
+  const handleReplyComplaint = async (id: number, catatan: string) => {
+    const { data, error } = await supabase.rpc("admin_balas_kendala", {
+      p_id: id,
+      p_catatan: catatan,
+    });
+    if (error) {
+      showAdminPopup("danger", "Gagal Menyimpan Balasan Kendala", error.message);
+      throw error;
+    }
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (res?.ok === false) {
+      showAdminPopup("danger", "Gagal Menyimpan", res.error || "Gagal memproses pesan kendala.");
+      throw new Error(res.error || "Gagal menyimpan pesan kendala.");
+    }
+    loadAdminData(true);
+    showAdminPopup("success", "Balasan Kendala Tersimpan", "Pesan dari admin berhasil disimpan dan dapat dibaca oleh mahasiswa.");
   };
 
   // Handler Batalkan Pendaftaran Per NIM
@@ -726,13 +791,19 @@ export default function AdminPage() {
           )}
 
           {activeTab === "pengajuan" && (
-            <AccessRequestsList requests={requests} onApprove={handleApproveRequest} />
+            <AccessRequestsList
+              requests={requests}
+              onApprove={handleApproveRequest}
+              onReject={handleRejectRequest}
+              onReply={handleReplyRequest}
+            />
           )}
 
           {activeTab === "complaints" && (
             <ComplaintManager
               complaints={complaints}
               onResolveComplaint={handleResolveComplaint}
+              onReplyComplaint={handleReplyComplaint}
               onSuccess={(msg) => showAdminPopup("success", "Berhasil", msg)}
               onError={(err) => showAdminPopup("danger", "Gagal", err)}
             />

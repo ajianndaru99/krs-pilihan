@@ -3,11 +3,20 @@
 import Image from "next/image";
 import { StudentInfo } from "@/lib/types";
 
+export interface AdminNotice {
+  type: "pending" | "rejected" | "info";
+  title: string;
+  message: string;
+  instruction?: string;
+}
+
 interface CheckNimCardProps {
   nim: string;
   setNim: (val: string) => void;
   studentInfo: StudentInfo | null;
   loading: boolean;
+  adminNotice?: AdminNotice | null;
+  onClearNotice?: () => void;
   onCheckNim: (e: React.FormEvent) => void;
   onJoinQueue: (e: React.FormEvent) => void;
   onResetVerification: () => void;
@@ -19,6 +28,8 @@ export function CheckNimCard({
   setNim,
   studentInfo,
   loading,
+  adminNotice,
+  onClearNotice,
   onCheckNim,
   onJoinQueue,
   onResetVerification,
@@ -102,6 +113,81 @@ export function CheckNimCard({
       >
         {!studentInfo ? (
           <form onSubmit={onCheckNim}>
+            {/* Banner Alert Pesan Admin (Muncul jika ada status pending / penolakan dengan catatan admin) */}
+            {adminNotice && (
+              <div
+                style={{
+                  padding: "0.95rem 1.15rem",
+                  borderRadius: "var(--radius-lg)",
+                  marginBottom: "1.25rem",
+                  backgroundColor:
+                    adminNotice.type === "rejected"
+                      ? "#fef2f2"
+                      : adminNotice.type === "pending"
+                      ? "#fffbeb"
+                      : "#eff6ff",
+                  border:
+                    adminNotice.type === "rejected"
+                      ? "1.5px solid #f87171"
+                      : adminNotice.type === "pending"
+                      ? "1.5px solid #fcd34d"
+                      : "1.5px solid #93c5fd",
+                  color:
+                    adminNotice.type === "rejected"
+                      ? "#991b1b"
+                      : adminNotice.type === "pending"
+                      ? "#92400e"
+                      : "#1e40af",
+                  boxShadow: "0 2px 6px -1px rgba(0, 0, 0, 0.05)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontWeight: 800, fontSize: "0.9rem" }}>
+                    <span>{adminNotice.type === "rejected" ? "⛔" : adminNotice.type === "pending" ? "⏳" : "💬"}</span>
+                    <span>{adminNotice.title}</span>
+                  </div>
+                  {onClearNotice && (
+                    <button
+                      type="button"
+                      onClick={onClearNotice}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "inherit",
+                        opacity: 0.6,
+                        fontSize: "0.9rem",
+                        padding: 0,
+                        lineHeight: 1,
+                      }}
+                      title="Tutup pesan"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ fontSize: "0.85rem", marginTop: "0.45rem", lineHeight: 1.45, fontWeight: 500 }}>
+                  {adminNotice.message}
+                </div>
+
+                {adminNotice.instruction && (
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      marginTop: "0.55rem",
+                      paddingTop: "0.45rem",
+                      borderTop: "1px dashed currentColor",
+                      opacity: 0.95,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {adminNotice.instruction}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="form-group">
               <label
                 className="form-label"
@@ -238,6 +324,27 @@ export function CheckNimCard({
                 <strong style={{ fontSize: "0.95rem" }}>{studentInfo.kelas || "-"}</strong>
               </div>
             </div>
+
+            {studentInfo.pesan_admin && (
+              <div
+                style={{
+                  padding: "0.8rem 1rem",
+                  borderRadius: "var(--radius-lg)",
+                  backgroundColor: "#eff6ff",
+                  border: "1.5px solid #93c5fd",
+                  color: "#1e40af",
+                  fontSize: "0.825rem",
+                  marginBottom: "1.25rem",
+                  lineHeight: 1.45,
+                }}
+              >
+                <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "5px" }}>
+                  <span>💬</span>
+                  <span>Catatan dari Admin Akademik:</span>
+                </div>
+                <div>{studentInfo.pesan_admin}</div>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
               <button
