@@ -3029,6 +3029,55 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.daftar(TEXT, TEXT, INT[]) TO anon, authenticated;
 
+-- ==============================================================================
+-- PATCH 28: SEED DATA PENAWARAN MULTI-KELAS (LITERASI, EKONOMI, PENGAWETAN, DLL)
+-- ==============================================================================
+INSERT INTO public.offerings (id, nama, kelas, jenis, kuota, terisi) VALUES
+(1, 'Literasi A', 'A', 'matkul', 23, 0),
+(2, 'Literasi B', 'B', 'matkul', 23, 0),
+(3, 'Literasi C', 'C', 'matkul', 23, 23),
+(4, 'Literasi D', 'D', 'matkul', 21, 18),
+(5, 'Ekonomi A', 'A', 'matkul', 23, 0),
+(6, 'Ekonomi B', 'B', 'matkul', 23, 0),
+(7, 'Ekonomi C', 'C', 'matkul', 23, 23),
+(8, 'Ekonomi D', 'D', 'matkul', 23, 0),
+(9, 'Pengawetan A', 'A', 'matkul', 23, 0),
+(10, 'Pengawetan B', 'B', 'matkul', 23, 0),
+(11, 'Pengawetan C', 'C', 'matkul', 23, 0),
+(12, 'Pengawetan D', 'D', 'matkul', 23, 0),
+(13, 'Biofuel A', 'A', 'matkul', 23, 0),
+(14, 'Biofuel B', 'B', 'matkul', 23, 0),
+(15, 'Biofuel C', 'C', 'matkul', 23, 0),
+(16, 'Biofuel D', 'D', 'matkul', 23, 23),
+(17, 'Pengolahan Hasil A', 'A', 'matkul', 23, 0),
+(18, 'Pengolahan Hasil B', 'B', 'matkul', 23, 0),
+(19, 'Pengolahan Hasil C', 'C', 'matkul', 23, 0),
+(20, 'Pengolahan Hasil D', 'D', 'matkul', 23, 0),
+(21, 'Agroforestry C', 'C', 'matkul', 23, 0),
+(22, 'Agroforestry D', 'D', 'matkul', 23, 0),
+(23, 'Precision C', 'C', 'matkul', 23, 0),
+(24, 'Precision D', 'D', 'matkul', 23, 0),
+(25, 'GIS C', 'C', 'matkul', 23, 0),
+(26, 'GIS D', 'D', 'matkul', 23, 0),
+(27, 'Pasca Panen A', 'A', 'matkul', 23, 0),
+(28, 'Pasca Panen B', 'B', 'matkul', 23, 0),
+(29, 'Pasca Panen C', 'C', 'matkul', 23, 0),
+(30, 'Pasca Panen D', 'D', 'matkul', 23, 0),
+(31, 'Hama Penyakit A', 'A', 'matkul', 23, 0),
+(32, 'Hama Penyakit B', 'B', 'matkul', 23, 0),
+(33, 'Hama Penyakit C', 'C', 'matkul', 23, 0),
+(34, 'Hama Penyakit D', 'D', 'matkul', 23, 0),
+(35, 'Proyek Mandiri Inovasi Agroteknologi', 'Semua', 'proyek', 150, 0)
+ON CONFLICT (id) DO UPDATE SET
+    nama = EXCLUDED.nama,
+    kelas = EXCLUDED.kelas,
+    jenis = EXCLUDED.jenis,
+    kuota = EXCLUDED.kuota,
+    terisi = EXCLUDED.terisi;
+
+SELECT setval('public.offerings_id_seq', (SELECT max(id) FROM public.offerings));
+
+
 
 
 
