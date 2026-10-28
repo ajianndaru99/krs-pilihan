@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { StudentInfo } from "@/lib/types";
+import { ScheduleOverviewModal } from "./ScheduleOverviewModal";
 
 export interface AdminNotice {
   type: "pending" | "rejected" | "info";
@@ -35,6 +37,8 @@ export function CheckNimCard({
   onResetVerification,
   onOpenAjukanModal,
 }: CheckNimCardProps) {
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+
   return (
     <div style={{ maxWidth: 460, margin: "2rem auto" }}>
       {/* Header Branding — Clean & Professional */}
@@ -325,6 +329,54 @@ export function CheckNimCard({
               </div>
             </div>
 
+            {/* Peringatan Batas Waktu Sesi Aktif */}
+            <div
+              style={{
+                backgroundColor: "#fffbeb",
+                border: "1.5px solid #fcd34d",
+                borderRadius: "var(--radius-lg)",
+                padding: "0.8rem 1rem",
+                marginBottom: "0.85rem",
+                fontSize: "0.8rem",
+                color: "#92400e",
+                lineHeight: 1.45,
+              }}
+            >
+              <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                <span>⏱️</span>
+                <span>Peringatan Waktu Pemilihan:</span>
+              </div>
+              <div>
+                Dilarang berdiam terlalu lama di dashboard pemilihan matkul karena sesi memiliki batas waktu aktif otomatis demi keadilan kuota.
+              </div>
+            </div>
+
+            {/* Tombol Tautkan Jadwal & Kuota Matkul Pilihan */}
+            <button
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              style={{
+                width: "100%",
+                padding: "0.65rem 0.85rem",
+                borderRadius: "var(--radius-lg)",
+                backgroundColor: "#f0fdf4",
+                border: "1.5px solid var(--primary-border)",
+                color: "var(--primary)",
+                fontSize: "0.825rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.45rem",
+                marginBottom: "0.85rem",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <span>📋</span>
+              <span>Lihat Jadwal & Daftar Mata Kuliah Pilihan</span>
+            </button>
+
             {studentInfo.pesan_admin && (
               <div
                 style={{
@@ -345,6 +397,11 @@ export function CheckNimCard({
                 <div>{studentInfo.pesan_admin}</div>
               </div>
             )}
+
+            <ScheduleOverviewModal
+              isOpen={showScheduleModal}
+              onClose={() => setShowScheduleModal(false)}
+            />
 
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
               <button

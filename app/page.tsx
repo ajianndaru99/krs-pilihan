@@ -81,7 +81,15 @@ export default function StudentPage() {
   const [showAjukanModal, setShowAjukanModal] = useState(false);
   const [showLaporModal, setShowLaporModal] = useState(false);
   const [showRegisteredModal, setShowRegisteredModal] = useState(false);
-  const [registeredData, setRegisteredData] = useState<{ nim: string; nama?: string; kelas?: string } | null>(null);
+  const [registeredData, setRegisteredData] = useState<{
+    nim: string;
+    nama?: string;
+    kelas?: string;
+    token?: string;
+    pesan_admin?: string;
+    status_kendala?: string;
+    alasan_kendala?: string;
+  } | null>(null);
   const [networkWarning, setNetworkWarning] = useState<string | null>(null);
   const [adminNotice, setAdminNotice] = useState<{
     type: "pending" | "rejected" | "info";
@@ -513,9 +521,11 @@ export default function StudentPage() {
         kelas?: string;
         sudah_daftar?: boolean;
         sudah_terdaftar?: boolean;
+        token?: string;
         pesan_admin?: string;
         status_kendala?: string;
         status_pengajuan?: string;
+        alasan_kendala?: string;
         tipe_pesan?: string;
       }
       const res = (data as CekNimResponse) || { ok: false };
@@ -568,6 +578,10 @@ export default function StudentPage() {
           nim: nim.trim(),
           nama: res.nama || res.nama_samar || "",
           kelas: res.kelas || "",
+          token: res.token,
+          pesan_admin: res.pesan_admin,
+          status_kendala: res.status_kendala,
+          alasan_kendala: res.alasan_kendala,
         });
         setShowRegisteredModal(true);
         return;
@@ -895,9 +909,9 @@ export default function StudentPage() {
             alignItems: "center",
             justifyContent: "center",
             textAlign: "center",
-            gap: "0.75rem",
-            marginBottom: "1.25rem",
-            padding: "1.35rem 1.15rem",
+            gap: "0.2rem",
+            marginBottom: "0.85rem",
+            padding: "0.65rem 0.85rem",
             width: "100%",
           }}
         >
@@ -914,24 +928,26 @@ export default function StudentPage() {
             <Image
               src="/logo-instiper.png"
               alt="Logo INSTIPER"
-              width={54}
-              height={54}
+              width={38}
+              height={38}
               priority
               style={{
                 objectFit: "contain",
                 display: "block",
                 margin: "0 auto",
+                width: 38,
+                height: 38,
               }}
             />
           </div>
           <div
             style={{
-              fontSize: "clamp(0.85rem, 3.2vw, 0.95rem)",
+              fontSize: "clamp(0.72rem, 2.6vw, 0.8rem)",
               fontWeight: 700,
               color: "var(--primary)",
               textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              margin: "0.4rem auto 0.25rem",
+              letterSpacing: "0.04em",
+              margin: "0.1rem auto 0.05rem",
               textAlign: "center",
               width: "100%",
             }}
@@ -940,13 +956,13 @@ export default function StudentPage() {
           </div>
           <h1
             style={{
-              fontSize: "clamp(1.15rem, 4.5vw, 1.45rem)",
+              fontSize: "clamp(1.05rem, 3.8vw, 1.25rem)",
               fontWeight: 800,
               color: "var(--text-main)",
               margin: "0 auto",
               letterSpacing: "-0.02em",
               textAlign: "center",
-              lineHeight: 1.3,
+              lineHeight: 1.25,
               maxWidth: 420,
               width: "100%",
             }}
@@ -1059,44 +1075,62 @@ export default function StudentPage() {
               border: "1.5px solid var(--primary-border)",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
-              <span
-                style={{
-                  fontSize: "0.7rem",
-                  fontWeight: 800,
-                  padding: "3px 10px",
-                  borderRadius: "var(--radius-full)",
-                  backgroundColor: "var(--success-light)",
-                  color: "var(--success)",
-                  border: "1px solid var(--success-border)",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                STATUS: TERDAFTAR
-              </span>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", margin: 0 }}>
-                Pendaftaran Telah Selesai
+            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+              <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-main)", margin: "0 0 0.35rem 0" }}>
+                Status : Pendaftaran telah Selesai
               </h3>
+              <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", margin: 0 }}>
+                Mahasiswa <strong>{registeredData.nama || registeredData.nim}</strong> ({registeredData.nim})
+                {registeredData.kelas && registeredData.kelas !== "-" ? ` • Kelas ${registeredData.kelas}` : ""}
+              </p>
             </div>
 
-            <p style={{ fontSize: "0.9rem", color: "var(--text-body)", lineHeight: 1.5, marginBottom: "1.25rem" }}>
-              Mahasiswa <strong>{registeredData.nama || registeredData.nim}</strong> ({registeredData.nim}) telah menyelesaikan pendaftaran KRS pilihan.
-            </p>
+            {/* Kotak Balasan / Catatan Admin Jika Ada */}
+            {registeredData.pesan_admin && (
+              <div
+                style={{
+                  backgroundColor: "#eff6ff",
+                  border: "1.5px solid #93c5fd",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "0.85rem 1rem",
+                  marginBottom: "1rem",
+                  textAlign: "left",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    fontWeight: 800,
+                    fontSize: "0.85rem",
+                    color: "#1e40af",
+                    marginBottom: "0.25rem",
+                  }}
+                >
+                  <span>💬</span>
+                  <span>Balasan / Catatan Admin Akademik:</span>
+                </div>
+                <div style={{ fontSize: "0.875rem", color: "#1e3a8a", lineHeight: 1.45, fontWeight: 600 }}>
+                  &ldquo;{registeredData.pesan_admin}&rdquo;
+                </div>
+              </div>
+            )}
 
             <div
               style={{
                 backgroundColor: "var(--bg-subtle)",
                 borderRadius: "var(--radius-md)",
-                padding: "1rem",
-                marginBottom: "1.5rem",
+                padding: "0.85rem 1rem",
+                marginBottom: "1.25rem",
                 border: "1px solid var(--border-color)",
-                fontSize: "0.85rem",
+                fontSize: "0.825rem",
               }}
             >
-              <div style={{ fontWeight: 700, color: "var(--text-main)", marginBottom: "0.35rem" }}>
+              <div style={{ fontWeight: 700, color: "var(--text-main)", marginBottom: "0.3rem" }}>
                 Pilihan Tindakan Anda:
               </div>
-              <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--text-muted)", lineHeight: 1.6 }}>
+              <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
                 <li>Melihat dan mencetak lembar Tanda Bukti KRS Anda.</li>
                 <li>Jika terjadi salah pilih atau kendala mendesak, ajukan perbaikan langsung ke Admin Akademik.</li>
               </ul>
@@ -1108,6 +1142,9 @@ export default function StudentPage() {
                 className="btn btn-primary btn-block"
                 onClick={() => {
                   sessionStorage.setItem("nim", registeredData.nim);
+                  if (registeredData.token) {
+                    sessionStorage.setItem("token", registeredData.token);
+                  }
                   setShowRegisteredModal(false);
                   router.push("/bukti");
                 }}
@@ -1116,23 +1153,44 @@ export default function StudentPage() {
                 📄 Lihat Tanda Bukti KRS Anda
               </button>
 
-              <button
-                type="button"
-                className="btn btn-secondary btn-block"
-                onClick={() => {
-                  setShowRegisteredModal(false);
-                  setShowLaporModal(true);
-                }}
-                style={{
-                  padding: "0.75rem",
-                  fontSize: "0.875rem",
-                  borderColor: "var(--warning-border)",
-                  color: "var(--warning)",
-                  backgroundColor: "var(--warning-light)",
-                }}
-              >
-                ⚠️ Laporkan Kendala / Ajukan Reset KRS
-              </button>
+              {registeredData.status_kendala === "pending" ? (
+                <div
+                  style={{
+                    padding: "0.75rem 1rem",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "#fffbeb",
+                    border: "1.5px dashed #f59e0b",
+                    color: "#92400e",
+                    fontSize: "0.825rem",
+                    textAlign: "center",
+                    fontWeight: 700,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <span>⏳ Laporan Kendala Anda Sedang Ditinjau Admin</span>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 500, marginTop: "2px", opacity: 0.9 }}>
+                    Mohon menunggu tanggapan admin sebelum mengirim laporan baru.
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-block"
+                  onClick={() => {
+                    setShowRegisteredModal(false);
+                    setShowLaporModal(true);
+                  }}
+                  style={{
+                    padding: "0.75rem",
+                    fontSize: "0.875rem",
+                    borderColor: "var(--warning-border)",
+                    color: "var(--warning)",
+                    backgroundColor: "var(--warning-light)",
+                  }}
+                >
+                  ⚠️ Laporkan Kendala / Ajukan Reset KRS
+                </button>
+              )}
 
               <button
                 type="button"

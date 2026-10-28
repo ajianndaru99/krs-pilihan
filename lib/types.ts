@@ -30,9 +30,11 @@ export interface StudentInfo {
   kelas?: string;
   butuh_pin?: boolean;
   sudah_terdaftar?: boolean;
+  token?: string;
   pesan_admin?: string;
   status_kendala?: string;
   status_pengajuan?: string;
+  alasan_kendala?: string;
   tipe_pesan?: string;
 }
 

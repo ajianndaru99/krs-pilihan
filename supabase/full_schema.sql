@@ -2535,6 +2535,7 @@ DECLARE
     v_student RECORD;
     v_portal_open BOOLEAN;
     v_sudah_daftar BOOLEAN := false;
+    v_token TEXT := NULL;
     v_req RECORD;
     v_complaint RECORD;
 BEGIN
@@ -2575,26 +2576,19 @@ BEGIN
         SELECT 1 FROM public.registrations WHERE nim = v_student.nim
     )) INTO v_sudah_daftar;
 
+    IF v_sudah_daftar THEN
+        SELECT token INTO v_token 
+        FROM public.queue 
+        WHERE nim = v_student.nim 
+        ORDER BY nomor DESC 
+        LIMIT 1;
+    END IF;
+
     SELECT * INTO v_complaint
     FROM public.student_complaints
     WHERE nim = v_student.nim
     ORDER BY created_at DESC
     LIMIT 1;
-
-    IF FOUND AND v_complaint.status IN ('pending', 'rejected') AND NULLIF(trim(v_complaint.catatan_admin), '') IS NOT NULL THEN
-        RETURN jsonb_build_object(
-            'ok', true,
-            'nim', v_student.nim,
-            'nama', v_student.nama,
-            'nama_samar', v_student.nama,
-            'kelas', COALESCE(v_student.kelas, '-'),
-            'butuh_pin', false,
-            'sudah_terdaftar', v_sudah_daftar,
-            'portal_open', COALESCE(v_portal_open, false),
-            'status_kendala', v_complaint.status,
-            'pesan_admin', v_complaint.catatan_admin
-        );
-    END IF;
 
     RETURN jsonb_build_object(
         'ok', true,
@@ -2604,7 +2598,11 @@ BEGIN
         'kelas', COALESCE(v_student.kelas, '-'),
         'butuh_pin', false,
         'sudah_terdaftar', v_sudah_daftar,
-        'portal_open', COALESCE(v_portal_open, false)
+        'token', v_token,
+        'portal_open', COALESCE(v_portal_open, false),
+        'status_kendala', CASE WHEN v_complaint.id IS NOT NULL THEN v_complaint.status ELSE NULL END,
+        'pesan_admin', CASE WHEN v_complaint.id IS NOT NULL THEN NULLIF(trim(v_complaint.catatan_admin), '') ELSE NULL END,
+        'alasan_kendala', CASE WHEN v_complaint.id IS NOT NULL THEN v_complaint.alasan ELSE NULL END
     );
 END;
 $$;

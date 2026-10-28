@@ -41,9 +41,34 @@ export default function BuktiPage() {
 
     const fetchBukti = async () => {
       const nim = typeof window !== "undefined" ? sessionStorage.getItem("nim") : null;
-      const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+      let token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 
-      if (!nim || !token) {
+      if (!nim) {
+        if (isMounted) {
+          setHasSession(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      // Jika token belum ada di sessionStorage (misal mahasiswa baru buka peramban dan klik dari modal terdaftar),
+      // ambil token terdaftar yang sah secara otomatis via cek_nim
+      if (!token) {
+        try {
+          const { data: nimData } = await supabase.rpc("cek_nim", { p_nim: nim });
+          const resNim = nimData as { ok?: boolean; sudah_terdaftar?: boolean; sudah_daftar?: boolean; token?: string } | null;
+          if (resNim?.ok && (resNim.sudah_terdaftar || resNim.sudah_daftar) && resNim.token) {
+            token = resNim.token;
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("token", token);
+            }
+          }
+        } catch {
+          // Abaikan, biarkan pengecekan token berikutnya menangani
+        }
+      }
+
+      if (!token) {
         if (isMounted) {
           setHasSession(false);
           setLoading(false);
