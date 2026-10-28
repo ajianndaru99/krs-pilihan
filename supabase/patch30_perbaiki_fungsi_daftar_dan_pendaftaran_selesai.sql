@@ -1,18 +1,18 @@
 -- ==============================================================================
--- PATCH 30: PERBAIKI FUNGSI DAFTAR (ELIMINASI ERROR REGISTERED_AT)
+-- PATCH 30: PERBAIKI FUNGSI DAFTAR & SAPU SESI AKTIF TERTINGGAL
 -- Sistem Pemilihan Mata Kuliah Pilihan — FAPERTA INSTIPER Yogyakarta
 -- ==============================================================================
 -- Deskripsi:
--- 1. Memperbaiki fungsi public.daftar() yang sebelumnya memicu galat:
---    ERROR: 42703: column "registered_at" of relation "registrations" does not exist.
--- 2. Memastikan pendaftaran tersimpan sempurna ke tabel public.registrations(nim, offering_id).
--- 3. Mendukung aturan fleksibel minimal 1 dan maksimal 4 mata kuliah pilihan.
--- 4. Validasi anti-duplikasi kelas untuk mata kuliah yang sama.
--- 5. Validasi kuota dan bentrok jadwal secara presisi.
+-- 1. Memperbaiki fungsi public.daftar() yang memicu galat 42703 (registered_at).
+-- 2. Memastikan pendaftaran tersimpan sempurna ke public.registrations(nim, offering_id).
+-- 3. Memperbarui admin_sapu_sesi() agar saat tombol ditekan di dashboard admin,
+--    seluruh sesi aktif yang menggantung/idle langsung dibersihkan menjadi 0.
+-- 4. Langsung membersihkan sesi aktif saat ini agar counter 1/30 menjadi 0/30.
 -- ==============================================================================
 
 BEGIN;
 
+-- 1. PERBARUI FUNGSI DAFTAR
 CREATE OR REPLACE FUNCTION public.daftar(p_nim TEXT, p_token TEXT, p_offering_ids INT[])
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -33,13 +33,12 @@ DECLARE
     v_session_min INT := 5;
     v_now TIMESTAMPTZ := now();
 BEGIN
-    -- Ambil pengaturan portal
     SELECT * INTO v_settings FROM public.settings WHERE id = 1;
     IF NOT v_settings.portal_open THEN
         RETURN jsonb_build_object('ok', false, 'error', 'Portal pemilihan saat ini sedang ditutup.');
     END IF;
 
-    -- 1. Kunci baris mahasiswa eksklusif
+    -- Kunci baris mahasiswa eksklusif
     SELECT * INTO v_student FROM public.students 
     WHERE nim = trim(p_nim) 
     FOR UPDATE;
@@ -52,7 +51,7 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Anda sudah pernah menyelesaikan pendaftaran pemilihan mata kuliah.');
     END IF;
 
-    -- 2. Kunci baris sesi antrian aktif
+    -- Kunci baris sesi antrian aktif
     SELECT * INTO v_q FROM public.queue
     WHERE token = p_token AND nim = v_student.nim AND state = 'active' AND expires_at >= v_now
     FOR UPDATE;
@@ -61,26 +60,25 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Sesi pemilihan Anda sudah kedaluwarsa atau tidak valid. Silakan masuk kembali.');
     END IF;
 
-    -- 3. Validasi batas jumlah pilihan: Minimal 1 dan Maksimal 4 Mata Kuliah
+    -- Validasi batas jumlah pilihan: Minimal 1 dan Maksimal 4 Mata Kuliah
     v_count := array_length(p_offering_ids, 1);
     IF p_offering_ids IS NULL OR v_count IS NULL OR v_count < 1 OR v_count > 4 THEN
         RETURN jsonb_build_object('ok', false, 'error', 'Pilihan harus berjumlah minimal 1 dan maksimal 4 mata kuliah.');
     END IF;
 
-    -- 4. KUNCI BARIS OFFERINGS SECARA DETERMINISTIK (urut ID ASC untuk mencegah deadlock)
+    -- KUNCI BARIS OFFERINGS SECARA DETERMINISTIK (urut ID ASC untuk mencegah deadlock)
     PERFORM 1 FROM public.offerings 
     WHERE id = ANY(p_offering_ids) 
     ORDER BY id ASC 
     FOR UPDATE;
 
-    -- 5. Periksa kuota, anti-duplikasi, dan bentrok jadwal kelas tetap
+    -- Periksa kuota, anti-duplikasi, dan bentrok jadwal kelas tetap
     FOR v_off IN
         SELECT o.*
         FROM public.offerings o
         WHERE o.id = ANY(p_offering_ids)
         ORDER BY o.id ASC
     LOOP
-        -- Hitung pendaftar terisi terkini dari tabel registrations
         SELECT count(*)::INT INTO v_current_terisi
         FROM public.registrations
         WHERE offering_id = v_off.id;
@@ -92,10 +90,8 @@ BEGIN
             );
         END IF;
 
-        -- Ekstrak nama dasar (membuang sufiks kelas seperti " A", " B", " - A", dll.)
         v_base_name := lower(trim(regexp_replace(v_off.nama, '(\s+|-|/)+[A-Za-z]$', '')));
 
-        -- Mahasiswa tidak boleh memilih mata kuliah dengan nama yang sama atau nama dasar yang sama di kelas berbeda
         IF v_off.nama = ANY(v_nama_arr) OR (v_base_name <> '' AND v_base_name = ANY(v_base_arr)) THEN
             RETURN jsonb_build_object('ok', false, 'error', format('Mata kuliah "%s" dipilih lebih dari satu kali di kelas berbeda. Setiap pilihan mata kuliah harus berbeda.', v_off.nama));
         END IF;
@@ -135,7 +131,7 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Terdapat bentrok jadwal antar mata kuliah pilihan yang Anda pilih.');
     END IF;
 
-    -- 6. SIMPAN PENDAFTARAN RESMI KE TABEL REGISTRATIONS (KOLOM: nim, offering_id)
+    -- SIMPAN PENDAFTARAN RESMI KE TABEL REGISTRATIONS (KOLOM: nim, offering_id)
     INSERT INTO public.registrations (nim, offering_id)
     SELECT v_student.nim, unnest(p_offering_ids);
 
@@ -176,4 +172,41 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.daftar(TEXT, TEXT, INT[]) TO anon, authenticated;
 
+-- 2. PERBARUI RPC admin_sapu_sesi(): BISA MEMBERSIHKAN SEMUA SESI AKTIF IDLE
+CREATE OR REPLACE FUNCTION public.admin_sapu_sesi()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_cleaned INT := 0;
+BEGIN
+    IF NOT public.is_admin() THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Akses ditolak: Hanya untuk akun administrator.');
+    END IF;
+
+    -- Bersihkan seluruh sesi aktif menggantung/idle seketika
+    UPDATE public.queue
+    SET state = 'expired'
+    WHERE state = 'active';
+
+    GET DIAGNOSTICS v_cleaned = ROW_COUNT;
+
+    RETURN jsonb_build_object(
+        'ok', true, 
+        'message', format('%s sesi aktif berhasil dibersihkan.', v_cleaned),
+        'cleaned', v_cleaned
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_sapu_sesi() TO authenticated;
+
+-- 3. BERSIHKAN SESI AKTIF SAAT INI AGAR COUNTER 1/30 MENJADI 0/30
+UPDATE public.queue
+SET state = 'expired'
+WHERE state = 'active';
+
 COMMIT;
+

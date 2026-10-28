@@ -259,23 +259,43 @@ export default function BuktiPage() {
             </div>
           </div>
 
-          {/* Tombol Cetak Tepat di Bawah Identitas Diri Mahasiswa */}
+          {/* Tombol Aksi Tepat di Bawah Identitas Diri Mahasiswa */}
           <div style={{ marginBottom: "1.25rem" }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handlePrint}
-              style={{
-                width: "100%",
-                fontWeight: 700,
-                padding: "0.75rem 1rem",
-                minHeight: 46,
-                fontSize: "0.9rem",
-                justifyContent: "center",
-              }}
-            >
-              📄 Cetak Bukti (A4 / PDF)
-            </button>
+            {pendaftaran.pilihan && pendaftaran.pilihan.length > 0 ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handlePrint}
+                style={{
+                  width: "100%",
+                  fontWeight: 700,
+                  padding: "0.75rem 1rem",
+                  minHeight: 46,
+                  fontSize: "0.9rem",
+                  justifyContent: "center",
+                }}
+              >
+                📄 Cetak Bukti (A4 / PDF)
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleBackToHome}
+                style={{
+                  width: "100%",
+                  fontWeight: 800,
+                  padding: "0.75rem 1rem",
+                  minHeight: 46,
+                  fontSize: "0.925rem",
+                  justifyContent: "center",
+                  backgroundColor: "#059669",
+                  boxShadow: "0 4px 12px rgba(5, 150, 105, 0.3)",
+                }}
+              >
+                📝 Mulai Pilih Mata Kuliah Sekarang
+              </button>
+            )}
           </div>
 
           {/* Daftar Kartu Pilihan Terpilih */}
@@ -367,9 +387,25 @@ export default function BuktiPage() {
                 );
               })
             ) : (
-              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", textAlign: "center" }}>
-                Belum ada data mata kuliah yang tersimpan.
-              </p>
+              <div style={{ textAlign: "center", padding: "1.25rem 0.5rem" }}>
+                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0 0 0.85rem 0" }}>
+                  Belum ada data mata kuliah yang tersimpan di sistem.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleBackToHome}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "0.85rem",
+                    padding: "0.55rem 1.15rem",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "#059669",
+                  }}
+                >
+                  Masuk ke Ruang Pemilihan Mata Kuliah
+                </button>
+              </div>
             )}
           </div>
         </div>
