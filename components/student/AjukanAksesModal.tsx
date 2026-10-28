@@ -132,7 +132,7 @@ export function AjukanAksesModal({
         </div>
 
         <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
-          Jika NIM Anda belum terdaftar di sistem KRS, silakan ajukan verifikasi dengan mengisi formulir di bawah ini.
+          Jika NIM Anda belum terdaftar di sistem pemilihan mata kuliah, silakan ajukan verifikasi dengan mengisi formulir di bawah ini.
         </p>
 
         <form onSubmit={handleSubmit}>

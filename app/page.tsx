@@ -9,12 +9,10 @@ import { findClashBetweenOfferings } from "@/lib/schedule-conflict";
 import { InteractiveModal } from "@/components/student/InteractiveModal";
 import { CheckNimCard } from "@/components/student/CheckNimCard";
 import { QueueCard } from "@/components/student/QueueCard";
-import { OfferingSelector } from "@/components/student/OfferingSelector";
+import { OfferingSelector, getCourseBaseName } from "@/components/student/OfferingSelector";
 import { AjukanAksesModal } from "@/components/student/AjukanAksesModal";
 import { LaporKendalaModal } from "@/components/student/LaporKendalaModal";
 
-const NEED_MATKUL = 3;
-const NEED_PROYEK = 1;
 const QUEUE_POLL_INTERVAL_MS = 10000;
 
 export default function StudentPage() {
@@ -219,7 +217,7 @@ export default function StudentPage() {
             showPopup(
               "warning",
               "PERHATIAN!",
-              "Saat ini mahasiswa lain sedang menunggu antrian. Anda memiliki waktu maksimal 5 MENIT untuk menyelesaikan pemilihan KRS Anda."
+              "Saat ini mahasiswa lain sedang menunggu antrian. Anda memiliki waktu maksimal 5 MENIT untuk menyelesaikan pemilihan mata kuliah Anda."
             );
           }
           if (typeof res.sisa_detik === "number" && res.sisa_detik > 0) {
@@ -322,7 +320,7 @@ export default function StudentPage() {
               showPopup(
                 "warning",
                 "PERHATIAN!",
-                "Saat ini mahasiswa lain sedang menunggu antrian. Anda memiliki waktu maksimal 5 MENIT untuk menyelesaikan pemilihan KRS Anda."
+                "Saat ini mahasiswa lain sedang menunggu antrian. Anda memiliki waktu maksimal 5 MENIT untuk menyelesaikan pemilihan mata kuliah Anda."
               );
             }
           } else {
@@ -529,7 +527,7 @@ export default function StudentPage() {
         showPopup(
           "danger",
           "NIM Tidak Ditemukan",
-          res.error || "NIM belum terdaftar di sistem KRS.",
+          res.error || "NIM belum terdaftar di sistem pemilihan mata kuliah.",
           undefined,
           undefined,
           {
@@ -651,24 +649,33 @@ export default function StudentPage() {
     }
   };
 
-  // Handler: Toggle Offering Selection with Real-time Clash Protection
+  // Handler: Toggle Offering Selection with Real-time Clash & Duplicate Protection
   const handleToggleOffering = (offering: Offering) => {
     if (selectedIds.includes(offering.id)) {
       setSelectedIds((prev) => prev.filter((id) => id !== offering.id));
       return;
     }
-    const selectedItems = offerings.filter((o) => selectedIds.includes(o.id));
-    const matkulCount = selectedItems.filter((o) => o.jenis === "matkul").length;
-    const proyekCount = selectedItems.filter((o) => o.jenis === "proyek").length;
 
-    if (offering.jenis === "matkul" && matkulCount >= NEED_MATKUL) {
-      showPopup("warning", "Batas Pilihan Matkul", `Anda hanya dapat memilih maksimal ${NEED_MATKUL} mata kuliah.`);
+    const selectedItems = offerings.filter((o) => selectedIds.includes(o.id));
+
+    // Batas maksimal 4 mata kuliah terpilih
+    if (selectedIds.length >= 4) {
+      showPopup("warning", "Batas Pilihan", "Anda hanya dapat memilih maksimal 4 mata kuliah.");
       return;
     }
-    if (offering.jenis === "proyek" && proyekCount >= NEED_PROYEK) {
-      showPopup("warning", "Batas Pilihan Proyek", `Anda hanya dapat memilih maksimal ${NEED_PROYEK} proyek terapan.`);
+
+    // Anti-duplikasi kelas untuk mata kuliah yang sama
+    const offeringBase = getCourseBaseName(offering.nama);
+    const isDuplicateCourse = selectedItems.some((item) => getCourseBaseName(item.nama) === offeringBase);
+    if (isDuplicateCourse) {
+      showPopup(
+        "warning",
+        "Mata Kuliah Sudah Dipilih",
+        `Anda sudah memilih mata kuliah "${offering.nama}" di kelas lain. Setiap pilihan mata kuliah harus berbeda.`
+      );
       return;
     }
+
     if (offering.bentrok_kelas) {
       showPopup("danger", "Bentrok Jadwal Kelas", `Mata kuliah "${offering.nama}" bentrok dengan jadwal kelas Anda.`);
       return;
@@ -683,6 +690,11 @@ export default function StudentPage() {
 
   // Handler: Submit Final Registration
   const handleSubmitSelection = () => {
+    if (selectedIds.length < 1 || selectedIds.length > 4) {
+      showPopup("warning", "Jumlah Pilihan Belum Sesuai", "Silakan pilih minimal 1 dan maksimal 4 mata kuliah.");
+      return;
+    }
+
     const selectedItems = offerings.filter((o) => selectedIds.includes(o.id));
     const details = selectedItems.map((item, idx) => {
       const scheduleText =
@@ -698,7 +710,7 @@ export default function StudentPage() {
           : "Jadwal belum ditentukan";
 
       return {
-        label: `Pilihan #${idx + 1} • ${item.jenis === "matkul" ? "Mata Kuliah" : "Proyek Terapan"}`,
+        label: `Pilihan #${idx + 1} • ${item.jenis === "matkul" ? "Mata Kuliah" : "Proyek Terapan"} (Kelas ${item.kelas || "A"})`,
         value: item.nama,
         schedule: scheduleText,
       };
@@ -706,8 +718,8 @@ export default function StudentPage() {
 
     showPopup(
       "confirm",
-      "Konfirmasi Simpan KRS",
-      "Pastikan mata kuliah dan proyek pilihan Anda sudah sesuai. Pilihan tidak dapat diubah kembali setelah disimpan.",
+      "Konfirmasi Simpan Pilihan",
+      "Pastikan mata kuliah pilihan Anda sudah sesuai (minimal 1, maksimal 4). Pilihan tidak dapat diubah kembali setelah disimpan.",
       details,
       async () => {
         setIsSubmitting(true);
@@ -981,8 +993,6 @@ export default function StudentPage() {
           selectedIds={selectedIds}
           remainingSeconds={remainingSeconds}
           hasQueue={hasQueue}
-          needMatkul={NEED_MATKUL}
-          needProyek={NEED_PROYEK}
           isSubmitting={isSubmitting}
           isRefreshingQuota={isRefreshingQuota}
           onRefreshQuota={() => fetchOfferings(nim, token, true)}
@@ -1102,7 +1112,7 @@ export default function StudentPage() {
                 Pilihan Tindakan Anda:
               </div>
               <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                <li>Melihat dan mencetak lembar Tanda Bukti KRS Anda.</li>
+                <li>Melihat dan mencetak lembar Tanda Bukti Pemilihan Anda.</li>
                 <li>Jika terjadi salah pilih atau kendala mendesak, ajukan perbaikan langsung ke Admin Akademik.</li>
               </ul>
             </div>
@@ -1121,7 +1131,7 @@ export default function StudentPage() {
                 }}
                 style={{ padding: "0.85rem", fontSize: "0.95rem" }}
               >
-                📄 Lihat Tanda Bukti KRS Anda
+                📄 Lihat Tanda Bukti Pemilihan Anda
               </button>
 
               {registeredData.status_kendala === "rejected" ? (
@@ -1188,7 +1198,7 @@ export default function StudentPage() {
                     backgroundColor: "var(--warning-light)",
                   }}
                 >
-                  ⚠️ Laporkan Kendala / Ajukan Reset KRS
+                  ⚠️ Laporkan Kendala / Ajukan Permohonan Reset
                 </button>
               )}
 
@@ -1227,7 +1237,7 @@ export default function StudentPage() {
             Institut Pertanian STIPER (INSTIPER) Yogyakarta — Fakultas Pertanian
           </p>
           <p style={{ fontSize: "0.75rem", color: "var(--text-light)", marginTop: "0.25rem" }}>
-            Sistem Informasi Pemilihan KRS Pilihan & Proyek Semester
+            Sistem Informasi Pemilihan Mata Kuliah Pilihan Semester Berjalan
           </p>
         </footer>
       )}

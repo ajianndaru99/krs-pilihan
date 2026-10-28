@@ -219,7 +219,7 @@ export default function BuktiPage() {
             </div>
 
             <h3 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0, color: "#0f172a" }}>
-              Bukti Registrasi KRS
+              Bukti Registrasi Mata Kuliah Pilihan
             </h3>
             <p style={{ fontSize: "0.775rem", color: "#64748b", margin: "3px 0 0" }}>
               Tercatat secara elektronik di sistem akademik

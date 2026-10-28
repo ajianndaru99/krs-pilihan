@@ -267,25 +267,25 @@ async function runTestSuite() {
     return data.ok === false || "Pendaftaran tanpa sesi valid diloloskan!";
   });
 
-  await assertTest("Bisnis: daftar() menolak jumlah pilihan tidak sesuai (misal: 2 pilihan)", async () => {
+  await assertTest("Bisnis: daftar() menolak jumlah pilihan tidak sesuai (misal: 0 pilihan atau >4 pilihan)", async () => {
     const { data, error } = await supabase.rpc("daftar", {
       p_nim: "2110211002",
       p_token: activeTestToken || "TOKEN_SEMBARANG",
-      p_offering_ids: [1, 3],
+      p_offering_ids: [1, 2, 3, 4, 5],
     });
     if (error) return true;
-    return data.ok === false || "Pendaftaran dengan 2 pilihan diloloskan!";
+    return data.ok === false || "Pendaftaran dengan lebih dari 4 pilihan diloloskan!";
   });
 
-  await assertTest("Bisnis: daftar() menolak topik mata kuliah kembar", async () => {
-    // Offering 1 & 2 sama-sama bertopik 'Bioteknologi'
+  await assertTest("Bisnis: daftar() menolak mata kuliah kembar atau duplikasi kelas dari mata kuliah sama", async () => {
+    // Memilih mata kuliah yang sama dobel atau kelas paralelnya
     const { data, error } = await supabase.rpc("daftar", {
       p_nim: "2110211002",
       p_token: activeTestToken || "TOKEN_SEMBARANG",
-      p_offering_ids: [1, 2, 5, 35],
+      p_offering_ids: [1, 1],
     });
     if (error) return true;
-    return data.ok === false || "Pendaftaran dengan topik kembar diloloskan!";
+    return data.ok === false || "Pendaftaran dengan mata kuliah kembar diloloskan!";
   });
 
   await assertTest("Bisnis: daftar() menolak pendaftaran dobel pada mahasiswa yang sudah terdaftar", async () => {

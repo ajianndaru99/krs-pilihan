@@ -7,8 +7,8 @@ interface OfferingSelectorProps {
   offerings: Offering[];
   selectedIds: number[];
   remainingSeconds: number | null;
-  needMatkul: number;
-  needProyek: number;
+  needMatkul?: number;
+  needProyek?: number;
   isSubmitting: boolean;
   isRefreshingQuota?: boolean;
   hasQueue?: boolean;
@@ -18,12 +18,15 @@ interface OfferingSelectorProps {
   onLogout?: () => void;
 }
 
+// Helper ekstraksi nama dasar matkul (membuang sufiks kelas ' A', ' B', ' - A', '/A')
+export const getCourseBaseName = (nama: string): string => {
+  return nama.trim().replace(/(\s+|-|\/)+[A-Za-z]$/, "").toLowerCase();
+};
+
 export function OfferingSelector({
   offerings,
   selectedIds,
   remainingSeconds,
-  needMatkul,
-  needProyek,
   isSubmitting,
   isRefreshingQuota,
   hasQueue = false,
@@ -42,9 +45,14 @@ export function OfferingSelector({
     [offerings, selectedIds]
   );
 
-  const matkulSelected = selectedOfferings.filter((o) => o.jenis === "matkul").length;
-  const proyekSelected = selectedOfferings.filter((o) => o.jenis === "proyek").length;
-  const isCompositionValid = matkulSelected === needMatkul && proyekSelected === needProyek;
+  // Set nama dasar matkul yang sedang dipilih mahasiswa untuk mencegah memilih kelas lain dari matkul yang sama
+  const selectedBaseNames = useMemo(
+    () => selectedOfferings.map((o) => getCourseBaseName(o.nama)),
+    [selectedOfferings]
+  );
+
+  // Aturan baru: Minimal 1 dan Maksimal 4 Mata Kuliah
+  const isCompositionValid = selectedIds.length >= 1 && selectedIds.length <= 4;
 
   // Format countdown mm:ss
   const formatTimer = (sec: number | null) => {
@@ -111,7 +119,7 @@ export function OfferingSelector({
 
   return (
     <div className="has-mobile-bottom-bar" style={{ paddingBottom: "4.5rem" }}>
-      {/* 1. STICKY TOP CONTROLLER (Foto 1: HANYA Countdown Waktu, Pilihan Kelas, Cari & Kuota Tersedia/Penuh) */}
+      {/* 1. STICKY TOP CONTROLLER (Countdown Waktu, Pilihan Kelas, Cari & Filter Kuota) */}
       <div
         className="card"
         style={{
@@ -121,10 +129,10 @@ export function OfferingSelector({
           backgroundColor: "rgba(255, 255, 255, 0.98)",
           backdropFilter: "blur(12px)",
           borderRadius: "var(--radius-lg)",
-          boxShadow: "0 6px 20px -4px rgba(0, 0, 0, 0.08)",
+          boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.08)",
           border: hasQueue ? "1.5px solid var(--warning)" : "1.5px solid var(--primary-border)",
-          padding: "0.75rem 1rem",
-          marginBottom: "1rem",
+          padding: "0.65rem 0.85rem",
+          marginBottom: "0.75rem",
         }}
       >
         {/* Baris 1: Countdown Waktu (HANYA tampil jika hasQueue === true) */}
@@ -134,8 +142,8 @@ export function OfferingSelector({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: "0.6rem",
-              paddingBottom: "0.45rem",
+              marginBottom: "0.5rem",
+              paddingBottom: "0.4rem",
               borderBottom: "1px dashed var(--border-color)",
             }}
           >
@@ -153,7 +161,7 @@ export function OfferingSelector({
               </span>
               <span
                 style={{
-                  fontSize: "1.35rem",
+                  fontSize: "1.25rem",
                   fontWeight: 800,
                   color: timerColor,
                   fontFamily: "var(--font-mono)",
@@ -200,14 +208,14 @@ export function OfferingSelector({
           </div>
         )}
 
-        {/* Baris 2: Tabs Pilihan Kelas Horizontal (Semua, A - E, Proyek) */}
-        <div style={{ marginBottom: "0.55rem" }}>
+        {/* Baris 2: Tabs Pilihan Kelas Horizontal */}
+        <div style={{ marginBottom: "0.5rem" }}>
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: "0.3rem",
+              marginBottom: "0.25rem",
               padding: "0 2px",
             }}
           >
@@ -235,7 +243,7 @@ export function OfferingSelector({
                 borderRadius: "var(--radius-full)",
               }}
             >
-              <span>↔ Geser pilihan kelas</span>
+              <span>↔ Geser kelas</span>
               <span style={{ fontSize: "0.75rem" }}>›</span>
             </span>
           </div>
@@ -270,18 +278,18 @@ export function OfferingSelector({
                     onClick={() => setSelectedClassTab(tab.id)}
                     style={{
                       flexShrink: 0,
-                      padding: "0.35rem 0.8rem",
+                      padding: "0.3rem 0.75rem",
                       borderRadius: "var(--radius-full)",
                       border: isActive ? "1.5px solid var(--primary)" : "1px solid var(--border-color)",
                       backgroundColor: isActive ? "var(--primary)" : "#ffffff",
                       color: isActive ? "#ffffff" : "var(--text-main)",
-                      fontSize: "0.775rem",
+                      fontSize: "0.75rem",
                       fontWeight: isActive ? 800 : 600,
                       cursor: "pointer",
                       transition: "all 0.15s ease",
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: "0.3rem",
+                      gap: "0.25rem",
                     }}
                   >
                     <span>{tab.label}</span>
@@ -300,14 +308,13 @@ export function OfferingSelector({
                 );
               })}
             </div>
-            {/* Visual gradient hint di tepi kanan agar terlihat bisa digeser */}
             <div
               style={{
                 position: "absolute",
                 right: 0,
                 top: 0,
                 bottom: 2,
-                width: 24,
+                width: 20,
                 background: "linear-gradient(to right, transparent, rgba(255, 255, 255, 0.95))",
                 pointerEvents: "none",
                 display: "flex",
@@ -315,13 +322,13 @@ export function OfferingSelector({
                 justifyContent: "flex-end",
               }}
             >
-              <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", opacity: 0.7 }}>›</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", opacity: 0.7 }}>›</span>
             </div>
           </div>
         </div>
 
         {/* Baris 3: Kolom Cari Nama Mata Kuliah */}
-        <div style={{ position: "relative", marginBottom: "0.55rem" }}>
+        <div style={{ position: "relative", marginBottom: "0.5rem" }}>
           <input
             type="text"
             className="form-control"
@@ -330,8 +337,8 @@ export function OfferingSelector({
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               fontSize: "0.8rem",
-              padding: "0.45rem 0.75rem",
-              height: 36,
+              padding: "0.4rem 0.75rem",
+              height: 34,
               backgroundColor: "#f8fafc",
               borderRadius: "var(--radius-md)",
             }}
@@ -382,7 +389,7 @@ export function OfferingSelector({
               type="button"
               onClick={() => setQuotaFilter("all")}
               style={{
-                padding: "0.3rem 0.75rem",
+                padding: "0.25rem 0.65rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
                 fontSize: "0.725rem",
@@ -399,7 +406,7 @@ export function OfferingSelector({
               type="button"
               onClick={() => setQuotaFilter("available")}
               style={{
-                padding: "0.3rem 0.75rem",
+                padding: "0.25rem 0.65rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
                 fontSize: "0.725rem",
@@ -416,7 +423,7 @@ export function OfferingSelector({
               type="button"
               onClick={() => setQuotaFilter("full")}
               style={{
-                padding: "0.3rem 0.75rem",
+                padding: "0.25rem 0.65rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
                 fontSize: "0.725rem",
@@ -441,13 +448,13 @@ export function OfferingSelector({
                 border: "1.5px solid var(--border-color)",
                 borderRadius: "var(--radius-full)",
                 color: isRefreshingQuota ? "var(--primary)" : "var(--text-main)",
-                fontSize: "0.75rem",
+                fontSize: "0.725rem",
                 fontWeight: 700,
                 cursor: isRefreshingQuota ? "wait" : "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "5px",
-                padding: "0.35rem 0.85rem",
+                gap: "4px",
+                padding: "0.3rem 0.75rem",
                 boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
                 transition: "all 0.15s ease",
               }}
@@ -457,19 +464,41 @@ export function OfferingSelector({
                 style={{
                   display: "inline-block",
                   animation: isRefreshingQuota ? "spin 1s linear infinite" : "none",
-                  fontSize: "0.85rem",
+                  fontSize: "0.8rem",
                 }}
               >
                 🔄
               </span>
-              <span>{isRefreshingQuota ? "Memuat Kuota..." : "Refresh Kuota"}</span>
+              <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 2. DAFTAR MATA KULIAH: FORMAT BARIS KOMPAK */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+      {/* HEADER DAFTAR MATKUL (Tabel Compact Horizontal) */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          padding: "0.3rem 0.6rem",
+          fontSize: "0.68rem",
+          fontWeight: 800,
+          color: "var(--text-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          borderBottom: "1.5px solid var(--border-color)",
+          marginBottom: "0.4rem",
+        }}
+      >
+        <div style={{ width: 26, textAlign: "center", flexShrink: 0 }}>PILIH</div>
+        <div style={{ flex: 1, minWidth: 0 }}>MATA KULIAH & JADWAL</div>
+        <div style={{ width: 44, textAlign: "center", flexShrink: 0 }}>KELAS</div>
+        <div style={{ width: 48, textAlign: "right", flexShrink: 0 }}>KUOTA</div>
+      </div>
+
+      {/* 2. DAFTAR MATA KULIAH: FORMAT BARIS HORIZONTAL ULTRA COMPACT (HP FRIENDLY) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
         {filteredOfferings.length === 0 ? (
           <div
             className="card"
@@ -506,7 +535,13 @@ export function OfferingSelector({
             const isFull = item.sisa <= 0;
             const hasClashWithClass = Boolean(item.bentrok_kelas);
             const isProyek = item.jenis === "proyek";
-            const kelasDisplay = isProyek ? "PROYEK" : `KELAS ${item.kelas || "A"}`;
+            const itemBaseName = getCourseBaseName(item.nama);
+
+            // Cek apakah mahasiswa sudah memilih kelas lain dari mata kuliah yang sama
+            const hasSameCourseSelected = !isSelected && selectedBaseNames.includes(itemBaseName);
+            // Cek batas maksimal 4 mata kuliah terpilih
+            const isMaxReached = !isSelected && selectedIds.length >= 4;
+            const isDisabled = (isFull && !isSelected) || hasSameCourseSelected || isMaxReached;
 
             const scheduleShort =
               item.jadwal && item.jadwal.length > 0
@@ -518,130 +553,138 @@ export function OfferingSelector({
             return (
               <div
                 key={item.id}
-                className="card"
+                onClick={() => {
+                  if (isSelected || !isDisabled) {
+                    onToggleOffering(item);
+                  }
+                }}
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "0.75rem",
-                  padding: "0.85rem 1rem",
+                  gap: "0.5rem",
+                  padding: "0.45rem 0.6rem",
                   borderRadius: "var(--radius-md)",
                   border: isSelected
-                    ? "2px solid var(--primary)"
+                    ? "2px solid #059669"
                     : hasClashWithClass
                     ? "1.5px solid #fecaca"
-                    : isFull
-                    ? "1px solid #fed7aa"
-                    : "1px solid var(--border-subtle)",
+                    : hasSameCourseSelected
+                    ? "1px dashed #cbd5e1"
+                    : "1px solid var(--border-color)",
                   backgroundColor: isSelected
-                    ? "var(--primary-light)"
+                    ? "#ecfdf5"
                     : hasClashWithClass
                     ? "#fff5f5"
+                    : hasSameCourseSelected
+                    ? "#f8fafc"
                     : "#ffffff",
-                  transition: "all 0.15s ease",
-                  marginBottom: 0,
-                  opacity: isFull && !isSelected ? 0.88 : 1,
+                  cursor: isDisabled && !isSelected ? "not-allowed" : "pointer",
+                  opacity: isDisabled && !isSelected ? 0.6 : 1,
+                  transition: "all 0.12s ease",
+                  userSelect: "none",
                 }}
               >
-                {/* Kolom Kiri: Badge Kelas & Info Utama */}
+                {/* Kolom 1: Kotak Centang Jelas [✓] */}
+                <div
+                  style={{
+                    flexShrink: 0,
+                    width: 26,
+                    height: 26,
+                    borderRadius: 6,
+                    border: isSelected
+                      ? "2px solid #059669"
+                      : isDisabled
+                      ? "1.5px solid #cbd5e1"
+                      : "2px solid #94a3b8",
+                    backgroundColor: isSelected ? "#059669" : "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#ffffff",
+                    fontSize: "0.95rem",
+                    fontWeight: 900,
+                    boxShadow: isSelected ? "0 2px 4px rgba(5, 150, 105, 0.25)" : "none",
+                    transition: "all 0.12s ease",
+                  }}
+                  title={isSelected ? "Klik untuk membatalkan pilihan" : "Klik untuk memilih"}
+                >
+                  {isSelected ? "✓" : ""}
+                </div>
+
+                {/* Kolom 2: Nama Mata Kuliah & Jadwal / Status Kecil */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.35rem", flexWrap: "wrap" }}>
-                    <span
-                      style={{
-                        fontSize: "0.7rem",
-                        fontWeight: 800,
-                        padding: "2px 7px",
-                        borderRadius: "var(--radius-sm)",
-                        backgroundColor: isProyek ? "#fef3c7" : "#e0f2fe",
-                        color: isProyek ? "#b45309" : "#0369a1",
-                        border: `1px solid ${isProyek ? "#fde68a" : "#bae6fd"}`,
-                        letterSpacing: "0.03em",
-                      }}
-                    >
-                      {kelasDisplay}
-                    </span>
-
-                    <span
-                      style={{
-                        fontSize: "0.725rem",
-                        fontWeight: 800,
-                        padding: "3px 8px",
-                        borderRadius: "var(--radius-sm)",
-                        backgroundColor: isFull ? "#fef2f2" : "#f0fdf4",
-                        color: isFull ? "#dc2626" : "#047857",
-                        border: `1px solid ${isFull ? "#fecaca" : "#86efac"}`,
-                        letterSpacing: "0.01em",
-                      }}
-                    >
-                      {isFull ? `🚫 KUOTA PENUH (0 dari ${item.kuota} Kursi)` : `👥 Sisa Kuota: ${item.sisa} dari ${item.kuota} Kursi`}
-                    </span>
-
-                    {hasClashWithClass && (
-                      <span
-                        style={{
-                          fontSize: "0.68rem",
-                          fontWeight: 700,
-                          padding: "2px 6px",
-                          borderRadius: "var(--radius-sm)",
-                          backgroundColor: "#fee2e2",
-                          color: "#b91c1c",
-                        }}
-                      >
-                        Bentrok Jadwal Kelas
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Nama Mata Kuliah */}
-                  <h3
-                    style={{
-                      fontSize: "0.95rem",
-                      fontWeight: 700,
-                      color: "var(--text-main)",
-                      margin: "0 0 0.35rem 0",
-                      lineHeight: 1.35,
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {item.nama}
-                  </h3>
-
-                  {/* Jadwal Ringkas */}
                   <div
                     style={{
-                      fontSize: "0.75rem",
-                      color: "var(--text-muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.3rem",
+                      fontSize: "0.825rem",
+                      fontWeight: isSelected ? 800 : 700,
+                      color: isSelected ? "#065f46" : isDisabled ? "#94a3b8" : "var(--text-main)",
+                      whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      lineHeight: 1.25,
+                    }}
+                    title={item.nama}
+                  >
+                    {item.nama}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.68rem",
+                      color: hasClashWithClass
+                        ? "#dc2626"
+                        : hasSameCourseSelected
+                        ? "#d97706"
+                        : "var(--text-muted)",
                       whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      marginTop: "1px",
                     }}
                   >
-                    <span>🕒 {scheduleShort}</span>
+                    {hasClashWithClass
+                      ? "⚠️ Bentrok jadwal kelas"
+                      : hasSameCourseSelected
+                      ? "⚠️ Sudah pilih kelas lain"
+                      : `🕒 ${scheduleShort}`}
                   </div>
                 </div>
 
-                {/* Kolom Kanan: Tombol Pilih */}
-                <div style={{ flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => onToggleOffering(item)}
-                    disabled={isFull && !isSelected}
-                    className={isSelected ? "btn btn-primary" : "btn btn-secondary"}
+                {/* Kolom 3: Kelas */}
+                <div style={{ flexShrink: 0, textAlign: "center", width: 44 }}>
+                  <span
                     style={{
-                      minHeight: 42,
-                      minWidth: isSelected ? 86 : 74,
-                      padding: "0.5rem 0.85rem",
-                      fontSize: "0.825rem",
+                      fontSize: "0.675rem",
                       fontWeight: 800,
-                      borderRadius: "var(--radius-md)",
-                      justifyContent: "center",
+                      padding: "2px 5px",
+                      borderRadius: "4px",
+                      backgroundColor: isProyek ? "#fef3c7" : "#e0f2fe",
+                      color: isProyek ? "#b45309" : "#0369a1",
+                      border: `1px solid ${isProyek ? "#fde68a" : "#bae6fd"}`,
+                      whiteSpace: "nowrap",
+                      display: "inline-block",
                     }}
                   >
-                    {isSelected ? "Terpilih" : isFull ? "Penuh" : "Pilih"}
-                  </button>
+                    {isProyek ? "Proyek" : `Kls ${item.kelas || "A"}`}
+                  </span>
+                </div>
+
+                {/* Kolom 4: Kuota */}
+                <div style={{ flexShrink: 0, textAlign: "right", width: 48 }}>
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      fontWeight: 800,
+                      padding: "2px 5px",
+                      borderRadius: "4px",
+                      backgroundColor: isFull ? "#fef2f2" : "#f0fdf4",
+                      color: isFull ? "#dc2626" : "#059669",
+                      border: `1px solid ${isFull ? "#fecaca" : "#a7f3d0"}`,
+                      whiteSpace: "nowrap",
+                      display: "inline-block",
+                    }}
+                  >
+                    {isFull ? "Penuh" : `${item.sisa}/${item.kuota}`}
+                  </span>
                 </div>
               </div>
             );
@@ -649,10 +692,9 @@ export function OfferingSelector({
         )}
       </div>
 
-      {/* 3. AUTO DROP-UP SHEET (Foto 2: Pop-up / Drop-Up Otomatis dari Bawah Layar) */}
+      {/* 3. AUTO DROP-UP SHEET (Ringkasan Pilihan Mahasiswa) */}
       {showDropUp && (
         <>
-          {/* Backdrop gelap semi-transparan untuk menutup drop-up jika diklik di luar */}
           <div
             onClick={() => setShowDropUp(false)}
             style={{
@@ -668,7 +710,6 @@ export function OfferingSelector({
             }}
           />
 
-          {/* Drawer Drop-Up Mengambang */}
           <div
             style={{
               position: "fixed",
@@ -692,7 +733,7 @@ export function OfferingSelector({
             {/* Header Drop-Up */}
             <div
               style={{
-                padding: "0.85rem 1.15rem",
+                padding: "0.75rem 1rem",
                 borderBottom: "1px solid var(--border-color)",
                 display: "flex",
                 justifyContent: "space-between",
@@ -702,8 +743,8 @@ export function OfferingSelector({
                 borderTopRightRadius: "var(--radius-xl)",
               }}
             >
-              <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 800, color: "var(--text-main)" }}>
-                Mata Kuliah Terpilih ({selectedOfferings.length} dari {needMatkul + needProyek})
+              <h4 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 800, color: "var(--text-main)" }}>
+                Mata Kuliah Terpilih ({selectedOfferings.length} dari Maks. 4)
               </h4>
 
               <button
@@ -729,21 +770,21 @@ export function OfferingSelector({
               </button>
             </div>
 
-            {/* Isi Daftar Pilihan (TANPA JADWAL WAKTU SESUAI INSTRUKSI USER) */}
+            {/* Isi Daftar Pilihan */}
             <div
               style={{
-                padding: "1rem 1.15rem",
+                padding: "0.75rem 1rem",
                 overflowY: "auto",
                 display: "flex",
                 flexDirection: "column",
-                gap: "0.6rem",
+                gap: "0.45rem",
               }}
             >
               {selectedOfferings.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>
                   Belum ada mata kuliah yang dipilih.
                   <br />
-                  <span style={{ fontSize: "0.775rem" }}>Silakan klik tombol <strong>Pilih</strong> pada daftar kelas.</span>
+                  <span style={{ fontSize: "0.775rem" }}>Centang mata kuliah pada daftar kelas di atas (min. 1, maks. 4).</span>
                 </div>
               ) : (
                 selectedOfferings.map((item) => {
@@ -755,20 +796,20 @@ export function OfferingSelector({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        padding: "0.75rem 0.85rem",
+                        padding: "0.6rem 0.75rem",
                         backgroundColor: "#f8fafc",
                         border: "1px solid var(--border-color)",
                         borderRadius: "var(--radius-md)",
-                        gap: "0.65rem",
+                        gap: "0.6rem",
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.2rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginBottom: "0.15rem" }}>
                           <span
                             style={{
                               fontSize: "0.68rem",
                               fontWeight: 800,
-                              padding: "2px 6px",
+                              padding: "1px 6px",
                               borderRadius: "var(--radius-sm)",
                               backgroundColor: isProyek ? "#fef3c7" : "#e0f2fe",
                               color: isProyek ? "#b45309" : "#0369a1",
@@ -781,10 +822,13 @@ export function OfferingSelector({
                         </div>
                         <div
                           style={{
-                            fontSize: "0.875rem",
+                            fontSize: "0.825rem",
                             fontWeight: 700,
                             color: "var(--text-main)",
                             lineHeight: 1.3,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
                           }}
                         >
                           {item.nama}
@@ -798,9 +842,9 @@ export function OfferingSelector({
                           background: "#fee2e2",
                           border: "1px solid #fecaca",
                           color: "#b91c1c",
-                          fontSize: "0.75rem",
+                          fontSize: "0.725rem",
                           fontWeight: 700,
-                          padding: "0.4rem 0.75rem",
+                          padding: "0.35rem 0.65rem",
                           borderRadius: "var(--radius-sm)",
                           cursor: "pointer",
                           flexShrink: 0,
@@ -817,7 +861,7 @@ export function OfferingSelector({
         </>
       )}
 
-      {/* 4. FLOATING BOTTOM BAR (Foto 2: Auto Drop-Up Trigger & Status) */}
+      {/* 4. FLOATING BOTTOM BAR (Status Pilihan & Tombol Simpan Pilihan) */}
       <div
         style={{
           position: "fixed",
@@ -827,47 +871,57 @@ export function OfferingSelector({
           zIndex: 999,
           backgroundColor: "#ffffff",
           borderTop: "1.5px solid var(--primary-border)",
-          padding: "0.65rem 1rem",
+          padding: "0.55rem 0.85rem",
           boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.12)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "0.75rem",
+          gap: "0.6rem",
         }}
       >
-        {/* Area Status Kiri (Bisa diklik untuk Auto Drop-Up) */}
+        {/* Area Status Kiri (Bisa diklik untuk Drop-Up) */}
         <div
           onClick={() => setShowDropUp(!showDropUp)}
-          style={{ flex: 1, cursor: "pointer", userSelect: "none" }}
-          title="Klik untuk melihat mata kuliah yang sudah diambil"
+          style={{ flex: 1, cursor: "pointer", userSelect: "none", minWidth: 0 }}
+          title="Klik untuk melihat mata kuliah yang dipilih"
         >
           <div
             style={{
-              fontSize: "0.875rem",
+              fontSize: "0.825rem",
               fontWeight: 800,
-              color: isCompositionValid ? "var(--success)" : "var(--primary)",
-              lineHeight: 1.25,
+              color: isCompositionValid ? "#059669" : "#d97706",
+              lineHeight: 1.2,
               display: "flex",
               alignItems: "center",
-              gap: "5px",
+              gap: "4px",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
-            <span>{`${matkulSelected}/${needMatkul} Matkul & ${proyekSelected}/${needProyek} Proyek`}</span>
-            <span style={{ fontSize: "0.7rem", color: isCompositionValid ? "var(--success)" : "var(--primary)" }}>
+            <span>
+              {selectedOfferings.length === 0
+                ? "Pilih 1–4 Matkul"
+                : `${selectedOfferings.length}/4 Terpilih`}
+            </span>
+            <span style={{ fontSize: "0.65rem" }}>
               {showDropUp ? "▼" : "▲"}
             </span>
           </div>
+          <div style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
+            {isCompositionValid ? "Siap disimpan" : "Minimal 1 mata kuliah"}
+          </div>
         </div>
 
-        {/* Tombol Aksi Kanan: Periksa & Daftar KRS */}
-        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center" }}>
+        {/* Tombol Aksi Kanan: Periksa & Simpan Pilihan */}
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexShrink: 0 }}>
           <button
             type="button"
             onClick={() => setShowDropUp(!showDropUp)}
             style={{
-              minHeight: 44,
-              padding: "0.55rem 1rem",
-              fontSize: "0.85rem",
+              minHeight: 40,
+              padding: "0.45rem 0.75rem",
+              fontSize: "0.8rem",
               fontWeight: 800,
               backgroundColor: showDropUp ? "#059669" : "#ecfdf5",
               color: showDropUp ? "#ffffff" : "#047857",
@@ -876,12 +930,11 @@ export function OfferingSelector({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              textAlign: "center",
               cursor: "pointer",
               transition: "all 0.15s ease",
             }}
           >
-            {showDropUp ? "✕ Tutup" : "👁️ Periksa"}
+            {showDropUp ? "✕ Tutup" : `👁️ Periksa (${selectedOfferings.length})`}
           </button>
 
           <button
@@ -890,18 +943,16 @@ export function OfferingSelector({
             onClick={onSubmitSelection}
             disabled={!isCompositionValid || isSubmitting}
             style={{
-              minHeight: 44,
-              padding: "0.55rem 1.25rem",
-              fontSize: "0.85rem",
+              minHeight: 40,
+              padding: "0.45rem 1rem",
+              fontSize: "0.825rem",
               fontWeight: 800,
-              flexShrink: 0,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              textAlign: "center",
             }}
           >
-            {isSubmitting ? "Menyimpan..." : "Daftar KRS"}
+            {isSubmitting ? "Menyimpan..." : "Simpan Pilihan"}
           </button>
         </div>
       </div>

@@ -86,7 +86,7 @@ export function CheckNimCard({
             width: "100%",
           }}
         >
-          Portal KRS Pilihan
+          Portal Mata Kuliah Pilihan
         </h1>
         <p
           style={{
@@ -248,7 +248,7 @@ export function CheckNimCard({
             {/* Soft Notice Box — Identik Gambar 2 */}
             <div className="notice-box-soft">
               <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>
-                Petunjuk Pemilihan KRS
+                Petunjuk Pemilihan Mata Kuliah Pilihan
               </div>
               <div>
                 Pastikan menggunakan koneksi internet yang stabil. Sesi pemilihan Anda

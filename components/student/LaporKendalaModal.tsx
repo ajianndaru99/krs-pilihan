@@ -128,7 +128,7 @@ export function LaporKendalaModal({
               letterSpacing: "0.06em",
             }}
           >
-            LAPOR KENDALA KRS
+            LAPOR KENDALA PEMILIHAN
           </span>
           <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--text-main)", margin: 0 }}>
             Pengaduan / Reset Pilihan
