@@ -650,16 +650,22 @@ export default function StudentPage() {
   };
 
   // Handler: Toggle Offering Selection with Real-time Clash & Duplicate Protection
-  const handleToggleOffering = (offering: Offering) => {
-    if (selectedIds.includes(offering.id)) {
+  const handleToggleOffering = (offering: Offering, replaceOfferingId?: number) => {
+    // Jika offering sudah terpilih dan bukan pergantian kelas: toggle off (unselect)
+    if (selectedIds.includes(offering.id) && !replaceOfferingId) {
       setSelectedIds((prev) => prev.filter((id) => id !== offering.id));
       return;
     }
 
-    const selectedItems = offerings.filter((o) => selectedIds.includes(o.id));
+    // Jika ada replaceOfferingId, filter keluar ID yang digantikan
+    const activeSelectedIds = replaceOfferingId
+      ? selectedIds.filter((id) => id !== replaceOfferingId)
+      : selectedIds;
+
+    const selectedItems = offerings.filter((o) => activeSelectedIds.includes(o.id));
 
     // Batas maksimal 4 mata kuliah terpilih
-    if (selectedIds.length >= 4) {
+    if (activeSelectedIds.length >= 4) {
       showPopup("warning", "Batas Pilihan", "Anda hanya dapat memilih maksimal 4 mata kuliah.");
       return;
     }
@@ -685,7 +691,11 @@ export default function StudentPage() {
       showPopup("danger", "Bentrok Antar Pilihan", `Jadwal ${offering.nama} bentrok dengan pilihan "${clash.conflictWith}":\n${clash.detail}`);
       return;
     }
-    setSelectedIds((prev) => [...prev, offering.id]);
+
+    setSelectedIds((prev) => {
+      const base = replaceOfferingId ? prev.filter((id) => id !== replaceOfferingId) : prev;
+      return [...base, offering.id];
+    });
   };
 
   // Handler: Submit Final Registration

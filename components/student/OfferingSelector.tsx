@@ -3,6 +3,27 @@
 import { useState, useMemo } from "react";
 import { Offering } from "@/lib/types";
 
+// Helper pembersihan nama matkul dari sufiks kelas (misal: "Literasi Digital A" -> "Literasi Digital")
+export const cleanCourseName = (nama: string): string => {
+  const cleaned = nama.trim().replace(/(\s+|-|\/)+[A-Za-z]$/, "");
+  return cleaned.trim() || nama.trim();
+};
+
+export const getCourseBaseName = (nama: string): string => {
+  return cleanCourseName(nama).toLowerCase();
+};
+
+export interface GroupedCourse {
+  baseKey: string;
+  displayName: string;
+  jenis: "matkul" | "proyek";
+  classes: Offering[];
+  selectedOffering: Offering | null;
+  totalKuota: number;
+  totalSisa: number;
+  hasAvailableClass: boolean;
+}
+
 interface OfferingSelectorProps {
   offerings: Offering[];
   selectedIds: number[];
@@ -13,15 +34,10 @@ interface OfferingSelectorProps {
   isRefreshingQuota?: boolean;
   hasQueue?: boolean;
   onRefreshQuota?: () => void;
-  onToggleOffering: (offering: Offering) => void;
+  onToggleOffering: (offering: Offering, replaceOfferingId?: number) => void;
   onSubmitSelection: () => void;
   onLogout?: () => void;
 }
-
-// Helper ekstraksi nama dasar matkul (membuang sufiks kelas ' A', ' B', ' - A', '/A')
-export const getCourseBaseName = (nama: string): string => {
-  return nama.trim().replace(/(\s+|-|\/)+[A-Za-z]$/, "").toLowerCase();
-};
 
 export function OfferingSelector({
   offerings,
@@ -34,21 +50,73 @@ export function OfferingSelector({
   onToggleOffering,
   onSubmitSelection,
 }: OfferingSelectorProps) {
-  // Filter state
-  const [selectedClassTab, setSelectedClassTab] = useState<string>("all");
+  // Filter state (Tabs sort kelas sudah dieliminasi agar tampilan HP hemat ruang)
   const [quotaFilter, setQuotaFilter] = useState<"all" | "available" | "full">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showDropUp, setShowDropUp] = useState<boolean>(false);
+  const [sheetCourse, setSheetCourse] = useState<GroupedCourse | null>(null);
+
+  // 1. Kelompokkan penawaran berdasarkan Mata Kuliah Unik (Base Name)
+  const groupedCourses = useMemo(() => {
+    const map = new Map<string, GroupedCourse>();
+
+    offerings.forEach((off) => {
+      const baseKey = getCourseBaseName(off.nama);
+      const existing = map.get(baseKey);
+
+      if (existing) {
+        existing.classes.push(off);
+        existing.totalKuota += off.kuota;
+        existing.totalSisa += off.sisa;
+        if (off.sisa > 0) existing.hasAvailableClass = true;
+        if (selectedIds.includes(off.id)) {
+          existing.selectedOffering = off;
+        }
+      } else {
+        const isSelected = selectedIds.includes(off.id);
+        map.set(baseKey, {
+          baseKey,
+          displayName: cleanCourseName(off.nama),
+          jenis: off.jenis,
+          classes: [off],
+          selectedOffering: isSelected ? off : null,
+          totalKuota: off.kuota,
+          totalSisa: off.sisa,
+          hasAvailableClass: off.sisa > 0,
+        });
+      }
+    });
+
+    // Urutkan kelas di dalam tiap matkul (Kelas A, B, C...)
+    map.forEach((group) => {
+      group.classes.sort((a, b) => (a.kelas || "A").localeCompare(b.kelas || "A"));
+    });
+
+    return Array.from(map.values());
+  }, [offerings, selectedIds]);
+
+  // Saring daftar berdasarkan Pencarian & Filter Kuota
+  const filteredCourses = useMemo(() => {
+    return groupedCourses.filter((course) => {
+      // Filter Kuota
+      if (quotaFilter === "available" && !course.hasAvailableClass) return false;
+      if (quotaFilter === "full" && course.hasAvailableClass) return false;
+
+      // Filter Pencarian
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchNama = course.displayName.toLowerCase().includes(q);
+        const matchClass = course.classes.some((c) => (c.kelas || "").toLowerCase().includes(q));
+        if (!matchNama && !matchClass) return false;
+      }
+
+      return true;
+    });
+  }, [groupedCourses, quotaFilter, searchQuery]);
 
   const selectedOfferings = useMemo(
     () => offerings.filter((o) => selectedIds.includes(o.id)),
     [offerings, selectedIds]
-  );
-
-  // Set nama dasar matkul yang sedang dipilih mahasiswa untuk mencegah memilih kelas lain dari matkul yang sama
-  const selectedBaseNames = useMemo(
-    () => selectedOfferings.map((o) => getCourseBaseName(o.nama)),
-    [selectedOfferings]
   );
 
   // Aturan baru: Minimal 1 dan Maksimal 4 Mata Kuliah
@@ -64,62 +132,70 @@ export function OfferingSelector({
 
   const timerColor = remainingSeconds && remainingSeconds < 60 ? "var(--danger)" : "var(--primary)";
 
-  // Hitung jumlah per tab kelas
-  const classCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      all: offerings.length,
-      A: 0,
-      B: 0,
-      C: 0,
-      D: 0,
-      E: 0,
-      proyek: 0,
-    };
-    offerings.forEach((o) => {
-      if (o.jenis === "proyek") {
-        counts.proyek += 1;
+  // Handler klik pada baris mata kuliah
+  const handleCourseRowClick = (course: GroupedCourse) => {
+    // Jika matkul ini sudah memiliki kelas terpilih, buka bottom sheet untuk memungkinkan ganti kelas
+    if (course.selectedOffering) {
+      setSheetCourse(course);
+      return;
+    }
+
+    // Jika seluruh kelas pada matkul ini penuh
+    if (!course.hasAvailableClass) {
+      return;
+    }
+
+    // Jika matkul hanya punya 1 kelas (misal Proyek Terapan atau kelas tunggal), langsung pilih
+    if (course.classes.length === 1) {
+      onToggleOffering(course.classes[0]);
+      return;
+    }
+
+    // Jika punya beberapa kelas, buka bottom sheet pilihan kelas
+    setSheetCourse(course);
+  };
+
+  // Handler klik tombol centang [✓]
+  const handleCheckboxClick = (e: React.MouseEvent, course: GroupedCourse) => {
+    e.stopPropagation();
+    if (course.selectedOffering) {
+      // Batalkan pilihan kelas saat ini
+      onToggleOffering(course.selectedOffering);
+    } else {
+      // Jika belum terpilih dan hanya ada 1 kelas, langsung pilih
+      if (course.classes.length === 1) {
+        if (course.classes[0].sisa > 0) {
+          onToggleOffering(course.classes[0]);
+        }
       } else {
-        const k = (o.kelas || "A").toUpperCase();
-        if (counts[k] !== undefined) counts[k] += 1;
+        // Buka bottom sheet pemilihan kelas
+        setSheetCourse(course);
       }
-    });
-    return counts;
-  }, [offerings]);
+    }
+  };
 
-  // Filter gabungan (Tab Kelas + Kuota + Search)
-  const filteredOfferings = useMemo(() => {
-    return offerings.filter((o) => {
-      // 1. Tab Kelas
-      if (selectedClassTab === "proyek") {
-        if (o.jenis !== "proyek") return false;
-      } else if (selectedClassTab !== "all") {
-        if (o.jenis === "proyek") return false;
-        const k = (o.kelas || "A").toUpperCase();
-        if (k !== selectedClassTab) return false;
-      }
+  // Handler pemilihan kelas dari bottom sheet
+  const handleSelectClassFromSheet = (cls: Offering) => {
+    if (cls.sisa <= 0) return; // Kuota penuh
 
-      // 2. Kuota
-      if (quotaFilter === "available" && o.sisa <= 0) return false;
-      if (quotaFilter === "full" && o.sisa > 0) return false;
+    const currentSelected = sheetCourse?.selectedOffering;
+    if (currentSelected?.id === cls.id) {
+      // Kelas yang sama sudah terpilih, tutup sheet
+      setSheetCourse(null);
+      return;
+    }
 
-      // 3. Pencarian
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchNama = o.nama.toLowerCase().includes(q);
-        const matchKelas = (o.kelas || "").toLowerCase().includes(q);
-        if (!matchNama && !matchKelas) return false;
-      }
+    // Pilih kelas baru (jika sebelumnya sudah ada kelas lain, gantikan ID-nya secara mulus)
+    onToggleOffering(cls, currentSelected?.id);
+    setSheetCourse(null);
+  };
 
-      return true;
-    });
-  }, [offerings, selectedClassTab, quotaFilter, searchQuery]);
-
-  const availableCount = offerings.filter((o) => o.sisa > 0).length;
-  const fullCount = offerings.filter((o) => o.sisa <= 0).length;
+  const availableCount = groupedCourses.filter((c) => c.hasAvailableClass).length;
+  const fullCount = groupedCourses.filter((c) => !c.hasAvailableClass).length;
 
   return (
     <div className="has-mobile-bottom-bar" style={{ paddingBottom: "4.5rem" }}>
-      {/* 1. STICKY TOP CONTROLLER (Countdown Waktu, Pilihan Kelas, Cari & Filter Kuota) */}
+      {/* 1. STICKY TOP CONTROLLER (Ramping & Hemat Ruang di HP) */}
       <div
         className="card"
         style={{
@@ -131,8 +207,8 @@ export function OfferingSelector({
           borderRadius: "var(--radius-lg)",
           boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.08)",
           border: hasQueue ? "1.5px solid var(--warning)" : "1.5px solid var(--primary-border)",
-          padding: "0.65rem 0.85rem",
-          marginBottom: "0.75rem",
+          padding: "0.55rem 0.8rem",
+          marginBottom: "0.65rem",
         }}
       >
         {/* Baris 1: Countdown Waktu (HANYA tampil jika hasQueue === true) */}
@@ -142,15 +218,15 @@ export function OfferingSelector({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: "0.5rem",
-              paddingBottom: "0.4rem",
+              marginBottom: "0.45rem",
+              paddingBottom: "0.35rem",
               borderBottom: "1px dashed var(--border-color)",
             }}
           >
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
               <span
                 style={{
-                  fontSize: "0.7rem",
+                  fontSize: "0.68rem",
                   fontWeight: 800,
                   color: "#d97706",
                   textTransform: "uppercase",
@@ -161,7 +237,7 @@ export function OfferingSelector({
               </span>
               <span
                 style={{
-                  fontSize: "1.25rem",
+                  fontSize: "1.2rem",
                   fontWeight: 800,
                   color: timerColor,
                   fontFamily: "var(--font-mono)",
@@ -182,13 +258,13 @@ export function OfferingSelector({
                   border: "1.5px solid var(--border-color)",
                   borderRadius: "var(--radius-full)",
                   color: isRefreshingQuota ? "var(--primary)" : "var(--text-main)",
-                  fontSize: "0.725rem",
+                  fontSize: "0.7rem",
                   fontWeight: 700,
                   cursor: isRefreshingQuota ? "wait" : "pointer",
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "4px",
-                  padding: "0.25rem 0.65rem",
+                  padding: "0.2rem 0.6rem",
                   boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                   transition: "all 0.15s ease",
                 }}
@@ -202,179 +278,90 @@ export function OfferingSelector({
                 >
                   🔄
                 </span>
-                <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
+                <span>{isRefreshingQuota ? "Memuat..." : "Refresh"}</span>
               </button>
             )}
           </div>
         )}
 
-        {/* Baris 2: Tabs Pilihan Kelas Horizontal */}
-        <div style={{ marginBottom: "0.5rem" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "0.25rem",
-              padding: "0 2px",
-            }}
-          >
-            <span
+        {/* Baris 2: Kolom Cari Nama Mata Kuliah + Tombol Refresh jika !hasQueue */}
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", marginBottom: "0.4rem" }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Cari mata kuliah..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               style={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                color: "var(--text-muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
+                fontSize: "0.8rem",
+                padding: "0.35rem 0.65rem",
+                height: 34,
+                backgroundColor: "#f8fafc",
+                borderRadius: "var(--radius-md)",
               }}
-            >
-              PILIHAN KELAS
-            </span>
-            <span
-              style={{
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                color: "var(--primary)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "2px",
-                backgroundColor: "var(--primary-light, #ecfdf5)",
-                padding: "1px 6px",
-                borderRadius: "var(--radius-full)",
-              }}
-            >
-              <span>↔ Geser kelas</span>
-              <span style={{ fontSize: "0.75rem" }}>›</span>
-            </span>
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  padding: 2,
+                }}
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          <div style={{ position: "relative" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.35rem",
-                overflowX: "auto",
-                WebkitOverflowScrolling: "touch",
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                paddingBottom: "2px",
-              }}
-            >
-              {[
-                { id: "all", label: "Semua", count: classCounts.all },
-                { id: "A", label: "Kelas A", count: classCounts.A },
-                { id: "B", label: "Kelas B", count: classCounts.B },
-                { id: "C", label: "Kelas C", count: classCounts.C },
-                { id: "D", label: "Kelas D", count: classCounts.D },
-                { id: "E", label: "Kelas E", count: classCounts.E },
-                { id: "proyek", label: "Proyek Terapan", count: classCounts.proyek },
-              ].map((tab) => {
-                const isActive = selectedClassTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setSelectedClassTab(tab.id)}
-                    style={{
-                      flexShrink: 0,
-                      padding: "0.3rem 0.75rem",
-                      borderRadius: "var(--radius-full)",
-                      border: isActive ? "1.5px solid var(--primary)" : "1px solid var(--border-color)",
-                      backgroundColor: isActive ? "var(--primary)" : "#ffffff",
-                      color: isActive ? "#ffffff" : "var(--text-main)",
-                      fontSize: "0.75rem",
-                      fontWeight: isActive ? 800 : 600,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.25rem",
-                    }}
-                  >
-                    <span>{tab.label}</span>
-                    <span
-                      style={{
-                        fontSize: "0.68rem",
-                        padding: "1px 5px",
-                        borderRadius: "var(--radius-full)",
-                        backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-subtle)",
-                        color: isActive ? "#ffffff" : "var(--text-muted)",
-                      }}
-                    >
-                      {tab.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div
-              style={{
-                position: "absolute",
-                right: 0,
-                top: 0,
-                bottom: 2,
-                width: 20,
-                background: "linear-gradient(to right, transparent, rgba(255, 255, 255, 0.95))",
-                pointerEvents: "none",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-              }}
-            >
-              <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", opacity: 0.7 }}>›</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Baris 3: Kolom Cari Nama Mata Kuliah */}
-        <div style={{ position: "relative", marginBottom: "0.5rem" }}>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Cari nama mata kuliah..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              fontSize: "0.8rem",
-              padding: "0.4rem 0.75rem",
-              height: 34,
-              backgroundColor: "#f8fafc",
-              borderRadius: "var(--radius-md)",
-            }}
-          />
-          {searchQuery && (
+          {!hasQueue && onRefreshQuota && (
             <button
               type="button"
-              onClick={() => setSearchQuery("")}
+              onClick={onRefreshQuota}
+              disabled={isRefreshingQuota}
               style={{
-                position: "absolute",
-                right: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                padding: 2,
+                backgroundColor: "#ffffff",
+                border: "1.5px solid var(--border-color)",
+                borderRadius: "var(--radius-md)",
+                color: isRefreshingQuota ? "var(--primary)" : "var(--text-main)",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: isRefreshingQuota ? "wait" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                height: 34,
+                padding: "0 0.65rem",
+                boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+                flexShrink: 0,
               }}
+              title="Perbarui kuota terkini"
             >
-              ✕
+              <span
+                style={{
+                  display: "inline-block",
+                  animation: isRefreshingQuota ? "spin 1s linear infinite" : "none",
+                  fontSize: "0.8rem",
+                }}
+              >
+                🔄
+              </span>
+              <span>{isRefreshingQuota ? "..." : "Refresh"}</span>
             </button>
           )}
         </div>
 
-        {/* Baris 4: Filter Kuota (Semua, Tersedia, Penuh) + Refresh jika !hasQueue */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "0.4rem",
-          }}
-        >
+        {/* Baris 3: Filter Kuota (Semua, Tersedia, Penuh) */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div
             style={{
               display: "inline-flex",
@@ -389,10 +376,10 @@ export function OfferingSelector({
               type="button"
               onClick={() => setQuotaFilter("all")}
               style={{
-                padding: "0.25rem 0.65rem",
+                padding: "0.2rem 0.6rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
-                fontSize: "0.725rem",
+                fontSize: "0.7rem",
                 fontWeight: 700,
                 cursor: "pointer",
                 backgroundColor: quotaFilter === "all" ? "#ffffff" : "transparent",
@@ -400,16 +387,16 @@ export function OfferingSelector({
                 boxShadow: quotaFilter === "all" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
               }}
             >
-              Semua
+              Semua ({groupedCourses.length})
             </button>
             <button
               type="button"
               onClick={() => setQuotaFilter("available")}
               style={{
-                padding: "0.25rem 0.65rem",
+                padding: "0.2rem 0.6rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
-                fontSize: "0.725rem",
+                fontSize: "0.7rem",
                 fontWeight: 700,
                 cursor: "pointer",
                 backgroundColor: quotaFilter === "available" ? "#ffffff" : "transparent",
@@ -423,10 +410,10 @@ export function OfferingSelector({
               type="button"
               onClick={() => setQuotaFilter("full")}
               style={{
-                padding: "0.25rem 0.65rem",
+                padding: "0.2rem 0.6rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
-                fontSize: "0.725rem",
+                fontSize: "0.7rem",
                 fontWeight: 700,
                 cursor: "pointer",
                 backgroundColor: quotaFilter === "full" ? "#ffffff" : "transparent",
@@ -438,40 +425,9 @@ export function OfferingSelector({
             </button>
           </div>
 
-          {!hasQueue && onRefreshQuota && (
-            <button
-              type="button"
-              onClick={onRefreshQuota}
-              disabled={isRefreshingQuota}
-              style={{
-                backgroundColor: "#ffffff",
-                border: "1.5px solid var(--border-color)",
-                borderRadius: "var(--radius-full)",
-                color: isRefreshingQuota ? "var(--primary)" : "var(--text-main)",
-                fontSize: "0.725rem",
-                fontWeight: 700,
-                cursor: isRefreshingQuota ? "wait" : "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                padding: "0.3rem 0.75rem",
-                boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
-                transition: "all 0.15s ease",
-              }}
-              title="Perbarui kuota terkini"
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  animation: isRefreshingQuota ? "spin 1s linear infinite" : "none",
-                  fontSize: "0.8rem",
-                }}
-              >
-                🔄
-              </span>
-              <span>{isRefreshingQuota ? "Memuat..." : "Refresh Kuota"}</span>
-            </button>
-          )}
+          <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 600 }}>
+            {filteredCourses.length} Mata Kuliah
+          </span>
         </div>
       </div>
 
@@ -488,18 +444,18 @@ export function OfferingSelector({
           textTransform: "uppercase",
           letterSpacing: "0.04em",
           borderBottom: "1.5px solid var(--border-color)",
-          marginBottom: "0.4rem",
+          marginBottom: "0.35rem",
         }}
       >
         <div style={{ width: 26, textAlign: "center", flexShrink: 0 }}>PILIH</div>
         <div style={{ flex: 1, minWidth: 0 }}>MATA KULIAH & JADWAL</div>
-        <div style={{ width: 44, textAlign: "center", flexShrink: 0 }}>KELAS</div>
+        <div style={{ width: 56, textAlign: "center", flexShrink: 0 }}>KELAS</div>
         <div style={{ width: 48, textAlign: "right", flexShrink: 0 }}>KUOTA</div>
       </div>
 
-      {/* 2. DAFTAR MATA KULIAH: FORMAT BARIS HORIZONTAL ULTRA COMPACT (HP FRIENDLY) */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-        {filteredOfferings.length === 0 ? (
+      {/* 2. DAFTAR MATA KULIAH: FORMAT BARIS HORIZONTAL HIERARKI KOMPAK */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+        {filteredCourses.length === 0 ? (
           <div
             className="card"
             style={{
@@ -514,50 +470,59 @@ export function OfferingSelector({
               Tidak ada mata kuliah yang cocok
             </div>
             <p style={{ fontSize: "0.8rem", margin: "0.25rem 0 0.75rem" }}>
-              Coba sesuaikan filter kelas atau kata kunci pencarian Anda.
+              Coba sesuaikan kata kunci pencarian atau filter kuota Anda.
             </p>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={() => {
-                setSelectedClassTab("all");
                 setQuotaFilter("all");
                 setSearchQuery("");
               }}
               style={{ fontSize: "0.8rem", padding: "0.4rem 0.85rem" }}
             >
-              Reset Semua Filter
+              Reset Filter
             </button>
           </div>
         ) : (
-          filteredOfferings.map((item) => {
-            const isSelected = selectedIds.includes(item.id);
-            const isFull = item.sisa <= 0;
-            const hasClashWithClass = Boolean(item.bentrok_kelas);
-            const isProyek = item.jenis === "proyek";
-            const itemBaseName = getCourseBaseName(item.nama);
-
-            // Cek apakah mahasiswa sudah memilih kelas lain dari mata kuliah yang sama
-            const hasSameCourseSelected = !isSelected && selectedBaseNames.includes(itemBaseName);
-            // Cek batas maksimal 4 mata kuliah terpilih
+          filteredCourses.map((course) => {
+            const isSelected = Boolean(course.selectedOffering);
+            const isFull = !course.hasAvailableClass;
             const isMaxReached = !isSelected && selectedIds.length >= 4;
-            const isDisabled = (isFull && !isSelected) || hasSameCourseSelected || isMaxReached;
+            const isDisabled = (isFull && !isSelected) || isMaxReached;
 
-            const scheduleShort =
-              item.jadwal && item.jadwal.length > 0
-                ? item.jadwal
-                    .map((s) => `${s.hari} ${s.jam_mulai.slice(0, 5)}–${s.jam_selesai.slice(0, 5)}`)
-                    .join(", ")
-                : "Jadwal belum ditentukan";
+            // Keterangan jadwal ringkas
+            let scheduleText = "";
+            let hasClashWithClass = false;
+
+            if (course.selectedOffering) {
+              const sel = course.selectedOffering;
+              hasClashWithClass = Boolean(sel.bentrok_kelas);
+              if (sel.jadwal && sel.jadwal.length > 0) {
+                scheduleText = sel.jadwal
+                  .map((s) => `${s.hari} ${s.jam_mulai.slice(0, 5)}–${s.jam_selesai.slice(0, 5)}`)
+                  .join(", ");
+              } else {
+                scheduleText = "Jadwal belum ditentukan";
+              }
+            } else if (course.classes.length === 1) {
+              const single = course.classes[0];
+              hasClashWithClass = Boolean(single.bentrok_kelas);
+              if (single.jadwal && single.jadwal.length > 0) {
+                scheduleText = single.jadwal
+                  .map((s) => `${s.hari} ${s.jam_mulai.slice(0, 5)}–${s.jam_selesai.slice(0, 5)}`)
+                  .join(", ");
+              } else {
+                scheduleText = "Jadwal belum ditentukan";
+              }
+            } else {
+              scheduleText = `Tersedia ${course.classes.length} pilihan kelas (Klik untuk memilih)`;
+            }
 
             return (
               <div
-                key={item.id}
-                onClick={() => {
-                  if (isSelected || !isDisabled) {
-                    onToggleOffering(item);
-                  }
-                }}
+                key={course.baseKey}
+                onClick={() => handleCourseRowClick(course)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -568,15 +533,15 @@ export function OfferingSelector({
                     ? "2px solid #059669"
                     : hasClashWithClass
                     ? "1.5px solid #fecaca"
-                    : hasSameCourseSelected
-                    ? "1px dashed #cbd5e1"
+                    : isFull
+                    ? "1px solid #fed7aa"
                     : "1px solid var(--border-color)",
                   backgroundColor: isSelected
                     ? "#ecfdf5"
                     : hasClashWithClass
                     ? "#fff5f5"
-                    : hasSameCourseSelected
-                    ? "#f8fafc"
+                    : isFull
+                    ? "#fffbeb"
                     : "#ffffff",
                   cursor: isDisabled && !isSelected ? "not-allowed" : "pointer",
                   opacity: isDisabled && !isSelected ? 0.6 : 1,
@@ -586,6 +551,7 @@ export function OfferingSelector({
               >
                 {/* Kolom 1: Kotak Centang Jelas [✓] */}
                 <div
+                  onClick={(e) => handleCheckboxClick(e, course)}
                   style={{
                     flexShrink: 0,
                     width: 26,
@@ -606,12 +572,12 @@ export function OfferingSelector({
                     boxShadow: isSelected ? "0 2px 4px rgba(5, 150, 105, 0.25)" : "none",
                     transition: "all 0.12s ease",
                   }}
-                  title={isSelected ? "Klik untuk membatalkan pilihan" : "Klik untuk memilih"}
+                  title={isSelected ? "Klik untuk membatalkan" : "Klik untuk memilih"}
                 >
                   {isSelected ? "✓" : ""}
                 </div>
 
-                {/* Kolom 2: Nama Mata Kuliah & Jadwal / Status Kecil */}
+                {/* Kolom 2: Nama Mata Kuliah & Jadwal / Opsi Kelas */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
@@ -623,17 +589,17 @@ export function OfferingSelector({
                       textOverflow: "ellipsis",
                       lineHeight: 1.25,
                     }}
-                    title={item.nama}
+                    title={course.displayName}
                   >
-                    {item.nama}
+                    {course.displayName}
                   </div>
                   <div
                     style={{
                       fontSize: "0.68rem",
                       color: hasClashWithClass
                         ? "#dc2626"
-                        : hasSameCourseSelected
-                        ? "#d97706"
+                        : isSelected
+                        ? "#047857"
                         : "var(--text-muted)",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
@@ -641,49 +607,99 @@ export function OfferingSelector({
                       marginTop: "1px",
                     }}
                   >
-                    {hasClashWithClass
-                      ? "⚠️ Bentrok jadwal kelas"
-                      : hasSameCourseSelected
-                      ? "⚠️ Sudah pilih kelas lain"
-                      : `🕒 ${scheduleShort}`}
+                    {hasClashWithClass ? "⚠️ Bentrok jadwal kelas" : `🕒 ${scheduleText}`}
                   </div>
                 </div>
 
-                {/* Kolom 3: Kelas */}
-                <div style={{ flexShrink: 0, textAlign: "center", width: 44 }}>
-                  <span
-                    style={{
-                      fontSize: "0.675rem",
-                      fontWeight: 800,
-                      padding: "2px 5px",
-                      borderRadius: "4px",
-                      backgroundColor: isProyek ? "#fef3c7" : "#e0f2fe",
-                      color: isProyek ? "#b45309" : "#0369a1",
-                      border: `1px solid ${isProyek ? "#fde68a" : "#bae6fd"}`,
-                      whiteSpace: "nowrap",
-                      display: "inline-block",
-                    }}
-                  >
-                    {isProyek ? "Proyek" : `Kls ${item.kelas || "A"}`}
-                  </span>
+                {/* Kolom 3: Kelas Selector (Interaktif) */}
+                <div style={{ flexShrink: 0, textAlign: "center", width: 56 }}>
+                  {isSelected ? (
+                    <span
+                      style={{
+                        fontSize: "0.675rem",
+                        fontWeight: 800,
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        backgroundColor: course.jenis === "proyek" ? "#fef3c7" : "#d1fae5",
+                        color: course.jenis === "proyek" ? "#b45309" : "#065f46",
+                        border: `1px solid ${course.jenis === "proyek" ? "#fde68a" : "#6ee7b7"}`,
+                        whiteSpace: "nowrap",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "2px",
+                      }}
+                      title="Klik untuk mengganti kelas"
+                    >
+                      <span>{course.jenis === "proyek" ? "Proyek" : `Kls ${course.selectedOffering?.kelas || "A"}`}</span>
+                      <span style={{ fontSize: "0.6rem" }}>▾</span>
+                    </span>
+                  ) : course.classes.length > 1 ? (
+                    <span
+                      style={{
+                        fontSize: "0.675rem",
+                        fontWeight: 700,
+                        padding: "2px 5px",
+                        borderRadius: "4px",
+                        backgroundColor: "#f1f5f9",
+                        color: "#475569",
+                        border: "1px solid #cbd5e1",
+                        whiteSpace: "nowrap",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "2px",
+                      }}
+                      title="Klik untuk memilih kelas"
+                    >
+                      <span>Pilih</span>
+                      <span style={{ fontSize: "0.6rem" }}>▾</span>
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: "0.675rem",
+                        fontWeight: 800,
+                        padding: "2px 5px",
+                        borderRadius: "4px",
+                        backgroundColor: course.jenis === "proyek" ? "#fef3c7" : "#e0f2fe",
+                        color: course.jenis === "proyek" ? "#b45309" : "#0369a1",
+                        border: `1px solid ${course.jenis === "proyek" ? "#fde68a" : "#bae6fd"}`,
+                        whiteSpace: "nowrap",
+                        display: "inline-block",
+                      }}
+                    >
+                      {course.jenis === "proyek" ? "Proyek" : `Kls ${course.classes[0]?.kelas || "A"}`}
+                    </span>
+                  )}
                 </div>
 
-                {/* Kolom 4: Kuota */}
+                {/* Kolom 4: Kuota Ringkas */}
                 <div style={{ flexShrink: 0, textAlign: "right", width: 48 }}>
                   <span
                     style={{
                       fontSize: "0.68rem",
                       fontWeight: 800,
-                      padding: "2px 5px",
+                      padding: "2px 4px",
                       borderRadius: "4px",
-                      backgroundColor: isFull ? "#fef2f2" : "#f0fdf4",
-                      color: isFull ? "#dc2626" : "#059669",
+                      backgroundColor: isFull
+                        ? "#fef2f2"
+                        : isSelected
+                        ? "#ecfdf5"
+                        : "#f0fdf4",
+                      color: isFull
+                        ? "#dc2626"
+                        : isSelected
+                        ? "#047857"
+                        : "#059669",
                       border: `1px solid ${isFull ? "#fecaca" : "#a7f3d0"}`,
                       whiteSpace: "nowrap",
                       display: "inline-block",
                     }}
                   >
-                    {isFull ? "Penuh" : `${item.sisa}/${item.kuota}`}
+                    {isFull
+                      ? "Penuh"
+                      : isSelected && course.selectedOffering
+                      ? `${course.selectedOffering.sisa}/${course.selectedOffering.kuota}`
+                      : `${course.totalSisa}/${course.totalKuota}`}
                   </span>
                 </div>
               </div>
@@ -692,7 +708,259 @@ export function OfferingSelector({
         )}
       </div>
 
-      {/* 3. AUTO DROP-UP SHEET (Ringkasan Pilihan Mahasiswa) */}
+      {/* 3. BOTTOM SHEET PEMILIHAN KELAS (Modal Drawer saat klik matkul/kelas) */}
+      {sheetCourse && (
+        <>
+          {/* Backdrop gelap semi-transparan */}
+          <div
+            onClick={() => setSheetCourse(null)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(15, 23, 42, 0.45)",
+              zIndex: 996,
+              backdropFilter: "blur(2px)",
+              animation: "fadeIn 0.15s ease-out",
+            }}
+          />
+
+          {/* Drawer Pemilihan Kelas dari Bawah Layar */}
+          <div
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "100%",
+              maxWidth: 580,
+              maxHeight: "80vh",
+              backgroundColor: "#ffffff",
+              borderTopLeftRadius: "var(--radius-xl)",
+              borderTopRightRadius: "var(--radius-xl)",
+              border: "1.5px solid var(--primary-border)",
+              boxShadow: "0 -8px 30px rgba(0, 0, 0, 0.18)",
+              zIndex: 998,
+              display: "flex",
+              flexDirection: "column",
+              animation: "slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
+            {/* Header Sheet */}
+            <div
+              style={{
+                padding: "0.85rem 1rem",
+                borderBottom: "1px solid var(--border-color)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                backgroundColor: "#f8fafc",
+                borderTopLeftRadius: "var(--radius-xl)",
+                borderTopRightRadius: "var(--radius-xl)",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0, paddingRight: "0.5rem" }}>
+                <span
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    borderRadius: "var(--radius-sm)",
+                    backgroundColor: sheetCourse.jenis === "proyek" ? "#fef3c7" : "#e0f2fe",
+                    color: sheetCourse.jenis === "proyek" ? "#b45309" : "#0369a1",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  {sheetCourse.jenis === "proyek" ? "Proyek Terapan" : "Mata Kuliah Pilihan"}
+                </span>
+                <h3
+                  style={{
+                    margin: "0.3rem 0 0.1rem",
+                    fontSize: "1rem",
+                    fontWeight: 800,
+                    color: "var(--text-main)",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {sheetCourse.displayName}
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Pilih kelas yang sesuai dengan jadwal perkuliahan Anda:
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSheetCourse(null)}
+                style={{
+                  background: "#e2e8f0",
+                  border: "none",
+                  color: "var(--text-main)",
+                  fontSize: "0.85rem",
+                  fontWeight: 800,
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+                title="Tutup dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* List Pilihan Kelas */}
+            <div
+              style={{
+                padding: "0.85rem 1rem",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.55rem",
+              }}
+            >
+              {sheetCourse.classes.map((cls) => {
+                const isCurrentActive = sheetCourse.selectedOffering?.id === cls.id;
+                const isFull = cls.sisa <= 0;
+                const hasClash = Boolean(cls.bentrok_kelas);
+                const schedule =
+                  cls.jadwal && cls.jadwal.length > 0
+                    ? cls.jadwal
+                        .map(
+                          (j) =>
+                            `${j.hari}, ${j.jam_mulai.slice(0, 5)}–${j.jam_selesai.slice(0, 5)}${
+                              j.ruang ? ` (${j.ruang})` : ""
+                            }`
+                        )
+                        .join("; ")
+                    : "Jadwal belum ditentukan";
+
+                return (
+                  <div
+                    key={cls.id}
+                    onClick={() => {
+                      if (!isFull) handleSelectClassFromSheet(cls);
+                    }}
+                    style={{
+                      padding: "0.75rem 0.85rem",
+                      borderRadius: "var(--radius-md)",
+                      border: isCurrentActive
+                        ? "2px solid #059669"
+                        : hasClash
+                        ? "1.5px solid #fecaca"
+                        : isFull
+                        ? "1px solid #fed7aa"
+                        : "1.5px solid var(--border-color)",
+                      backgroundColor: isCurrentActive
+                        ? "#ecfdf5"
+                        : hasClash
+                        ? "#fff5f5"
+                        : isFull
+                        ? "#f8fafc"
+                        : "#ffffff",
+                      cursor: isFull ? "not-allowed" : "pointer",
+                      opacity: isFull && !isCurrentActive ? 0.6 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "0.6rem",
+                      transition: "all 0.12s ease",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            fontSize: "0.725rem",
+                            fontWeight: 800,
+                            padding: "2px 7px",
+                            borderRadius: "var(--radius-sm)",
+                            backgroundColor: isCurrentActive ? "#059669" : "#e0f2fe",
+                            color: isCurrentActive ? "#ffffff" : "#0369a1",
+                          }}
+                        >
+                          {cls.jenis === "proyek" ? "PROYEK" : `KELAS ${cls.kelas || "A"}`}
+                        </span>
+
+                        <span
+                          style={{
+                            fontSize: "0.7rem",
+                            fontWeight: 800,
+                            padding: "2px 6px",
+                            borderRadius: "var(--radius-sm)",
+                            backgroundColor: isFull ? "#fef2f2" : "#f0fdf4",
+                            color: isFull ? "#dc2626" : "#059669",
+                            border: `1px solid ${isFull ? "#fecaca" : "#a7f3d0"}`,
+                          }}
+                        >
+                          {isFull ? `🚫 Penuh (0/${cls.kuota})` : `Sisa ${cls.sisa} dari ${cls.kuota} Kursi`}
+                        </span>
+
+                        {hasClash && (
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: 700,
+                              padding: "2px 5px",
+                              borderRadius: "var(--radius-sm)",
+                              backgroundColor: "#fee2e2",
+                              color: "#b91c1c",
+                            }}
+                          >
+                            Bentrok Jadwal Kelas
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-main)", fontWeight: 600 }}>
+                        🕒 {schedule}
+                      </div>
+                    </div>
+
+                    <div style={{ flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        disabled={isFull && !isCurrentActive}
+                        style={{
+                          padding: "0.4rem 0.75rem",
+                          fontSize: "0.75rem",
+                          fontWeight: 800,
+                          borderRadius: "var(--radius-sm)",
+                          border: isCurrentActive
+                            ? "1.5px solid #059669"
+                            : "1.5px solid var(--border-color)",
+                          backgroundColor: isCurrentActive
+                            ? "#059669"
+                            : isFull
+                            ? "#e2e8f0"
+                            : "#ffffff",
+                          color: isCurrentActive
+                            ? "#ffffff"
+                            : isFull
+                            ? "#94a3b8"
+                            : "var(--primary)",
+                          cursor: isFull && !isCurrentActive ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {isCurrentActive ? "✓ Terpilih" : isFull ? "Penuh" : "Pilih"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 4. AUTO DROP-UP SHEET (Ringkasan Pilihan Mahasiswa) */}
       {showDropUp && (
         <>
           <div
@@ -861,14 +1129,14 @@ export function OfferingSelector({
         </>
       )}
 
-      {/* 4. FLOATING BOTTOM BAR (Status Pilihan & Tombol Simpan Pilihan) */}
+      {/* 5. FLOATING BOTTOM BAR (Status Pilihan & Tombol Simpan Pilihan) */}
       <div
         style={{
           position: "fixed",
           bottom: 0,
           left: 0,
           right: 0,
-          zIndex: 999,
+          zIndex: 994,
           backgroundColor: "#ffffff",
           borderTop: "1.5px solid var(--primary-border)",
           padding: "0.55rem 0.85rem",
