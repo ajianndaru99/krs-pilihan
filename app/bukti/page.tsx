@@ -259,44 +259,22 @@ export default function BuktiPage() {
             </div>
           </div>
 
-          {/* Tombol Cetak & Navigasi Tepat di Bawah Identitas Diri Mahasiswa */}
-          <div
-            style={{
-              display: "flex",
-              gap: "0.6rem",
-              marginBottom: "1.25rem",
-              flexWrap: "wrap",
-            }}
-          >
+          {/* Tombol Cetak Tepat di Bawah Identitas Diri Mahasiswa */}
+          <div style={{ marginBottom: "1.25rem" }}>
             <button
               type="button"
               className="btn btn-primary"
               onClick={handlePrint}
               style={{
-                flex: 1,
-                minWidth: 140,
+                width: "100%",
                 fontWeight: 700,
-                padding: "0.7rem 1rem",
-                minHeight: 44,
-                fontSize: "0.85rem",
+                padding: "0.75rem 1rem",
+                minHeight: 46,
+                fontSize: "0.9rem",
                 justifyContent: "center",
               }}
             >
               📄 Cetak Bukti (A4 / PDF)
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleBackToHome}
-              style={{
-                fontWeight: 600,
-                padding: "0.7rem 1rem",
-                minHeight: 44,
-                fontSize: "0.85rem",
-                justifyContent: "center",
-              }}
-            >
-              Halaman Awal
             </button>
           </div>
 
@@ -595,42 +573,29 @@ export default function BuktiPage() {
       </div>
 
       {/* =========================================================================
-          TOMBOL NAVIGASI BAWAH (Foto 3: Semua Tombol di Bawah & Tanpa Tombol Keluar)
+          TOMBOL NAVIGASI BAWAH (Hanya Tombol Halaman Awal)
           ========================================================================= */}
       <div
         className="no-print"
         style={{
           marginTop: "1.75rem",
           display: "flex",
-          gap: "0.75rem",
           justifyContent: "center",
           alignItems: "center",
-          flexWrap: "wrap",
         }}
       >
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handlePrint}
-          style={{
-            fontWeight: 700,
-            padding: "0.75rem 1.5rem",
-            minHeight: 46,
-            fontSize: "0.9rem",
-          }}
-        >
-          📄 Cetak Bukti (A4 / PDF)
-        </button>
-
         <button
           type="button"
           className="btn btn-secondary"
           onClick={handleBackToHome}
           style={{
             fontWeight: 700,
-            padding: "0.75rem 1.5rem",
+            padding: "0.75rem 2rem",
             minHeight: 46,
             fontSize: "0.9rem",
+            width: "100%",
+            maxWidth: 320,
+            justifyContent: "center",
           }}
         >
           Halaman Awal

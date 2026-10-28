@@ -144,35 +144,7 @@ export default function StudentPage() {
     }
   }, [phase]);
 
-  // Pelepasan otomatis sesi aktif saat tab/browser ditutup oleh mahasiswa
-  useEffect(() => {
-    const handlePageHide = () => {
-      if (typeof window === "undefined") return;
-      const curNim = sessionStorage.getItem("nim");
-      const curToken = sessionStorage.getItem("token");
-      if (curNim && curToken) {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (supabaseUrl && anonKey) {
-          fetch(`${supabaseUrl}/rest/v1/rpc/batal_sesi_antrian`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: anonKey,
-              Authorization: `Bearer ${anonKey}`,
-            },
-            body: JSON.stringify({ p_nim: curNim, p_token: curToken }),
-            keepalive: true,
-          }).catch(() => {});
-        }
-      }
-    };
 
-    window.addEventListener("pagehide", handlePageHide);
-    return () => {
-      window.removeEventListener("pagehide", handlePageHide);
-    };
-  }, []);
 
   const closeModal = useCallback(() => {
     setModalDialog((prev) => ({ ...prev, isOpen: false }));

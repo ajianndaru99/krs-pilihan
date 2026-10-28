@@ -347,7 +347,7 @@ export function CheckNimCard({
                 <span>PERHATIAN!</span>
               </div>
               <div>
-                Dimohon tidak lama dalam memilih, jika sudah ada antrian sistem akan ada maksimal waktu 5 MENIT!, cek jadwal lengkap dulu{" "}
+                Dimohon tidak lama dalam memilih, jika sudah ada antrian sistem akan ada maksimal waktu 5 MENIT!, silakan cek{" "}
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(true)}
@@ -364,8 +364,9 @@ export function CheckNimCard({
                     fontSize: "inherit",
                   }}
                 >
-                  dilink berikut!
-                </button>
+                  Jadwal & Kuota
+                </button>{" "}
+                terlebih dahulu!
               </div>
             </div>
 
