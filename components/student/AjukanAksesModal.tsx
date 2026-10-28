@@ -31,16 +31,14 @@ export function AjukanAksesModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nim.trim() || !nama.trim() || !alasan.trim()) {
-      onError("Mohon lengkapi NIM, Nama Lengkap, dan Alasan pengajuan.");
+    if (!nim.trim() || !nama.trim() || !alasan.trim() || !kontak.trim()) {
+      onError("Mohon lengkapi NIM, Nama Lengkap, Alasan pengajuan, dan Nomor WhatsApp aktif.");
       return;
     }
 
     setSubmitting(true);
     try {
-      const fullCatatan = kontak.trim()
-        ? `${alasan.trim()} (Kontak: ${kontak.trim()})`
-        : alasan.trim();
+      const fullCatatan = `${alasan.trim()} (Kontak: ${kontak.trim()})`;
 
       // Coba panggil versi 4 parameter terlebih dahulu (sesuai schema yang aktif di database Supabase)
       let { data, error } = await supabase.rpc("ajukan_akses", {
@@ -165,13 +163,13 @@ export function AjukanAksesModal({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Kelas Tetap (Opsional)</label>
+            <label className="form-label">Kelas (Opsional)</label>
             <select
               className="form-control"
               value={kelas}
               onChange={(e) => setKelas(e.target.value)}
             >
-              <option value="">-- Pilih Kelas Tetap (jika ada) --</option>
+              <option value="">-- Pilih Kelas (Opsional) --</option>
               {kelasList.map((k) => (
                 <option key={k} value={k}>
                   {k}
@@ -193,7 +191,7 @@ export function AjukanAksesModal({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Kontak WhatsApp / No. HP (Opsional)</label>
+            <label className="form-label">Nomor WhatsApp Aktif (Wajib)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -202,6 +200,7 @@ export function AjukanAksesModal({
               placeholder="08xxxxxxxxxx"
               value={kontak}
               onChange={(e) => setKontak(e.target.value.replace(/\D/g, ""))}
+              required
             />
           </div>
 

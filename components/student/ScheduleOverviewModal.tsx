@@ -25,10 +25,11 @@ export function ScheduleOverviewModal({ isOpen, onClose }: ScheduleOverviewModal
     const fetchOfferings = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.rpc("daftar_kelas");
+        const { data, error } = await supabase.rpc("jadwal_kuliah_publik");
         if (error) throw error;
-        if (isMounted && Array.isArray(data)) {
-          setOfferings(data as Offering[]);
+        const res = data as { ok: boolean; offerings: Offering[] } | null;
+        if (isMounted && res?.ok && Array.isArray(res.offerings)) {
+          setOfferings(res.offerings);
         }
       } catch {
         // Gagal memuat jadwal secara hening
@@ -258,13 +259,16 @@ export function ScheduleOverviewModal({ isOpen, onClose }: ScheduleOverviewModal
                   </div>
                   <div
                     style={{
-                      fontSize: "0.75rem",
+                      fontSize: "0.725rem",
                       fontWeight: 700,
-                      color: item.sisa > 0 ? "var(--primary)" : "var(--danger)",
+                      color: "var(--primary)",
+                      backgroundColor: "var(--primary-light, #ecfdf5)",
+                      padding: "2px 8px",
+                      borderRadius: "var(--radius-full, 9999px)",
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Sisa: {item.sisa} / {item.kuota}
+                    Kapasitas: {item.kuota} Mahasiswa
                   </div>
                 </div>
 

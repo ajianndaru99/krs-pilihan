@@ -324,58 +324,51 @@ export function CheckNimCard({
                 </strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Kelas Tetap:</span>
+                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Kelas:</span>
                 <strong style={{ fontSize: "0.95rem" }}>{studentInfo.kelas || "-"}</strong>
               </div>
             </div>
 
-            {/* Peringatan Batas Waktu Sesi Aktif */}
+            {/* Informasi & Peringatan Terpadu 1 Kolom */}
             <div
               style={{
                 backgroundColor: "#fffbeb",
                 border: "1.5px solid #fcd34d",
                 borderRadius: "var(--radius-lg)",
-                padding: "0.8rem 1rem",
-                marginBottom: "0.85rem",
-                fontSize: "0.8rem",
+                padding: "0.85rem 1rem",
+                marginBottom: "1rem",
+                fontSize: "0.825rem",
                 color: "#92400e",
-                lineHeight: 1.45,
+                lineHeight: 1.5,
               }}
             >
-              <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <div style={{ fontWeight: 800, marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <span>⏱️</span>
-                <span>Peringatan Waktu Pemilihan:</span>
+                <span>Peringatan Waktu & Jadwal Kuliah:</span>
               </div>
               <div>
-                Dilarang berdiam terlalu lama di dashboard pemilihan matkul karena sesi memiliki batas waktu aktif otomatis demi keadilan kuota.
+                Jangan terlalu lama untuk memilih matkul karena sesi memiliki batas waktu aktif otomatis demi keadilan kuota. Jika belum tahu jadwalnya, silakan cek{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    margin: 0,
+                    color: "var(--primary)",
+                    fontWeight: 800,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    display: "inline",
+                    fontSize: "inherit",
+                  }}
+                >
+                  Jadwal Mata Kuliah Pilihan berikut
+                </button>
+                .
               </div>
             </div>
-
-            {/* Tombol Tautkan Jadwal & Kuota Matkul Pilihan */}
-            <button
-              type="button"
-              onClick={() => setShowScheduleModal(true)}
-              style={{
-                width: "100%",
-                padding: "0.65rem 0.85rem",
-                borderRadius: "var(--radius-lg)",
-                backgroundColor: "#f0fdf4",
-                border: "1.5px solid var(--primary-border)",
-                color: "var(--primary)",
-                fontSize: "0.825rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.45rem",
-                marginBottom: "0.85rem",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <span>📋</span>
-              <span>Lihat Jadwal & Daftar Mata Kuliah Pilihan</span>
-            </button>
 
             {studentInfo.pesan_admin && (
               <div

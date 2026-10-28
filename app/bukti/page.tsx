@@ -248,7 +248,7 @@ export default function BuktiPage() {
               <strong style={{ color: "#0f172a", textAlign: "right" }}>{mahasiswa.nama}</strong>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-muted)" }}>Kelas Tetap</span>
+              <span style={{ color: "var(--text-muted)" }}>Kelas</span>
               <span style={{ fontWeight: 600 }}>{mahasiswa.kelas || "-"}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -257,6 +257,47 @@ export default function BuktiPage() {
                 {pendaftaran.waktu_daftar ? new Date(pendaftaran.waktu_daftar).toLocaleString("id-ID") : "-"}
               </span>
             </div>
+          </div>
+
+          {/* Tombol Cetak & Navigasi Tepat di Bawah Identitas Diri Mahasiswa */}
+          <div
+            style={{
+              display: "flex",
+              gap: "0.6rem",
+              marginBottom: "1.25rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handlePrint}
+              style={{
+                flex: 1,
+                minWidth: 140,
+                fontWeight: 700,
+                padding: "0.7rem 1rem",
+                minHeight: 44,
+                fontSize: "0.85rem",
+                justifyContent: "center",
+              }}
+            >
+              📄 Cetak Bukti (A4 / PDF)
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleBackToHome}
+              style={{
+                fontWeight: 600,
+                padding: "0.7rem 1rem",
+                minHeight: 44,
+                fontSize: "0.85rem",
+                justifyContent: "center",
+              }}
+            >
+              Halaman Awal
+            </button>
           </div>
 
           {/* Daftar Kartu Pilihan Terpilih */}
@@ -438,7 +479,7 @@ export default function BuktiPage() {
             <strong>{mahasiswa.nim}</strong>
           </div>
           <div>
-            <span style={{ color: "#64748b", display: "inline-block", width: 110 }}>Kelas Tetap:</span>
+            <span style={{ color: "#64748b", display: "inline-block", width: 110 }}>Kelas:</span>
             <strong>{mahasiswa.kelas || "-"}</strong>
           </div>
           <div>

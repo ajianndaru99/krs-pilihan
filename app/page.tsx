@@ -698,7 +698,7 @@ export default function StudentPage() {
       return;
     }
     if (offering.bentrok_kelas) {
-      showPopup("danger", "Bentrok Jadwal Kelas Tetap", `Mata kuliah "${offering.nama}" bentrok dengan jadwal kelas tetap Anda.`);
+      showPopup("danger", "Bentrok Jadwal Kelas", `Mata kuliah "${offering.nama}" bentrok dengan jadwal kelas Anda.`);
       return;
     }
     const clash = findClashBetweenOfferings(offering, selectedItems);
@@ -1153,7 +1153,36 @@ export default function StudentPage() {
                 📄 Lihat Tanda Bukti KRS Anda
               </button>
 
-              {registeredData.status_kendala === "pending" ? (
+              {registeredData.status_kendala === "rejected" ? (
+                <div
+                  style={{
+                    padding: "0.85rem 1rem",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "#fef2f2",
+                    border: "1.5px solid #f87171",
+                    color: "#991b1b",
+                    fontSize: "0.825rem",
+                    textAlign: "center",
+                    fontWeight: 700,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem", marginBottom: "0.2rem" }}>
+                    <span>⛔</span>
+                    <span>Laporan Kendala Ditolak Admin</span>
+                  </div>
+                  <div style={{ fontSize: "0.775rem", fontWeight: 500, color: "#7f1d1d" }}>
+                    {registeredData.pesan_admin ? (
+                      <span>Alasan Penolakan: &ldquo;{registeredData.pesan_admin}&rdquo;</span>
+                    ) : (
+                      <span>Laporan kendala Anda telah ditolak oleh Admin Akademik. Keputusan admin bersifat final.</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: "0.72rem", color: "#991b1b", marginTop: "0.35rem", opacity: 0.85 }}>
+                    Tidak dapat mengajukan laporan kendala kembali.
+                  </div>
+                </div>
+              ) : registeredData.status_kendala === "pending" ? (
                 <div
                   style={{
                     padding: "0.75rem 1rem",
@@ -1212,23 +1241,25 @@ export default function StudentPage() {
         </div>
       )}
 
-      <footer
-        style={{
-          marginTop: "3rem",
-          paddingTop: "1.5rem",
-          borderTop: "1px solid var(--border-color)",
-          textAlign: "center",
-          fontSize: "0.8rem",
-          color: "var(--text-muted)",
-        }}
-      >
-        <p>
-          Institut Pertanian STIPER (INSTIPER) Yogyakarta — Fakultas Pertanian
-        </p>
-        <p style={{ fontSize: "0.75rem", color: "var(--text-light)", marginTop: "0.25rem" }}>
-          Sistem Informasi Pemilihan KRS Pilihan & Proyek Semester
-        </p>
-      </footer>
+      {phase !== "select" && (
+        <footer
+          style={{
+            marginTop: "3rem",
+            paddingTop: "1.5rem",
+            borderTop: "1px solid var(--border-color)",
+            textAlign: "center",
+            fontSize: "0.8rem",
+            color: "var(--text-muted)",
+          }}
+        >
+          <p>
+            Institut Pertanian STIPER (INSTIPER) Yogyakarta — Fakultas Pertanian
+          </p>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-light)", marginTop: "0.25rem" }}>
+            Sistem Informasi Pemilihan KRS Pilihan & Proyek Semester
+          </p>
+        </footer>
+      )}
     </div>
     </>
   );

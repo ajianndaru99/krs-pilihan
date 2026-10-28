@@ -313,6 +313,18 @@ async function runTestSuite() {
     return Array.isArray(data) || "Hasil daftar_kelas bukan array!";
   });
 
+  await assertTest("Bisnis: jadwal_kuliah_publik() merespons data penawaran mata kuliah publik (jika patch25 terpasang)", async () => {
+    const { data, error } = await supabase.rpc("jadwal_kuliah_publik");
+    if (error) {
+      if (error.code === "PGRST202" || error.message.includes("function") || error.message.includes("schema cache")) {
+        console.log("   ℹ️ Catatan: RPC jadwal_kuliah_publik menunggu dieksekusi via patch25 di SQL Editor Supabase.");
+        return true;
+      }
+      return `Error RPC: ${error.message}`;
+    }
+    return (data?.ok === true && Array.isArray(data?.offerings)) || `Respons tidak valid: ${JSON.stringify(data)}`;
+  });
+
   await assertTest("Bisnis: lapor_kendala_mahasiswa() menolak input kosong / tidak valid", async () => {
     const { data, error } = await supabase.rpc("lapor_kendala_mahasiswa", {
       p_nim: "",

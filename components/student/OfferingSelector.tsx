@@ -110,7 +110,7 @@ export function OfferingSelector({
   const fullCount = offerings.filter((o) => o.sisa <= 0).length;
 
   return (
-    <div className="has-mobile-bottom-bar" style={{ paddingBottom: "6rem" }}>
+    <div className="has-mobile-bottom-bar" style={{ paddingBottom: "4.5rem" }}>
       {/* 1. STICKY TOP CONTROLLER (Foto 1: HANYA Countdown Waktu, Pilihan Kelas, Cari & Kuota Tersedia/Penuh) */}
       <div
         className="card"
@@ -563,16 +563,17 @@ export function OfferingSelector({
 
                     <span
                       style={{
-                        fontSize: "0.7rem",
-                        fontWeight: 700,
-                        padding: "2px 6px",
+                        fontSize: "0.725rem",
+                        fontWeight: 800,
+                        padding: "3px 8px",
                         borderRadius: "var(--radius-sm)",
                         backgroundColor: isFull ? "#fef2f2" : "#f0fdf4",
-                        color: isFull ? "#dc2626" : "var(--success)",
-                        border: `1px solid ${isFull ? "#fecaca" : "#bbf7d0"}`,
+                        color: isFull ? "#dc2626" : "#047857",
+                        border: `1px solid ${isFull ? "#fecaca" : "#86efac"}`,
+                        letterSpacing: "0.01em",
                       }}
                     >
-                      {isFull ? "KUOTA PENUH" : `Sisa: ${item.sisa}/${item.kuota}`}
+                      {isFull ? `🚫 KUOTA PENUH (0 dari ${item.kuota} Kursi)` : `👥 Sisa Kuota: ${item.sisa} dari ${item.kuota} Kursi`}
                     </span>
 
                     {hasClashWithClass && (
@@ -824,11 +825,10 @@ export function OfferingSelector({
           left: 0,
           right: 0,
           zIndex: 999,
-          backgroundColor: "rgba(255, 255, 255, 0.98)",
-          backdropFilter: "blur(12px)",
+          backgroundColor: "#ffffff",
           borderTop: "1.5px solid var(--primary-border)",
           padding: "0.65rem 1rem",
-          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.08)",
+          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.12)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -871,22 +871,25 @@ export function OfferingSelector({
         <div style={{ display: "flex", gap: "0.45rem", alignItems: "center" }}>
           <button
             type="button"
-            className="btn btn-secondary"
             onClick={() => setShowDropUp(!showDropUp)}
             style={{
               minHeight: 44,
-              padding: "0.55rem 0.95rem",
-              fontSize: "0.825rem",
-              fontWeight: 700,
-              backgroundColor: showDropUp ? "var(--primary-light)" : "#ffffff",
-              color: showDropUp ? "var(--primary)" : "var(--text-main)",
+              padding: "0.55rem 1rem",
+              fontSize: "0.85rem",
+              fontWeight: 800,
+              backgroundColor: showDropUp ? "#059669" : "#ecfdf5",
+              color: showDropUp ? "#ffffff" : "#047857",
+              border: "1.5px solid #059669",
+              borderRadius: "var(--radius-md)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               textAlign: "center",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
           >
-            {showDropUp ? "Tutup" : "Periksa"}
+            {showDropUp ? "✕ Tutup" : "👁️ Periksa"}
           </button>
 
           <button
