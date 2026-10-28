@@ -59,9 +59,8 @@ export function ScheduleOverviewModal({ isOpen, onClose }: ScheduleOverviewModal
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       const matchName = item.nama.toLowerCase().includes(q);
-      const matchTopik = item.topik?.toLowerCase().includes(q);
       const matchKelas = item.kelas?.toLowerCase().includes(q);
-      return matchName || matchTopik || matchKelas;
+      return matchName || matchKelas;
     }
 
     return true;
@@ -237,26 +236,23 @@ export function ScheduleOverviewModal({ isOpen, onClose }: ScheduleOverviewModal
                   gap: "0.35rem",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
-                  <div>
-                    <span
-                      style={{
-                        fontSize: "0.65rem",
-                        fontWeight: 800,
-                        padding: "1px 6px",
-                        borderRadius: "var(--radius-full, 9999px)",
-                        backgroundColor: item.jenis === "proyek" ? "#fef3c7" : "var(--primary-light, #ecfdf5)",
-                        color: item.jenis === "proyek" ? "#92400e" : "var(--primary)",
-                        marginRight: "6px",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {item.jenis === "proyek" ? "PROYEK" : `KELAS ${item.kelas || "-"}`}
-                    </span>
-                    <strong style={{ fontSize: "0.875rem", color: "var(--text-main)" }}>
-                      {item.nama}
-                    </strong>
-                  </div>
+                {/* Baris Atas: Badge Kelas & Kuota Ringkas Sejajar */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      fontWeight: 800,
+                      padding: "2px 8px",
+                      borderRadius: "var(--radius-full, 9999px)",
+                      backgroundColor: item.jenis === "proyek" ? "#fef3c7" : "var(--primary-light, #ecfdf5)",
+                      color: item.jenis === "proyek" ? "#92400e" : "var(--primary)",
+                      textTransform: "uppercase",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.jenis === "proyek" ? "PROYEK" : `KELAS ${item.kelas || "-"}`}
+                  </span>
                   <div
                     style={{
                       fontSize: "0.725rem",
@@ -266,17 +262,17 @@ export function ScheduleOverviewModal({ isOpen, onClose }: ScheduleOverviewModal
                       padding: "2px 8px",
                       borderRadius: "var(--radius-full, 9999px)",
                       whiteSpace: "nowrap",
+                      flexShrink: 0,
                     }}
                   >
-                    Kapasitas: {item.kuota} Mahasiswa
+                    Kuota: {item.kuota} Mhs
                   </div>
                 </div>
 
-                {item.topik && (
-                  <div style={{ fontSize: "0.775rem", color: "var(--text-muted)" }}>
-                    Topik: <em>{item.topik}</em>
-                  </div>
-                )}
+                {/* Nama Mata Kuliah Mandiri - Bebas Wrap Tanpa Mendesak Badge */}
+                <strong style={{ fontSize: "0.9rem", color: "var(--text-main)", lineHeight: 1.35, marginTop: "2px" }}>
+                  {item.nama}
+                </strong>
 
                 {/* Jadwal Kuliah */}
                 {item.jadwal && item.jadwal.length > 0 && (

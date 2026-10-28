@@ -728,7 +728,6 @@ export default function StudentPage() {
       return {
         label: `Pilihan #${idx + 1} • ${item.jenis === "matkul" ? "Mata Kuliah" : "Proyek Terapan"}`,
         value: item.nama,
-        subValue: item.topik ? `Topik: ${item.topik}` : undefined,
         schedule: scheduleText,
       };
     });

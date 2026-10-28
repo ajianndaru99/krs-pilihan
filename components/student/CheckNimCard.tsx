@@ -329,25 +329,25 @@ export function CheckNimCard({
               </div>
             </div>
 
-            {/* Informasi & Peringatan Terpadu 1 Kolom */}
+            {/* Peringatan Waktu & Jadwal Merah Jelas */}
             <div
               style={{
-                backgroundColor: "#fffbeb",
-                border: "1.5px solid #fcd34d",
+                backgroundColor: "#fef2f2",
+                border: "1.5px solid #ef4444",
                 borderRadius: "var(--radius-lg)",
                 padding: "0.85rem 1rem",
                 marginBottom: "1rem",
                 fontSize: "0.825rem",
-                color: "#92400e",
+                color: "#991b1b",
                 lineHeight: 1.5,
               }}
             >
-              <div style={{ fontWeight: 800, marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                <span>⏱️</span>
-                <span>Peringatan Waktu & Jadwal Kuliah:</span>
+              <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.35rem", color: "#dc2626" }}>
+                <span>⚠️</span>
+                <span>PERHATIAN!</span>
               </div>
               <div>
-                Jangan terlalu lama untuk memilih matkul karena sesi memiliki batas waktu aktif otomatis demi keadilan kuota. Jika belum tahu jadwalnya, silakan cek{" "}
+                Dimohon tidak lama dalam memilih, jika sudah ada antrian sistem akan ada maksimal waktu 5 MENIT!, cek jadwal lengkap dulu{" "}
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(true)}
@@ -356,7 +356,7 @@ export function CheckNimCard({
                     border: "none",
                     padding: 0,
                     margin: 0,
-                    color: "var(--primary)",
+                    color: "#dc2626",
                     fontWeight: 800,
                     textDecoration: "underline",
                     cursor: "pointer",
@@ -364,13 +364,13 @@ export function CheckNimCard({
                     fontSize: "inherit",
                   }}
                 >
-                  Jadwal Mata Kuliah Pilihan berikut
+                  dilink berikut!
                 </button>
-                .
               </div>
             </div>
 
-            {studentInfo.pesan_admin && (
+            {/* Catatan Admin HANYA muncul jika laporan kendala ditolak (rejected) */}
+            {studentInfo.status_kendala === "rejected" && studentInfo.pesan_admin && (
               <div
                 style={{
                   padding: "0.8rem 1rem",

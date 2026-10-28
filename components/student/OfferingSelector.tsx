@@ -843,27 +843,19 @@ export function OfferingSelector({
         >
           <div
             style={{
-              fontSize: "0.68rem",
-              fontWeight: 700,
-              color: "var(--text-muted)",
-              textTransform: "uppercase",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
-            <span>TOTAL DIPILIH: {selectedIds.length} / {needMatkul + needProyek}</span>
-            <span style={{ fontSize: "0.65rem", color: "var(--primary)" }}>{showDropUp ? "▼" : "▲"}</span>
-          </div>
-          <div
-            style={{
-              fontSize: "0.85rem",
+              fontSize: "0.875rem",
               fontWeight: 800,
               color: isCompositionValid ? "var(--success)" : "var(--primary)",
-              lineHeight: 1.2,
+              lineHeight: 1.25,
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
             }}
           >
-            {`${matkulSelected}/${needMatkul} Matkul, ${proyekSelected}/${needProyek} Proyek`}
+            <span>{`${matkulSelected}/${needMatkul} Matkul & ${proyekSelected}/${needProyek} Proyek`}</span>
+            <span style={{ fontSize: "0.7rem", color: isCompositionValid ? "var(--success)" : "var(--primary)" }}>
+              {showDropUp ? "▼" : "▲"}
+            </span>
           </div>
         </div>
 
