@@ -130,17 +130,8 @@ BEGIN
     END IF;
 
     -- 6. Simpan seluruh pendaftaran
-    INSERT INTO public.registrations (nim, offering_id, registered_at)
-    SELECT v_student.nim, unnest(p_offering_ids), now();
-
-    -- Perbarui counter terisi di tabel offerings
-    UPDATE public.offerings o
-    SET terisi = (
-        SELECT count(*)::INT 
-        FROM public.registrations r 
-        WHERE r.offering_id = o.id
-    )
-    WHERE o.id = ANY(p_offering_ids);
+    INSERT INTO public.registrations (nim, offering_id)
+    SELECT v_student.nim, unnest(p_offering_ids);
 
     -- Tandai mahasiswa sudah menyelesaikan pendaftaran
     UPDATE public.students

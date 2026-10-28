@@ -87,20 +87,7 @@ INSERT INTO public.offerings (id, nama, kelas, jenis, kuota) VALUES
 -- Sinkronkan sequence id
 SELECT setval('public.offerings_id_seq', 35);
 
--- 4. INSERT PENDAFTAR DUMMY UNTUK KELAS PENUH (Agar sisa kursi dihitung konsisten)
--- Offering Penuh (id 3, 7, 16): Literasi C, Ekonomi C, Biofuel D
-INSERT INTO public.registrations (nim, offering_id, registered_at)
-SELECT 'DUMMY_' || o.id || '_' || gs, o.id, now()
-FROM public.offerings o
-CROSS JOIN generate_series(1, o.kuota) gs
-WHERE o.id IN (3, 7, 16);
-
--- Offering Literasi D (id 4, kuota 21, terisi 18, sisa 3)
-INSERT INTO public.registrations (nim, offering_id, registered_at)
-SELECT 'DUMMY_4_' || gs, 4, now()
-FROM generate_series(1, 18) gs;
-
--- 5. JADWAL PERKULIAHAN (SCHEDULES) UNTUK SETIAP KELAS
+-- 4. JADWAL PERKULIAHAN (SCHEDULES) UNTUK SETIAP KELAS
 INSERT INTO public.schedules (offering_id, hari, jam_mulai, jam_selesai, ruang) VALUES
 -- Literasi
 (1, 'Senin', '08:00:00', '09:40:00', 'R. Literasi 1'),
