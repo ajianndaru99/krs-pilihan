@@ -1279,9 +1279,15 @@ export default function StudentPage() {
                     lineHeight: 1.4,
                   }}
                 >
-                  <span>⏳ Laporan Kendala Anda Sedang Ditinjau Admin</span>
+                  <span>
+                    {registeredData.pesan_admin
+                      ? "⏳ Laporan Kendala Dalam Peninjauan (Admin Telah Membalas)"
+                      : "⏳ Laporan Kendala Anda Sedang Ditinjau Admin"}
+                  </span>
                   <div style={{ fontSize: "0.75rem", fontWeight: 500, marginTop: "2px", opacity: 0.9 }}>
-                    Mohon menunggu tanggapan admin sebelum mengirim laporan baru.
+                    {registeredData.pesan_admin
+                      ? "Silakan periksa catatan balasan Admin Akademik di atas."
+                      : "Mohon menunggu tanggapan admin sebelum mengirim laporan baru."}
                   </div>
                 </div>
               ) : (

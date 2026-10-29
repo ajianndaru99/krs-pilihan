@@ -370,8 +370,8 @@ export function CheckNimCard({
               </div>
             </div>
 
-            {/* Catatan Admin HANYA muncul jika laporan kendala ditolak (rejected) */}
-            {studentInfo.status_kendala === "rejected" && studentInfo.pesan_admin && (
+            {/* Catatan Admin muncul jika ada balasan pada laporan kendala yang masih ditinjau (pending) atau ditolak (rejected) */}
+            {studentInfo.status_kendala !== "resolved" && studentInfo.pesan_admin && (
               <div
                 style={{
                   padding: "0.8rem 1rem",
