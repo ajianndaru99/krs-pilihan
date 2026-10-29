@@ -1166,57 +1166,6 @@ export default function StudentPage() {
               </p>
             </div>
 
-            {/* Kotak Balasan / Catatan Admin Jika Ada */}
-            {registeredData.pesan_admin && (
-              <div
-                style={{
-                  backgroundColor: "#eff6ff",
-                  border: "1.5px solid #93c5fd",
-                  borderRadius: "var(--radius-lg)",
-                  padding: "0.85rem 1rem",
-                  marginBottom: "1rem",
-                  textAlign: "left",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    fontWeight: 800,
-                    fontSize: "0.85rem",
-                    color: "#1e40af",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  <span>💬</span>
-                  <span>Balasan / Catatan Admin Akademik:</span>
-                </div>
-                <div style={{ fontSize: "0.875rem", color: "#1e3a8a", lineHeight: 1.45, fontWeight: 600 }}>
-                  &ldquo;{registeredData.pesan_admin}&rdquo;
-                </div>
-              </div>
-            )}
-
-            <div
-              style={{
-                backgroundColor: "var(--bg-subtle)",
-                borderRadius: "var(--radius-md)",
-                padding: "0.85rem 1rem",
-                marginBottom: "1.25rem",
-                border: "1px solid var(--border-color)",
-                fontSize: "0.825rem",
-              }}
-            >
-              <div style={{ fontWeight: 700, color: "var(--text-main)", marginBottom: "0.3rem" }}>
-                Pilihan Tindakan Anda:
-              </div>
-              <ul style={{ margin: 0, paddingLeft: "1.2rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                <li>Melihat dan mencetak lembar Tanda Bukti Pemilihan Anda.</li>
-                <li>Jika terjadi salah pilih atau kendala mendesak, ajukan perbaikan langsung ke Admin Akademik.</li>
-              </ul>
-            </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <button
                 type="button"
@@ -1239,30 +1188,36 @@ export default function StudentPage() {
               {registeredData.status_kendala === "rejected" ? (
                 <div
                   style={{
-                    padding: "0.85rem 1rem",
+                    padding: "0.9rem 1rem",
                     borderRadius: "var(--radius-md)",
                     backgroundColor: "#fef2f2",
                     border: "1.5px solid #f87171",
                     color: "#991b1b",
                     fontSize: "0.825rem",
-                    textAlign: "center",
-                    fontWeight: 700,
+                    textAlign: "left",
                     lineHeight: 1.45,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem", marginBottom: "0.2rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontWeight: 800, marginBottom: "0.35rem", color: "#b91c1c" }}>
                     <span>⛔</span>
                     <span>Laporan Kendala Ditolak Admin</span>
                   </div>
-                  <div style={{ fontSize: "0.775rem", fontWeight: 500, color: "#7f1d1d" }}>
-                    {registeredData.pesan_admin ? (
-                      <span>Alasan Penolakan: &ldquo;{registeredData.pesan_admin}&rdquo;</span>
-                    ) : (
-                      <span>Laporan kendala Anda telah ditolak oleh Admin Akademik. Keputusan admin bersifat final.</span>
-                    )}
+                  <div
+                    style={{
+                      fontSize: "0.825rem",
+                      fontWeight: 600,
+                      color: "#7f1d1d",
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #fecaca",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "0.55rem 0.75rem",
+                      marginBottom: "0.4rem",
+                    }}
+                  >
+                    💬 Balasan Admin: &ldquo;{registeredData.pesan_admin || "Laporan kendala Anda telah ditolak oleh Admin Akademik."}&rdquo;
                   </div>
-                  <div style={{ fontSize: "0.72rem", color: "#991b1b", marginTop: "0.35rem", opacity: 0.85 }}>
-                    Tidak dapat mengajukan laporan kendala kembali.
+                  <div style={{ fontSize: "0.725rem", color: "#991b1b", opacity: 0.9 }}>
+                    Keputusan admin bersifat final dan tidak dapat mengajukan laporan kendala kembali.
                   </div>
                 </div>
               ) : registeredData.status_kendala === "pending" ? (
@@ -1279,15 +1234,9 @@ export default function StudentPage() {
                     lineHeight: 1.4,
                   }}
                 >
-                  <span>
-                    {registeredData.pesan_admin
-                      ? "⏳ Laporan Kendala Dalam Peninjauan (Admin Telah Membalas)"
-                      : "⏳ Laporan Kendala Anda Sedang Ditinjau Admin"}
-                  </span>
+                  <span>⏳ Laporan Kendala Anda Sedang Ditinjau Admin</span>
                   <div style={{ fontSize: "0.75rem", fontWeight: 500, marginTop: "2px", opacity: 0.9 }}>
-                    {registeredData.pesan_admin
-                      ? "Silakan periksa catatan balasan Admin Akademik di atas."
-                      : "Mohon menunggu tanggapan admin sebelum mengirim laporan baru."}
+                    Mohon menunggu tanggapan admin sebelum mengirim laporan baru.
                   </div>
                 </div>
               ) : (

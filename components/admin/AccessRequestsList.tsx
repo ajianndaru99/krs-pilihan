@@ -49,7 +49,13 @@ export function AccessRequestsList({
 
   const openModal = (type: "approve" | "reject" | "reply", item: AdminPengajuanItem) => {
     setActiveModal({ isOpen: true, type, item });
-    setCatatanInput(item.catatan_admin || "");
+    setCatatanInput(
+      type === "reply"
+        ? item.catatan_admin || ""
+        : type === "approve"
+        ? item.catatan_admin || "Pengajuan akses Anda telah disetujui oleh Admin Akademik. Silakan masuk ke antrian untuk memilih mata kuliah."
+        : "Pengajuan akses ditolak. Silakan datang langsung ke Loket Admin FAPERTA."
+    );
     setErrorMsg("");
   };
 
@@ -194,7 +200,7 @@ export function AccessRequestsList({
                     )}
                   </td>
                   <td style={{ padding: "8px 10px", fontSize: "0.8rem" }}>
-                    {item.catatan_admin ? (
+                    {item.status !== "pending" && item.catatan_admin ? (
                       <div
                         style={{
                           backgroundColor: "#f8fafc",
@@ -208,7 +214,9 @@ export function AccessRequestsList({
                         {item.catatan_admin}
                       </div>
                     ) : (
-                      <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Belum ada balasan</span>
+                      <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+                        {item.status === "pending" ? "Menunggu tindakan (Setujui / Tolak)" : "Belum ada balasan"}
+                      </span>
                     )}
                   </td>
                   <td style={{ padding: "8px 10px" }}>
@@ -260,15 +268,6 @@ export function AccessRequestsList({
                             title="Tolak pengajuan akses mahasiswa"
                           >
                             ✕ Tolak
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            style={{ fontSize: "0.725rem", padding: "3px 7px" }}
-                            onClick={() => openModal("reply", item)}
-                            title="Beri balasan pesan kepada mahasiswa"
-                          >
-                            💬 Balas
                           </button>
                         </>
                       )}

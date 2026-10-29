@@ -64,12 +64,11 @@ export function ComplaintManager({
   const openModal = (type: "reset_and_batal" | "reject" | "reply", item: StudentComplaintItem) => {
     setActiveModal({ isOpen: true, type, item });
     setCatatanInput(
-      item.catatan_admin ||
-        (type === "reset_and_batal"
-          ? "Pendaftaran berhasil direset oleh admin. Silakan login kembali untuk memilih KRS."
-          : type === "reject"
-          ? "Laporan kendala ditolak."
-          : "")
+      type === "reply"
+        ? item.catatan_admin || ""
+        : type === "reset_and_batal"
+        ? item.catatan_admin || "Pendaftaran KRS Anda telah direset oleh Admin. Silakan masuk kembali untuk memilih ulang mata kuliah."
+        : "Laporan kendala ditolak oleh Admin Akademik."
     );
     setModalError("");
   };
@@ -84,12 +83,14 @@ export function ComplaintManager({
     e.preventDefault();
     if (!activeModal.item) return;
 
-    if (activeModal.type === "reject" && !catatanInput.trim()) {
-      setModalError("Alasan penolakan kendala wajib diisi agar mahasiswa paham.");
-      return;
-    }
-    if (activeModal.type === "reply" && !catatanInput.trim()) {
-      setModalError("Pesan balasan admin tidak boleh kosong.");
+    if (!catatanInput.trim()) {
+      setModalError(
+        activeModal.type === "reset_and_batal"
+          ? "Balasan admin saat mereset KRS wajib diisi agar mahasiswa mengetahui tindak lanjutnya."
+          : activeModal.type === "reject"
+          ? "Alasan penolakan / balasan kendala wajib diisi agar mahasiswa paham."
+          : "Pesan balasan admin tidak boleh kosong."
+      );
       return;
     }
 
@@ -97,16 +98,16 @@ export function ComplaintManager({
     setModalError("");
     try {
       if (activeModal.type === "reset_and_batal" || activeModal.type === "reject") {
-        await onResolveComplaint(activeModal.item.id, activeModal.type, catatanInput.trim() || undefined);
+        await onResolveComplaint(activeModal.item.id, activeModal.type, catatanInput.trim());
         if (activeModal.type === "reset_and_batal") {
-          onSuccess(`Pendaftaran untuk ${activeModal.item.nama} (${activeModal.item.nim}) berhasil direset. Mahasiswa kini dapat memilih ulang.`);
+          onSuccess(`Pendaftaran untuk ${activeModal.item.nama} (${activeModal.item.nim}) berhasil direset beserta pesan balasan admin.`);
         } else {
-          onSuccess(`Laporan untuk ${activeModal.item.nama} (${activeModal.item.nim}) telah ditandai ditolak.`);
+          onSuccess(`Laporan untuk ${activeModal.item.nama} (${activeModal.item.nim}) telah ditolak beserta pesan balasan admin.`);
         }
       } else if (activeModal.type === "reply") {
         if (onReplyComplaint) {
           await onReplyComplaint(activeModal.item.id, catatanInput.trim());
-          onSuccess(`Pesan balasan untuk ${activeModal.item.nama} berhasil disimpan.`);
+          onSuccess(`Pesan balasan untuk ${activeModal.item.nama} berhasil diperbarui.`);
         } else {
           await onResolveComplaint(activeModal.item.id, "reject", catatanInput.trim());
         }
@@ -297,7 +298,7 @@ export function ComplaintManager({
                       </div>
                     </td>
                     <td style={{ padding: "10px 10px", fontSize: "0.8rem" }}>
-                      {item.catatan_admin ? (
+                      {!isPending && item.catatan_admin ? (
                         <div
                           style={{
                             backgroundColor: "#f8fafc",
@@ -311,7 +312,9 @@ export function ComplaintManager({
                           {item.catatan_admin}
                         </div>
                       ) : (
-                        <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Belum ada balasan</span>
+                        <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+                          {isPending ? "Menunggu tindakan (Reset / Tolak)" : "Belum ada balasan"}
+                        </span>
                       )}
                     </td>
                     <td style={{ padding: "10px 10px", fontSize: "0.8rem" }}>
@@ -370,29 +373,20 @@ export function ComplaintManager({
                             <button
                               type="button"
                               className="btn btn-sm btn-primary"
-                              style={{ padding: "3px 6px", fontSize: "0.725rem" }}
+                              style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                               onClick={() => openModal("reset_and_batal", item)}
-                              title="Setujui dan batalkan pendaftaran agar mahasiswa bisa memilih ulang"
+                              title="Setujui reset KRS dan kirim balasan ke mahasiswa"
                             >
                               Reset KRS
                             </button>
                             <button
                               type="button"
                               className="btn btn-sm btn-danger"
-                              style={{ padding: "3px 6px", fontSize: "0.725rem" }}
+                              style={{ padding: "4px 8px", fontSize: "0.75rem" }}
                               onClick={() => openModal("reject", item)}
-                              title="Tolak laporan kendala"
+                              title="Tolak laporan kendala dan kirim alasan ke mahasiswa"
                             >
                               Tolak
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-secondary"
-                              style={{ padding: "3px 6px", fontSize: "0.725rem" }}
-                              onClick={() => openModal("reply", item)}
-                              title="Balas pesan kendala mahasiswa"
-                            >
-                              Balas
                             </button>
                           </>
                         )}
@@ -404,7 +398,7 @@ export function ComplaintManager({
                             onClick={() => openModal("reply", item)}
                             title="Ubah pesan balasan admin"
                           >
-                            💬 Ubah Pesan
+                            💬 Ubah Balasan
                           </button>
                         )}
                       </div>
@@ -514,10 +508,10 @@ export function ComplaintManager({
               <div className="form-group" style={{ marginBottom: "1rem" }}>
                 <label className="form-label" style={{ fontSize: "0.825rem", fontWeight: 700 }}>
                   {activeModal.type === "reset_and_batal"
-                    ? "Catatan Balasan Admin untuk Mahasiswa (Opsional):"
+                    ? "Balasan Admin untuk Mahasiswa (Wajib — Tampil Saat Cek NIM):"
                     : activeModal.type === "reject"
-                    ? "Alasan Penolakan untuk Mahasiswa (Wajib):"
-                    : "Pesan Balasan Admin (Akan Muncul Saat Mahasiswa Cek NIM):"}
+                    ? "Balasan / Alasan Penolakan untuk Mahasiswa (Wajib):"
+                    : "Ubah Pesan Balasan Admin:"}
                 </label>
                 <textarea
                   className="form-control"

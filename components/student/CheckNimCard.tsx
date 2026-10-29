@@ -370,25 +370,94 @@ export function CheckNimCard({
               </div>
             </div>
 
-            {/* Catatan Admin muncul jika ada balasan pada laporan kendala yang masih ditinjau (pending) atau ditolak (rejected) */}
-            {studentInfo.status_kendala !== "resolved" && studentInfo.pesan_admin && (
+            {/* Status & Balasan Kendala dari Admin (Reset KRS / Ditolak / Menunggu) */}
+            {studentInfo.status_kendala === "resolved" && studentInfo.pesan_admin && (
               <div
                 style={{
-                  padding: "0.8rem 1rem",
+                  padding: "0.85rem 1rem",
                   borderRadius: "var(--radius-lg)",
-                  backgroundColor: "#eff6ff",
-                  border: "1.5px solid #93c5fd",
-                  color: "#1e40af",
+                  backgroundColor: "#ecfdf5",
+                  border: "1.5px solid #6ee7b7",
+                  color: "#065f46",
                   fontSize: "0.825rem",
                   marginBottom: "1.25rem",
                   lineHeight: 1.45,
                 }}
               >
-                <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "5px" }}>
-                  <span>💬</span>
-                  <span>Catatan dari Admin Akademik:</span>
+                <div style={{ fontWeight: 800, marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: "6px", color: "#047857" }}>
+                  <span>✅</span>
+                  <span>Pendaftaran KRS Telah Direset Admin</span>
                 </div>
-                <div>{studentInfo.pesan_admin}</div>
+                <div
+                  style={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #a7f3d0",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "0.5rem 0.7rem",
+                    fontWeight: 600,
+                    color: "#064e3b",
+                    marginBottom: "0.3rem",
+                  }}
+                >
+                  💬 Balasan Admin: &ldquo;{studentInfo.pesan_admin}&rdquo;
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "#047857" }}>
+                  Silakan tekan tombol <strong>Masuk Antrian</strong> di bawah untuk memilih ulang mata kuliah.
+                </div>
+              </div>
+            )}
+
+            {studentInfo.status_kendala === "rejected" && studentInfo.pesan_admin && (
+              <div
+                style={{
+                  padding: "0.85rem 1rem",
+                  borderRadius: "var(--radius-lg)",
+                  backgroundColor: "#fef2f2",
+                  border: "1.5px solid #f87171",
+                  color: "#991b1b",
+                  fontSize: "0.825rem",
+                  marginBottom: "1.25rem",
+                  lineHeight: 1.45,
+                }}
+              >
+                <div style={{ fontWeight: 800, marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: "6px", color: "#b91c1c" }}>
+                  <span>⛔</span>
+                  <span>Laporan Kendala Ditolak Admin</span>
+                </div>
+                <div
+                  style={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #fecaca",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "0.5rem 0.7rem",
+                    fontWeight: 600,
+                    color: "#7f1d1d",
+                  }}
+                >
+                  💬 Balasan Admin: &ldquo;{studentInfo.pesan_admin}&rdquo;
+                </div>
+              </div>
+            )}
+
+            {studentInfo.status_kendala === "pending" && (
+              <div
+                style={{
+                  padding: "0.75rem 1rem",
+                  borderRadius: "var(--radius-lg)",
+                  backgroundColor: "#fffbeb",
+                  border: "1.5px dashed #f59e0b",
+                  color: "#92400e",
+                  fontSize: "0.825rem",
+                  textAlign: "center",
+                  fontWeight: 700,
+                  marginBottom: "1.25rem",
+                  lineHeight: 1.4,
+                }}
+              >
+                <span>⏳ Laporan Kendala Anda Sedang Ditinjau Admin</span>
+                <div style={{ fontSize: "0.75rem", fontWeight: 500, marginTop: "2px", opacity: 0.9 }}>
+                  Mohon menunggu tanggapan admin sebelum mengirim laporan baru.
+                </div>
               </div>
             )}
 

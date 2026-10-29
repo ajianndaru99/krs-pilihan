@@ -483,8 +483,101 @@ GRANT EXECUTE ON FUNCTION public.ajukan_akses(TEXT, TEXT, TEXT, TEXT) TO anon, a
 GRANT EXECUTE ON FUNCTION public.ajukan_akses(TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
 
 -- ------------------------------------------------------------------------------
--- 4. PERBARUI cek_nim() AGAR BALASAN ADMIN TAMPIL SAAT KENDALA 'pending' & 'rejected'
+-- 4. PERBARUI admin_resolve_complaint() & cek_nim() (SINKRONISASI RESET & TOLAK)
 -- ------------------------------------------------------------------------------
+UPDATE public.student_complaints
+SET catatan_admin = NULL
+WHERE status = 'pending';
+
+UPDATE public.access_requests
+SET catatan_admin = NULL
+WHERE status = 'pending';
+
+CREATE OR REPLACE FUNCTION public.admin_resolve_complaint(
+    p_id INT,
+    p_action TEXT,
+    p_catatan TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_complaint RECORD;
+    v_clean_catatan TEXT := NULLIF(trim(COALESCE(p_catatan, '')), '');
+BEGIN
+    IF NOT public.is_admin() THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Akses ditolak: Hanya untuk akun administrator.');
+    END IF;
+
+    SELECT * INTO v_complaint FROM public.student_complaints WHERE id = p_id;
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Data laporan kendala tidak ditemukan.');
+    END IF;
+
+    IF p_action = 'reset_and_batal' THEN
+        DELETE FROM public.registrations WHERE nim = v_complaint.nim;
+        UPDATE public.students SET registered_at = NULL WHERE nim = v_complaint.nim;
+        DELETE FROM public.queue WHERE nim = v_complaint.nim;
+
+        UPDATE public.student_complaints
+        SET status = 'resolved',
+            catatan_admin = COALESCE(
+                v_clean_catatan,
+                'Pendaftaran KRS Anda telah direset oleh Admin. Silakan masuk kembali untuk memilih ulang mata kuliah.'
+            ),
+            resolved_at = now()
+        WHERE id = p_id;
+
+        INSERT INTO public.system_logs (level, event_type, nim, nama, pesan, detail)
+        VALUES (
+            'info',
+            'ADMIN_RESET_KENDALA',
+            v_complaint.nim,
+            v_complaint.nama,
+            format('Admin mereset KRS mahasiswa %s (%s) atas laporan kendala.', v_complaint.nama, v_complaint.nim),
+            jsonb_build_object('complaint_id', p_id, 'catatan_admin', v_clean_catatan)
+        );
+
+        RETURN jsonb_build_object(
+            'ok', true,
+            'message', format('Pendaftaran mahasiswa %s (%s) berhasil direset dan balasan telah dikirim.', v_complaint.nama, v_complaint.nim)
+        );
+
+    ELSIF p_action = 'reject' THEN
+        IF v_clean_catatan IS NULL THEN
+            RETURN jsonb_build_object('ok', false, 'error', 'Alasan penolakan / balasan untuk mahasiswa wajib diisi.');
+        END IF;
+
+        UPDATE public.student_complaints
+        SET status = 'rejected',
+            catatan_admin = v_clean_catatan,
+            resolved_at = now()
+        WHERE id = p_id;
+
+        INSERT INTO public.system_logs (level, event_type, nim, nama, pesan, detail)
+        VALUES (
+            'warning',
+            'ADMIN_TOLAK_KENDALA',
+            v_complaint.nim,
+            v_complaint.nama,
+            format('Admin menolak laporan kendala mahasiswa %s (%s).', v_complaint.nama, v_complaint.nim),
+            jsonb_build_object('complaint_id', p_id, 'catatan_admin', v_clean_catatan)
+        );
+
+        RETURN jsonb_build_object(
+            'ok', true,
+            'message', format('Laporan untuk mahasiswa %s (%s) telah ditolak beserta balasan admin.', v_complaint.nama, v_complaint.nim)
+        );
+    ELSE
+        RETURN jsonb_build_object('ok', false, 'error', 'Aksi tidak valid. Gunakan reset_and_batal atau reject.');
+    END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_resolve_complaint(INT, TEXT, TEXT) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.cek_nim(p_nim TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -499,6 +592,8 @@ DECLARE
     v_token TEXT := NULL;
     v_req RECORD;
     v_complaint RECORD;
+    v_status_kendala TEXT := NULL;
+    v_pesan_admin TEXT := NULL;
 BEGIN
     SELECT portal_open INTO v_portal_open FROM public.settings WHERE id = 1;
 
@@ -516,8 +611,8 @@ BEGIN
                     'ok', false,
                     'tipe_pesan', 'akses_pending',
                     'status_pengajuan', 'pending',
-                    'pesan_admin', NULLIF(trim(v_req.catatan_admin), ''),
-                    'error', COALESCE(NULLIF(trim(v_req.catatan_admin), ''), 'Pengajuan akses Anda masih menunggu verifikasi admin.')
+                    'pesan_admin', NULL,
+                    'error', 'Pengajuan akses Anda masih menunggu verifikasi Admin Akademik.'
                 );
             ELSIF v_req.status = 'rejected' THEN
                 RETURN jsonb_build_object(
@@ -551,6 +646,24 @@ BEGIN
     ORDER BY created_at DESC
     LIMIT 1;
 
+    IF v_complaint.id IS NOT NULL THEN
+        IF v_complaint.status = 'pending' THEN
+            v_status_kendala := 'pending';
+            v_pesan_admin := NULL;
+        ELSIF v_complaint.status = 'rejected' THEN
+            v_status_kendala := 'rejected';
+            v_pesan_admin := NULLIF(trim(v_complaint.catatan_admin), '');
+        ELSIF v_complaint.status = 'resolved' THEN
+            IF NOT v_sudah_daftar THEN
+                v_status_kendala := 'resolved';
+                v_pesan_admin := NULLIF(trim(v_complaint.catatan_admin), '');
+            ELSE
+                v_status_kendala := NULL;
+                v_pesan_admin := NULL;
+            END IF;
+        END IF;
+    END IF;
+
     RETURN jsonb_build_object(
         'ok', true,
         'nim', v_student.nim,
@@ -561,11 +674,9 @@ BEGIN
         'sudah_terdaftar', v_sudah_daftar,
         'token', v_token,
         'portal_open', COALESCE(v_portal_open, false),
-        'status_kendala', CASE WHEN v_complaint.id IS NOT NULL THEN v_complaint.status ELSE NULL END,
-        -- Catatan admin dikirimkan untuk status 'pending' (dibalas saat masih ditinjau) maupun 'rejected' (ditolak).
-        -- Jika sudah di-ACC/direset ('resolved'), jangan kirim catatan lama agar tampilan kembali bersih.
-        'pesan_admin', CASE WHEN v_complaint.id IS NOT NULL AND v_complaint.status IN ('pending', 'rejected') THEN NULLIF(trim(v_complaint.catatan_admin), '') ELSE NULL END,
-        'alasan_kendala', CASE WHEN v_complaint.id IS NOT NULL THEN v_complaint.alasan ELSE NULL END
+        'status_kendala', v_status_kendala,
+        'pesan_admin', v_pesan_admin,
+        'alasan_kendala', CASE WHEN v_status_kendala IS NOT NULL THEN v_complaint.alasan ELSE NULL END
     );
 END;
 $$;
