@@ -1086,35 +1086,39 @@ export default function StudentPage() {
         />
       )}
 
-      <AjukanAksesModal
-        isOpen={showAjukanModal}
-        onClose={() => setShowAjukanModal(false)}
-        kelasList={kelasList}
-        initialNim={nim}
-        onSuccess={(msg) => {
-          setShowAjukanModal(false);
-          showPopup("info", "Pengajuan Terkirim", msg);
-        }}
-        onError={(err) => {
-          setShowAjukanModal(false);
-          showPopup("danger", "Pengajuan Gagal", err);
-        }}
-      />
+      {!modalDialog.isOpen && (
+        <AjukanAksesModal
+          isOpen={showAjukanModal}
+          onClose={() => setShowAjukanModal(false)}
+          kelasList={kelasList}
+          initialNim={nim}
+          onSuccess={(msg) => {
+            setShowAjukanModal(false);
+            showPopup("info", "Pengajuan Terkirim", msg);
+          }}
+          onError={(err) => {
+            setShowAjukanModal(false);
+            showPopup("danger", "Pengajuan Gagal", err);
+          }}
+        />
+      )}
 
-      <LaporKendalaModal
-        isOpen={showLaporModal}
-        nim={registeredData?.nim || nim}
-        nama={registeredData?.nama || studentInfo?.nama_samar || ""}
-        onClose={() => setShowLaporModal(false)}
-        onSuccess={(msg) => {
-          setShowLaporModal(false);
-          showPopup("info", "Laporan Terkirim", msg);
-        }}
-        onError={(err) => {
-          setShowLaporModal(false);
-          showPopup("danger", "Gagal Mengirim Laporan", err);
-        }}
-      />
+      {!modalDialog.isOpen && (
+        <LaporKendalaModal
+          isOpen={showLaporModal}
+          nim={registeredData?.nim || nim}
+          nama={registeredData?.nama || studentInfo?.nama_samar || ""}
+          onClose={() => setShowLaporModal(false)}
+          onSuccess={(msg) => {
+            setShowLaporModal(false);
+            showPopup("info", "Laporan Terkirim", msg);
+          }}
+          onError={(err) => {
+            setShowLaporModal(false);
+            showPopup("danger", "Gagal Mengirim Laporan", err);
+          }}
+        />
+      )}
 
       <InteractiveModal dialog={modalDialog} onClose={closeModal} />
 
