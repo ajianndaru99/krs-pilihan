@@ -70,6 +70,7 @@ export function AjukanAksesModal({
       if (error) {
         const errMsg = error.message || "Gagal mengirim pengajuan akses.";
         setLocalError(errMsg);
+        onClose();
         onError(errMsg);
         return;
       }
@@ -87,11 +88,13 @@ export function AjukanAksesModal({
       } else {
         const errMsg = res?.error || "Pengajuan tidak dapat diproses.";
         setLocalError(errMsg);
+        onClose();
         onError(errMsg);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan koneksi.";
       setLocalError(msg);
+      onClose();
       onError(msg);
     } finally {
       setSubmitting(false);

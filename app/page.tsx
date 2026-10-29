@@ -1086,8 +1086,14 @@ export default function StudentPage() {
         onClose={() => setShowAjukanModal(false)}
         kelasList={kelasList}
         initialNim={nim}
-        onSuccess={(msg) => showPopup("info", "Pengajuan Terkirim", msg)}
-        onError={(err) => showPopup("danger", "Pengajuan Gagal", err)}
+        onSuccess={(msg) => {
+          setShowAjukanModal(false);
+          showPopup("info", "Pengajuan Terkirim", msg);
+        }}
+        onError={(err) => {
+          setShowAjukanModal(false);
+          showPopup("danger", "Pengajuan Gagal", err);
+        }}
       />
 
       <LaporKendalaModal
@@ -1095,8 +1101,14 @@ export default function StudentPage() {
         nim={registeredData?.nim || nim}
         nama={registeredData?.nama || studentInfo?.nama_samar || ""}
         onClose={() => setShowLaporModal(false)}
-        onSuccess={(msg) => showPopup("info", "Laporan Terkirim", msg)}
-        onError={(err) => showPopup("danger", "Gagal Mengirim Laporan", err)}
+        onSuccess={(msg) => {
+          setShowLaporModal(false);
+          showPopup("info", "Laporan Terkirim", msg);
+        }}
+        onError={(err) => {
+          setShowLaporModal(false);
+          showPopup("danger", "Gagal Mengirim Laporan", err);
+        }}
       />
 
       <InteractiveModal dialog={modalDialog} onClose={closeModal} />
