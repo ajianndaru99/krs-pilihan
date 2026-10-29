@@ -248,3 +248,54 @@ export function parseComplaintsData(raw: unknown): StudentComplaintItem[] {
     }))
     .filter((c) => Boolean(c.nim));
 }
+
+/**
+ * Parsing hasil RPC admin_list_logs.
+ */
+export function parseLogsData(raw: unknown): import("./types").SystemLogItem[] {
+  let list: Record<string, unknown>[] = [];
+  if (Array.isArray(raw)) {
+    list = raw as Record<string, unknown>[];
+  } else if (raw && typeof raw === "object") {
+    const res = raw as { ok?: boolean; logs?: Record<string, unknown>[] };
+    if (res.ok && Array.isArray(res.logs)) {
+      list = res.logs;
+    }
+  }
+
+  if (list.length === 0) return [];
+
+  return list.map((item) => ({
+    id: Number(item.id || 0),
+    created_at: String(item.created_at || ""),
+    level: (["info", "success", "warning", "error"].includes(String(item.level))
+      ? item.level
+      : "info") as import("./types").SystemLogItem["level"],
+    event_type: String(item.event_type || ""),
+    nim: String(item.nim || "-"),
+    nama: String(item.nama || "-"),
+    pesan: String(item.pesan || ""),
+    detail: (item.detail as Record<string, unknown>) || undefined,
+  }));
+}
+
+/**
+ * Parsing hasil RPC admin_get_latest_alerts.
+ */
+export function parseAlertsData(raw: unknown): import("./types").AdminAlertItem[] {
+  if (!raw || typeof raw !== "object") return [];
+  const res = raw as { ok?: boolean; alerts?: Record<string, unknown>[] };
+  if (!res.ok || !Array.isArray(res.alerts)) return [];
+
+  return res.alerts.map((item) => ({
+    id: Number(item.id || 0),
+    created_at: String(item.created_at || ""),
+    level: (["info", "success", "warning", "error"].includes(String(item.level))
+      ? item.level
+      : "error") as import("./types").AdminAlertItem["level"],
+    event_type: String(item.event_type || ""),
+    nim: String(item.nim || "-"),
+    nama: String(item.nama || "-"),
+    pesan: String(item.pesan || ""),
+  }));
+}

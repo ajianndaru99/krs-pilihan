@@ -544,6 +544,10 @@ export default function StudentPage() {
 
       const isRegistered = res.sudah_daftar || res.sudah_terdaftar;
       if (isRegistered) {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("nim", nim.trim());
+          localStorage.setItem("krs_saved_nim", nim.trim());
+        }
         setRegisteredData({
           nim: nim.trim(),
           nama: res.nama || res.nama_samar || "",
@@ -747,9 +751,13 @@ export default function StudentPage() {
                 p_nim: nim.trim(),
                 p_token: token.trim(),
               });
-              const checkRes = checkData as { ok?: boolean } | null;
-              if (checkRes?.ok) {
-                if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
+              const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
+              const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
+              if (hasPilihan) {
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("krs_selected_ids");
+                  localStorage.setItem("krs_saved_nim", nim.trim());
+                }
                 router.push("/bukti");
                 return;
               }
@@ -763,14 +771,32 @@ export default function StudentPage() {
 
           const res = (data as { ok?: boolean; error?: string }) || {};
           if (res.ok) {
-            if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
+            if (typeof window !== "undefined") {
+              sessionStorage.removeItem("krs_selected_ids");
+              localStorage.setItem("krs_saved_nim", nim.trim());
+            }
             router.push("/bukti");
           } else {
-            // Jika ditolak karena sudah pernah terdaftar, cek bukti pendaftaran
+            // Jika ditolak karena sudah pernah terdaftar, cek apakah bukti pendaftaran benar-benar ada
             if (res.error && res.error.toLowerCase().includes("sudah pernah")) {
-              if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
-              router.push("/bukti");
-              return;
+              try {
+                const { data: checkData } = await supabase.rpc("hasil_saya", {
+                  p_nim: nim.trim(),
+                  p_token: token.trim(),
+                });
+                const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
+                const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
+                if (hasPilihan) {
+                  if (typeof window !== "undefined") {
+                    sessionStorage.removeItem("krs_selected_ids");
+                    localStorage.setItem("krs_saved_nim", nim.trim());
+                  }
+                  router.push("/bukti");
+                  return;
+                }
+              } catch {
+                // Lanjut ke popup error
+              }
             }
             showPopup("danger", "Pendaftaran Ditolak", res.error || "Gagal menyimpan pendaftaran.");
           }
@@ -781,9 +807,13 @@ export default function StudentPage() {
               p_nim: nim.trim(),
               p_token: token.trim(),
             });
-            const checkRes = checkData as { ok?: boolean } | null;
-            if (checkRes?.ok) {
-              if (typeof window !== "undefined") sessionStorage.removeItem("krs_selected_ids");
+            const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
+            const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
+            if (hasPilihan) {
+              if (typeof window !== "undefined") {
+                sessionStorage.removeItem("krs_selected_ids");
+                localStorage.setItem("krs_saved_nim", nim.trim());
+              }
               router.push("/bukti");
               return;
             }
@@ -1132,9 +1162,12 @@ export default function StudentPage() {
                 type="button"
                 className="btn btn-primary btn-block"
                 onClick={() => {
-                  sessionStorage.setItem("nim", registeredData.nim);
-                  if (registeredData.token) {
-                    sessionStorage.setItem("token", registeredData.token);
+                  if (typeof window !== "undefined") {
+                    sessionStorage.setItem("nim", registeredData.nim);
+                    localStorage.setItem("krs_saved_nim", registeredData.nim);
+                    if (registeredData.token) {
+                      sessionStorage.setItem("token", registeredData.token);
+                    }
                   }
                   setShowRegisteredModal(false);
                   router.push("/bukti");

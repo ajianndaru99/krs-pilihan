@@ -424,10 +424,6 @@ export function OfferingSelector({
               Penuh ({fullCount})
             </button>
           </div>
-
-          <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 600 }}>
-            {filteredCourses.length} Mata Kuliah
-          </span>
         </div>
       </div>
 

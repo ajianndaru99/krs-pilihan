@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+
+interface PilihanItem {
+  id: number;
+  nama: string;
+  jenis: string;
+  kelas?: string;
+  topik?: string;
+  jadwal: {
+    hari: string;
+    jam_mulai: string;
+    jam_selesai: string;
+    ruang?: string;
+  }[];
+}
 
 interface BuktiData {
   mahasiswa: {
@@ -12,20 +26,8 @@ interface BuktiData {
     kelas?: string;
   };
   pendaftaran: {
-    waktu_daftar: string;
-    pilihan: Array<{
-      id: number;
-      nama: string;
-      jenis: string;
-      kelas?: string;
-      topik?: string;
-      jadwal?: Array<{
-        hari: string;
-        jam_mulai: string;
-        jam_selesai: string;
-        ruang?: string;
-      }>;
-    }>;
+    waktu_daftar: string | null;
+    pilihan: PilihanItem[];
   };
 }
 
@@ -34,85 +36,69 @@ export default function BuktiPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<BuktiData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [hasSession, setHasSession] = useState(true);
+  
+  // State pencarian mandiri (Self-healing jika sesi kosong)
+  const [showLookupInput, setShowLookupInput] = useState(false);
+  const [searchNim, setSearchNim] = useState("");
+  const [searching, setSearching] = useState(false);
+
+  // Fungsi muat data bukti pendaftaran
+  const fetchBuktiWithNim = useCallback(async (targetNim: string, targetToken?: string | null) => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const { data: resData, error } = await supabase.rpc("hasil_saya", {
+        p_nim: targetNim.trim(),
+        p_token: targetToken ? targetToken.trim() : null,
+      });
+
+      if (error) {
+        setErrorMessage(error.message || "Gagal memuat bukti pendaftaran.");
+        setShowLookupInput(true);
+        return;
+      }
+
+      const res = (resData as (BuktiData & { ok?: boolean; error?: string }) | null) || null;
+      if (!res || res.ok === false) {
+        setErrorMessage(res?.error || "Data pendaftaran tidak ditemukan untuk NIM tersebut.");
+        setShowLookupInput(true);
+        return;
+      }
+
+      // Simpan ke storage peramban agar sesi tidak hilang
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("nim", targetNim.trim());
+        localStorage.setItem("krs_saved_nim", targetNim.trim());
+      }
+
+      setData(res);
+      setShowLookupInput(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data.";
+      setErrorMessage(msg);
+      setShowLookupInput(true);
+    } finally {
+      setLoading(false);
+      setSearching(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    let nim = typeof window !== "undefined" ? sessionStorage.getItem("nim") : null;
+    if (!nim && typeof window !== "undefined") {
+      nim = localStorage.getItem("krs_saved_nim");
+    }
 
-    const fetchBukti = async () => {
-      const nim = typeof window !== "undefined" ? sessionStorage.getItem("nim") : null;
-      let token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 
-      if (!nim) {
-        if (isMounted) {
-          setHasSession(false);
-          setLoading(false);
-        }
-        return;
-      }
+    if (!nim) {
+      setLoading(false);
+      setShowLookupInput(true);
+      return;
+    }
 
-      // Jika token belum ada di sessionStorage (misal mahasiswa baru buka peramban dan klik dari modal terdaftar),
-      // ambil token terdaftar yang sah secara otomatis via cek_nim
-      if (!token) {
-        try {
-          const { data: nimData } = await supabase.rpc("cek_nim", { p_nim: nim });
-          const resNim = nimData as { ok?: boolean; sudah_terdaftar?: boolean; sudah_daftar?: boolean; token?: string } | null;
-          if (resNim?.ok && (resNim.sudah_terdaftar || resNim.sudah_daftar) && resNim.token) {
-            token = resNim.token;
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem("token", token);
-            }
-          }
-        } catch {
-          // Abaikan, biarkan pengecekan token berikutnya menangani
-        }
-      }
-
-      if (!token) {
-        if (isMounted) {
-          setHasSession(false);
-          setLoading(false);
-        }
-        return;
-      }
-
-      try {
-        const { data: resData, error } = await supabase.rpc("hasil_saya", {
-          p_nim: nim,
-          p_token: token,
-        });
-
-        if (!isMounted) return;
-
-        if (error) {
-          setErrorMessage(error.message || "Gagal memuat bukti pendaftaran.");
-          return;
-        }
-
-        const res = (resData as (BuktiData & { ok?: boolean; error?: string }) | null) || null;
-        if (!res || res.ok === false) {
-          setErrorMessage(res?.error || "Data pendaftaran tidak ditemukan.");
-          return;
-        }
-
-        setData(res);
-      } catch (err: unknown) {
-        if (!isMounted) return;
-        const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data.";
-        setErrorMessage(msg);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchBukti();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    fetchBuktiWithNim(nim, token);
+  }, [fetchBuktiWithNim]);
 
   const handlePrint = () => {
     if (typeof window !== "undefined") {
@@ -121,10 +107,14 @@ export default function BuktiPage() {
   };
 
   const handleBackToHome = () => {
-    if (typeof window !== "undefined") {
-      sessionStorage.clear();
-    }
     router.replace("/");
+  };
+
+  const handleManualSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchNim.trim()) return;
+    setSearching(true);
+    fetchBuktiWithNim(searchNim.trim());
   };
 
   if (loading) {
@@ -136,38 +126,71 @@ export default function BuktiPage() {
     );
   }
 
-  if (!hasSession) {
+  // JIKA SESI KOSONG / PENCARIAN MANDIRI (Self-healing, bebas dari layar buntu)
+  if (showLookupInput || (!data && !loading)) {
     return (
-      <div className="container" style={{ maxWidth: 540, marginTop: "4rem" }}>
-        <div className="card" style={{ textAlign: "center" }}>
-          <h2 className="card-title" style={{ justifyContent: "center", color: "var(--danger)" }}>
-            Sesi Tidak Ditemukan
-          </h2>
-          <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem" }}>
-            Data sesi tidak ditemukan di peramban ini. Pastikan Anda telah melakukan verifikasi NIM dan mendaftar di
-            halaman utama.
-          </p>
-          <button type="button" className="btn btn-primary btn-block" onClick={handleBackToHome}>
-            Halaman Awal
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (errorMessage) {
-    return (
-      <div className="container" style={{ maxWidth: 540, marginTop: "4rem" }}>
-        <div className="card" style={{ textAlign: "center" }}>
-          <h2 className="card-title" style={{ justifyContent: "center", color: "var(--danger)" }}>
-            Peringatan
-          </h2>
-          <div className="alert alert-danger" style={{ textAlign: "left" }}>
-            <span>{errorMessage}</span>
+      <div className="container" style={{ maxWidth: 500, marginTop: "3.5rem", padding: "0 1rem" }}>
+        <div className="card" style={{ textAlign: "center", padding: "2rem 1.75rem" }}>
+          <div style={{ marginBottom: "1rem" }}>
+            <Image
+              src="/logo-instiper.png"
+              alt="Logo INSTIPER"
+              width={56}
+              height={56}
+              priority
+              style={{ objectFit: "contain", display: "block", margin: "0 auto" }}
+            />
           </div>
-          <button type="button" className="btn btn-primary btn-block" onClick={handleBackToHome}>
-            Halaman Awal
-          </button>
+
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 800, margin: "0 0 0.4rem 0", color: "var(--text-main)" }}>
+            Lihat Bukti Pendaftaran
+          </h2>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.5rem", lineHeight: 1.5 }}>
+            Masukkan NIM Anda untuk memuat dan mencetak lembar Tanda Bukti Pemilihan Mata Kuliah resmi.
+          </p>
+
+          {errorMessage && (
+            <div className="alert alert-danger" style={{ textAlign: "left", marginBottom: "1.25rem" }}>
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleManualSearch} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div>
+              <input
+                type="text"
+                className="input input-lg"
+                placeholder="Contoh: 2110211002"
+                value={searchNim}
+                onChange={(e) => setSearchNim(e.target.value)}
+                autoFocus
+                style={{
+                  textAlign: "center",
+                  fontSize: "1.1rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.05em",
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary btn-block"
+              disabled={searching || !searchNim.trim()}
+              style={{ padding: "0.85rem", fontWeight: 700, fontSize: "0.95rem" }}
+            >
+              {searching ? "Memeriksa Data..." : "🔍 Tampilkan Bukti Pendaftaran"}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-block"
+              onClick={handleBackToHome}
+              style={{ padding: "0.75rem", fontSize: "0.875rem" }}
+            >
+              Kembali ke Halaman Utama
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -178,12 +201,12 @@ export default function BuktiPage() {
     pendaftaran: { waktu_daftar: "-", pilihan: [] },
   };
 
+  const hasPilihan = Boolean(pendaftaran.pilihan && pendaftaran.pilihan.length > 0);
+
   return (
     <div className="container" style={{ maxWidth: 850, paddingBottom: "3rem" }}>
       {/* =========================================================================
           TAMPILAN KHUSUS LAYAR HP (Layar <= 640px)
-          Dioptimalkan agar pas di layar tanpa horizontal scrolling dan nyaman dibaca.
-          Saat tombol Cetak ditekan, bagian ini disembunyikan dan sheet formal yang dicetak.
           ========================================================================= */}
       <div className="mobile-screen-summary no-print">
         <div
@@ -197,7 +220,7 @@ export default function BuktiPage() {
             marginBottom: "1rem",
           }}
         >
-          {/* Logo Kampus & Header Status (Foto 3: Logo INSTIPER & Judul 'Bukti Registrasi KRS') */}
+          {/* Logo Kampus & Header Status */}
           <div
             style={{
               display: "flex",
@@ -222,7 +245,7 @@ export default function BuktiPage() {
               Bukti Registrasi Mata Kuliah Pilihan
             </h3>
             <p style={{ fontSize: "0.775rem", color: "#64748b", margin: "3px 0 0" }}>
-              Tercatat secara elektronik di sistem akademik
+              Tercatat secara elektronik di sistem akademik FAPERTA
             </p>
           </div>
 
@@ -249,19 +272,19 @@ export default function BuktiPage() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--text-muted)" }}>Kelas</span>
-              <span style={{ fontWeight: 600 }}>{mahasiswa.kelas || "-"}</span>
+              <strong style={{ color: "#0f172a" }}>{mahasiswa.kelas || "-"}</strong>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--text-muted)" }}>Waktu Daftar</span>
-              <span style={{ fontSize: "0.8rem", color: "#475569" }} suppressHydrationWarning>
+              <span suppressHydrationWarning style={{ color: "#0f172a", fontWeight: 600 }}>
                 {pendaftaran.waktu_daftar ? new Date(pendaftaran.waktu_daftar).toLocaleString("id-ID") : "-"}
               </span>
             </div>
           </div>
 
-          {/* Tombol Aksi Tepat di Bawah Identitas Diri Mahasiswa */}
+          {/* Tombol Cetak / Pemilihan */}
           <div style={{ marginBottom: "1.25rem" }}>
-            {pendaftaran.pilihan && pendaftaran.pilihan.length > 0 ? (
+            {hasPilihan ? (
               <button
                 type="button"
                 className="btn btn-primary"
@@ -293,79 +316,88 @@ export default function BuktiPage() {
                   boxShadow: "0 4px 12px rgba(5, 150, 105, 0.3)",
                 }}
               >
-                📝 Mulai Pilih Mata Kuliah Sekarang
+                📝 Masuk ke Ruang Pemilihan Mata Kuliah
               </button>
             )}
           </div>
 
           {/* Daftar Kartu Pilihan Terpilih */}
-          <h4 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "0.75rem", color: "#1e293b" }}>
-            Mata Kuliah / Proyek Terpilih:
-          </h4>
-          <div style={{ display: "grid", gap: "0.75rem" }}>
-            {pendaftaran.pilihan && pendaftaran.pilihan.length > 0 ? (
-              pendaftaran.pilihan.map((item, idx) => {
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#334155" }}>
+              Mata Kuliah / Proyek Terpilih:
+            </div>
+
+            {hasPilihan ? (
+              pendaftaran.pilihan.map((item, index) => {
                 const isProyek = item.jenis === "proyek";
-                const kelasDisplay = isProyek ? "Proyek" : `Kelas ${item.kelas || "A"}`;
                 return (
                   <div
                     key={item.id}
                     style={{
-                      border: "1px solid #cbd5e1",
+                      border: "1px solid #e2e8f0",
                       borderRadius: "var(--radius-md)",
-                      padding: "0.85rem",
+                      padding: "0.75rem",
                       backgroundColor: "#ffffff",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.35rem" }}>
-                      <span
-                        style={{
-                          backgroundColor: "#e0f2fe",
-                          color: "#0284c7",
-                          fontSize: "0.75rem",
-                          fontWeight: 700,
-                          padding: "2px 7px",
-                          borderRadius: "4px",
-                          flexShrink: 0,
-                        }}
-                      >
-                        #{idx + 1}
-                      </span>
-                      <strong style={{ fontSize: "0.9rem", color: "#0f172a", flex: 1, lineHeight: 1.35 }}>
-                        {item.nama}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: "0.5rem",
+                        marginBottom: "0.35rem",
+                      }}
+                    >
+                      <strong style={{ fontSize: "0.875rem", color: "#0f172a" }}>
+                        {index + 1}. {item.nama}
                       </strong>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", margin: "0.4rem 0" }}>
                       <span
                         style={{
                           fontSize: "0.725rem",
-                          padding: "2px 8px",
-                          borderRadius: "100px",
-                          backgroundColor: "#f1f5f9",
-                          color: "#475569",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {isProyek ? "Proyek Terapan" : "Mata Kuliah"}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "0.725rem",
-                          padding: "2px 8px",
-                          borderRadius: "100px",
-                          backgroundColor: isProyek ? "#fef3c7" : "#e0f2fe",
-                          color: isProyek ? "#b45309" : "#0369a1",
                           fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: "var(--radius-full)",
+                          backgroundColor: "#f0fdf4",
+                          color: "#166534",
+                          border: "1px solid #bbf7d0",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        {kelasDisplay}
+                        Kelas {item.kelas || (isProyek ? "Semua" : "A")}
                       </span>
                     </div>
 
                     <div
                       style={{
-                        fontSize: "0.775rem",
+                        display: "flex",
+                        gap: "0.4rem",
+                        flexWrap: "wrap",
+                        fontSize: "0.75rem",
+                        color: "#64748b",
+                        marginBottom: "0.35rem",
+                      }}
+                    >
+                      <span
+                        style={{
+                          backgroundColor: "#f1f5f9",
+                          padding: "1px 6px",
+                          borderRadius: "4px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {isProyek ? "Proyek Terapan" : "Mata Kuliah"}
+                      </span>
+                      {item.topik && (
+                        <span style={{ fontStyle: "italic", color: "#475569" }}>
+                          Topik: {item.topik}
+                        </span>
+                      )}
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
                         color: "#334155",
                         backgroundColor: "#f8fafc",
                         padding: "0.45rem 0.65rem",
@@ -387,9 +419,21 @@ export default function BuktiPage() {
                 );
               })
             ) : (
-              <div style={{ textAlign: "center", padding: "1.25rem 0.5rem" }}>
-                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0 0 0.85rem 0" }}>
-                  Belum ada data mata kuliah yang tersimpan di sistem.
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "1.75rem 1rem",
+                  backgroundColor: "#fefce8",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px dashed #ca8a04",
+                }}
+              >
+                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>⚠️</div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#854d0e", marginBottom: "0.35rem" }}>
+                  Belum Ada Mata Kuliah yang Tersimpan
+                </div>
+                <p style={{ fontSize: "0.825rem", color: "#713f12", margin: "0 0 1rem 0", lineHeight: 1.45 }}>
+                  Anda belum menyelesaikan pemilihan mata kuliah atau transaksi sebelumnya belum tersimpan.
                 </p>
                 <button
                   type="button"
@@ -398,7 +442,7 @@ export default function BuktiPage() {
                   style={{
                     fontWeight: 700,
                     fontSize: "0.85rem",
-                    padding: "0.55rem 1.15rem",
+                    padding: "0.6rem 1.25rem",
                     borderRadius: "var(--radius-md)",
                     backgroundColor: "#059669",
                   }}
@@ -413,7 +457,6 @@ export default function BuktiPage() {
 
       {/* =========================================================================
           LEMBAR FORMAL A4 (Desktop Preview & Khusus Cetak Print PDF)
-          Dipadatkan secara proporsional agar 100% pas dalam 1 halaman A4 tanpa meluap.
           ========================================================================= */}
       <div
         className="card desktop-formal-preview print-formal-sheet"
@@ -529,7 +572,7 @@ export default function BuktiPage() {
               </tr>
             </thead>
             <tbody>
-              {pendaftaran.pilihan && pendaftaran.pilihan.length > 0 ? (
+              {hasPilihan ? (
                 pendaftaran.pilihan.map((item, index) => (
                   <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
                     <td style={{ padding: "5px 8px", textAlign: "center" }}>{index + 1}</td>
@@ -552,8 +595,8 @@ export default function BuktiPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ padding: "10px", textAlign: "center", color: "#64748b" }}>
-                    Belum ada mata kuliah yang dipilih.
+                  <td colSpan={5} style={{ padding: "14px", textAlign: "center", color: "#b45309", backgroundColor: "#fffbeb" }}>
+                    ⚠️ Belum ada mata kuliah yang terpilih atau tersimpan di sistem.
                   </td>
                 </tr>
               )}
@@ -561,7 +604,7 @@ export default function BuktiPage() {
           </table>
         </div>
 
-        {/* Pernyataan & Tanda Tangan Kompak (Avoid Page Break) */}
+        {/* Pernyataan & Tanda Tangan Kompak */}
         <div
           style={{
             fontSize: "0.75rem",
@@ -609,7 +652,7 @@ export default function BuktiPage() {
       </div>
 
       {/* =========================================================================
-          TOMBOL NAVIGASI BAWAH (Hanya Tombol Halaman Awal)
+          TOMBOL NAVIGASI BAWAH
           ========================================================================= */}
       <div
         className="no-print"
@@ -618,6 +661,8 @@ export default function BuktiPage() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
+          gap: "1rem",
+          flexWrap: "wrap",
         }}
       >
         <button
@@ -630,11 +675,28 @@ export default function BuktiPage() {
             minHeight: 46,
             fontSize: "0.9rem",
             width: "100%",
-            maxWidth: 320,
+            maxWidth: 260,
             justifyContent: "center",
           }}
         >
-          Halaman Awal
+          Kembali ke Halaman Utama
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={() => setShowLookupInput(true)}
+          style={{
+            fontWeight: 600,
+            padding: "0.75rem 1.5rem",
+            minHeight: 46,
+            fontSize: "0.85rem",
+            width: "100%",
+            maxWidth: 240,
+            justifyContent: "center",
+          }}
+        >
+          🔍 Cari NIM Lain
         </button>
       </div>
     </div>

@@ -130,3 +130,24 @@ export interface StudentComplaintItem {
   resolved_at?: string;
 }
 
+export interface SystemLogItem {
+  id: number;
+  created_at: string;
+  level: "info" | "success" | "warning" | "error";
+  event_type: string;
+  nim: string;
+  nama: string;
+  pesan: string;
+  detail?: Record<string, unknown>;
+}
+
+export interface AdminAlertItem {
+  id: number;
+  created_at: string;
+  level: "info" | "success" | "warning" | "error";
+  event_type: string;
+  nim: string;
+  nama: string;
+  pesan: string;
+}
+

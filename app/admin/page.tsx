@@ -9,6 +9,8 @@ import {
   PendaftarStudentItem,
   MasterStudentItem,
   StudentComplaintItem,
+  SystemLogItem,
+  AdminAlertItem,
 } from "@/lib/types";
 import {
   normalizeAdminStatus,
@@ -19,6 +21,8 @@ import {
   parseKelasData,
   parseMasterStudentsData,
   parseComplaintsData,
+  parseLogsData,
+  parseAlertsData,
 } from "@/lib/admin-adapter";
 import { StudentImportRow } from "@/lib/excel-parser";
 import { AdminLoginCard } from "@/components/admin/AdminLoginCard";
@@ -30,11 +34,12 @@ import { StudentImport } from "@/components/admin/StudentImport";
 import { AccessRequestsList } from "@/components/admin/AccessRequestsList";
 import { ComplaintManager } from "@/components/admin/ComplaintManager";
 import { ResetDataModal } from "@/components/admin/ResetDataModal";
+import { SystemLogsViewer } from "@/components/admin/SystemLogsViewer";
 import { AdminModal, AdminModalState, AdminModalType } from "@/components/admin/AdminModal";
 
 const ADMIN_POLL_INTERVAL_MS = 10000;
 
-type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "complaints" | "batal_reset";
+type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "complaints" | "logs" | "batal_reset";
 
 interface SupabaseUserSession {
   email?: string;
@@ -59,6 +64,9 @@ export default function AdminPage() {
   const [students, setStudents] = useState<MasterStudentItem[]>([]);
   const [requests, setRequests] = useState<AdminPengajuanItem[]>([]);
   const [complaints, setComplaints] = useState<StudentComplaintItem[]>([]);
+  const [logs, setLogs] = useState<SystemLogItem[]>([]);
+  const [lastAlertId, setLastAlertId] = useState<number>(0);
+  const [incomingAlert, setIncomingAlert] = useState<AdminAlertItem | null>(null);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
@@ -168,6 +176,16 @@ export default function AdminPage() {
         // Fallback aman jika patch13 belum dieksekusi di database server
       }
 
+      // 8. Log Aktivitas Database & Sistem
+      try {
+        const { data: logData, error: logErr } = await supabase.rpc("admin_list_logs", { p_limit: 100 });
+        if (!logErr) {
+          setLogs(parseLogsData(logData));
+        }
+      } catch {
+        // Fallback aman jika patch31 belum dieksekusi di database server
+      }
+
       setLastSyncTime(new Date().toLocaleTimeString("id-ID"));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal memuat data admin.";
@@ -222,6 +240,42 @@ export default function AdminPage() {
       };
     }
   }, [sessionUser, loadAdminData]);
+
+  // Polling Real-time Pop-up Notifikasi jika ada data mental / error (setiap 6 detik)
+  useEffect(() => {
+    if (!sessionUser) return;
+
+    const pollAlerts = async () => {
+      try {
+        const { data: alertRes } = await supabase.rpc("admin_get_latest_alerts", {
+          p_after_id: lastAlertId,
+        });
+        const resObj = alertRes as { latest_id?: number } | null;
+        if (resObj?.latest_id && resObj.latest_id > lastAlertId) {
+          setLastAlertId(resObj.latest_id);
+        }
+
+        const parsedAlerts = parseAlertsData(alertRes);
+        if (parsedAlerts.length > 0) {
+          const firstError = parsedAlerts.find((a) => a.level === "error" || a.level === "warning");
+          if (firstError) {
+            setIncomingAlert(firstError);
+          }
+          void loadAdminData(true);
+        }
+      } catch {
+        // Abaikan jika RPC belum aktif di database
+      }
+    };
+
+    const alertInterval = setInterval(() => {
+      void pollAlerts();
+    }, 6000);
+
+    return () => {
+      clearInterval(alertInterval);
+    };
+  }, [sessionUser, lastAlertId, loadAdminData]);
 
   // Handler Login Admin
   const handleLogin = async (e: React.FormEvent) => {
@@ -584,6 +638,25 @@ export default function AdminPage() {
     loadAdminData(true);
   };
 
+  // Handler Bersihkan Seluruh Riwayat Log
+  const handleClearLogs = async () => {
+    showAdminPopup(
+      "confirm",
+      "Bersihkan Seluruh Riwayat Log?",
+      "Seluruh riwayat log aktivitas database dan catatan pendaftaran mental akan dihapus permanen.",
+      undefined,
+      async () => {
+        const { error } = await supabase.rpc("admin_clear_logs");
+        if (error) {
+          showAdminPopup("danger", "Gagal Membersihkan Log", error.message);
+          return;
+        }
+        setLogs([]);
+        showAdminPopup("success", "Berhasil", "Seluruh riwayat log berhasil dibersihkan.");
+      }
+    );
+  };
+
   if (checkingAuth) {
     return (
       <div className="container" style={{ textAlign: "center", paddingTop: "5rem" }}>
@@ -714,6 +787,29 @@ export default function AdminPage() {
           </div>
           <button
             type="button"
+            className={`admin-nav-item ${activeTab === "logs" ? "active" : ""}`}
+            onClick={() => setActiveTab("logs")}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "0.5rem" }}>
+              <span>Log & Notifikasi Sistem</span>
+              {logs.filter((l) => l.level === "error").length > 0 && (
+                <span
+                  style={{
+                    backgroundColor: "var(--danger)",
+                    color: "#ffffff",
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    padding: "1px 6px",
+                    borderRadius: "var(--radius-full)",
+                  }}
+                >
+                  {logs.filter((l) => l.level === "error").length} Mental
+                </span>
+              )}
+            </div>
+          </button>
+          <button
+            type="button"
             className={`admin-nav-item ${activeTab === "batal_reset" ? "active" : ""}`}
             onClick={() => setActiveTab("batal_reset")}
             style={{ color: activeTab === "batal_reset" ? "#ffffff" : "var(--danger)" }}
@@ -809,6 +905,15 @@ export default function AdminPage() {
             />
           )}
 
+          {activeTab === "logs" && (
+            <SystemLogsViewer
+              logs={logs}
+              onRefresh={() => loadAdminData(false)}
+              onClearLogs={handleClearLogs}
+              isRefreshing={isRefreshing}
+            />
+          )}
+
           {activeTab === "batal_reset" && (
             <ResetDataModal
               portalOpen={portalOpen}
@@ -820,6 +925,99 @@ export default function AdminPage() {
       </div>
 
       <AdminModal modal={adminModal} onClose={closeModal} />
+
+      {/* POP-UP PERINGATAN DATA PENDAFTARAN MENTAL (Otomatis & Real-time) */}
+      {incomingAlert && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setIncomingAlert(null)}
+          style={{ zIndex: 9999, backgroundColor: "rgba(15, 23, 42, 0.75)" }}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 480,
+              border: "2.5px solid #ef4444",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "0 25px 50px -12px rgba(239, 68, 68, 0.4)",
+              backgroundColor: "#ffffff",
+              padding: "1.75rem 1.5rem",
+            }}
+          >
+            <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.35rem" }}>🚨</div>
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#b91c1c", margin: 0, letterSpacing: "-0.01em" }}>
+                PERINGATAN: DATA PENDAFTARAN MENTAL!
+              </h3>
+              <p style={{ fontSize: "0.825rem", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+                Sistem mendeteksi ada mahasiswa yang pendaftarannya ditolak oleh database.
+              </p>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: "#fef2f2",
+                border: "1px solid #fecaca",
+                borderRadius: "var(--radius-md)",
+                padding: "0.85rem 1rem",
+                marginBottom: "1.25rem",
+                fontSize: "0.85rem",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}>
+                <span style={{ color: "#991b1b" }}>Waktu Kejadian:</span>
+                <strong style={{ color: "#7f1d1d" }}>{incomingAlert.created_at}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}>
+                <span style={{ color: "#991b1b" }}>NIM Mahasiswa:</span>
+                <strong style={{ color: "#7f1d1d" }}>{incomingAlert.nim}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <span style={{ color: "#991b1b" }}>Nama:</span>
+                <strong style={{ color: "#7f1d1d" }}>{incomingAlert.nama}</strong>
+              </div>
+              <div style={{ borderTop: "1px dashed #fca5a5", paddingTop: "0.5rem" }}>
+                <span style={{ color: "#991b1b", display: "block", fontSize: "0.775rem", fontWeight: 700 }}>
+                  Penyebab Mental / Galat:
+                </span>
+                <div style={{ color: "#991b1b", fontWeight: 700, marginTop: "2px", lineHeight: 1.4 }}>
+                  {incomingAlert.pesan}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setActiveTab("logs");
+                  setIncomingAlert(null);
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: "#dc2626",
+                  borderColor: "#b91c1c",
+                  fontWeight: 800,
+                  fontSize: "0.875rem",
+                  padding: "0.75rem",
+                }}
+              >
+                📋 Periksa di Log Aktivitas
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIncomingAlert(null)}
+                style={{ padding: "0.75rem 1.25rem", fontSize: "0.875rem" }}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer
         style={{
