@@ -154,8 +154,8 @@ BEGIN
         SET state = 'active', 
             activated_at = v_now, 
             expires_at = v_now + (v_session_min || ' minutes')::interval
-        WHERE id = (
-            SELECT id FROM public.queue 
+        WHERE token = (
+            SELECT token FROM public.queue 
             WHERE state = 'waiting' 
             ORDER BY nomor ASC 
             LIMIT 1 

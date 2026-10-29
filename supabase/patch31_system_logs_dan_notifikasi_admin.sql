@@ -65,7 +65,7 @@ BEGIN
 
     -- Ambil waktu daftar resmi dari tabel students atau created_at pendaftaran
     v_waktu_daftar := COALESCE(v_student.registered_at, (
-        SELECT created_at FROM public.registrations WHERE nim = v_student.nim ORDER BY id ASC LIMIT 1
+        SELECT created_at FROM public.registrations WHERE nim = v_student.nim ORDER BY created_at ASC LIMIT 1
     ), now());
 
     -- Ambil daftar mata kuliah pilihan resmi beserta jadwalnya
@@ -289,8 +289,8 @@ BEGIN
         SET state = 'active', 
             activated_at = v_now, 
             expires_at = v_now + (v_session_min || ' minutes')::interval
-        WHERE id = (
-            SELECT id FROM public.queue 
+        WHERE token = (
+            SELECT token FROM public.queue 
             WHERE state = 'waiting' 
             ORDER BY nomor ASC 
             LIMIT 1 
