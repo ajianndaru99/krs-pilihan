@@ -38,6 +38,7 @@ export function AjukanAksesModal({
     if (!activeNim.trim() || !nama.trim() || !alasan.trim() || !kontak.trim()) {
       const msg = "Mohon lengkapi NIM, Nama Lengkap, Alasan pengajuan, dan Nomor WhatsApp aktif.";
       setLocalError(msg);
+      onClose();
       onError(msg);
       return;
     }

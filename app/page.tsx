@@ -178,6 +178,11 @@ export default function StudentPage() {
       onConfirm?: () => void,
       actionLink?: ModalActionLink
     ) => {
+      // Pastikan seluruh formulir modal tertutup seketika agar pop-up notifikasi tampil bersih di depan
+      setShowAjukanModal(false);
+      setShowLaporModal(false);
+      setShowRegisteredModal(false);
+
       setModalDialog({
         isOpen: true,
         type,
