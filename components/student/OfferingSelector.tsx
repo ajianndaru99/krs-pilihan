@@ -360,31 +360,35 @@ export function OfferingSelector({
           )}
         </div>
 
-        {/* Baris 3: Filter Kuota (Semua, Tersedia, Penuh) */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Baris 3: Filter Kuota (Semua, Tersedia, Penuh) — Penuh hingga kanan */}
+        <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
           <div
             style={{
-              display: "inline-flex",
+              display: "flex",
+              width: "100%",
               backgroundColor: "var(--bg-subtle)",
-              padding: "2px",
+              padding: "3px",
               borderRadius: "var(--radius-full)",
               border: "1px solid var(--border-color)",
-              gap: "2px",
+              gap: "4px",
             }}
           >
             <button
               type="button"
               onClick={() => setQuotaFilter("all")}
               style={{
-                padding: "0.2rem 0.6rem",
+                flex: 1,
+                padding: "0.3rem 0.6rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
-                fontSize: "0.7rem",
+                fontSize: "0.75rem",
                 fontWeight: 700,
                 cursor: "pointer",
+                textAlign: "center",
                 backgroundColor: quotaFilter === "all" ? "#ffffff" : "transparent",
                 color: quotaFilter === "all" ? "var(--text-main)" : "var(--text-muted)",
                 boxShadow: quotaFilter === "all" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                transition: "all 0.15s ease",
               }}
             >
               Semua ({groupedCourses.length})
@@ -393,15 +397,18 @@ export function OfferingSelector({
               type="button"
               onClick={() => setQuotaFilter("available")}
               style={{
-                padding: "0.2rem 0.6rem",
+                flex: 1,
+                padding: "0.3rem 0.6rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
-                fontSize: "0.7rem",
+                fontSize: "0.75rem",
                 fontWeight: 700,
                 cursor: "pointer",
+                textAlign: "center",
                 backgroundColor: quotaFilter === "available" ? "#ffffff" : "transparent",
                 color: quotaFilter === "available" ? "var(--success)" : "var(--text-muted)",
                 boxShadow: quotaFilter === "available" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                transition: "all 0.15s ease",
               }}
             >
               Tersedia ({availableCount})
@@ -410,15 +417,18 @@ export function OfferingSelector({
               type="button"
               onClick={() => setQuotaFilter("full")}
               style={{
-                padding: "0.2rem 0.6rem",
+                flex: 1,
+                padding: "0.3rem 0.6rem",
                 borderRadius: "var(--radius-full)",
                 border: "none",
-                fontSize: "0.7rem",
+                fontSize: "0.75rem",
                 fontWeight: 700,
                 cursor: "pointer",
+                textAlign: "center",
                 backgroundColor: quotaFilter === "full" ? "#ffffff" : "transparent",
                 color: quotaFilter === "full" ? "var(--danger)" : "var(--text-muted)",
                 boxShadow: quotaFilter === "full" ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                transition: "all 0.15s ease",
               }}
             >
               Penuh ({fullCount})

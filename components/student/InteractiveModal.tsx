@@ -61,10 +61,12 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
           border: `1.5px solid ${getHeaderColor()}`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.45rem", marginBottom: "0.75rem" }}>
           <span
             style={{
-              fontSize: "0.7rem",
+              display: "inline-flex",
+              alignItems: "center",
+              fontSize: "0.68rem",
               fontWeight: 800,
               padding: "3px 10px",
               borderRadius: "var(--radius-full)",
@@ -76,29 +78,48 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
               color: getHeaderColor(),
               border: `1px solid ${getHeaderColor()}`,
               letterSpacing: "0.06em",
+              lineHeight: 1.2,
             }}
           >
             {getBadgeText()}
           </span>
-          <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", margin: 0, letterSpacing: "-0.015em" }}>
+          <h3
+            style={{
+              fontSize: "1.125rem",
+              fontWeight: 800,
+              color: "var(--text-main)",
+              margin: 0,
+              lineHeight: 1.3,
+              letterSpacing: "-0.01em",
+            }}
+          >
             {dialog.title}
           </h3>
         </div>
 
-        <p style={{ fontSize: "0.925rem", color: "var(--text-body)", lineHeight: 1.5, marginBottom: "1.25rem" }}>
+        <p
+          style={{
+            fontSize: "0.85rem",
+            color: "#475569",
+            lineHeight: 1.55,
+            marginTop: 0,
+            marginBottom: "1rem",
+            fontWeight: 500,
+          }}
+        >
           {dialog.message}
         </p>
 
         {dialog.details && dialog.details.length > 0 && (
           <div
             style={{
-              backgroundColor: "var(--bg-subtle)",
+              backgroundColor: "#f8fafc",
               borderRadius: "var(--radius-lg)",
-              padding: "0.85rem 1.15rem",
-              marginBottom: "1.5rem",
-              fontSize: "0.85rem",
+              padding: "0.65rem 1rem",
+              marginBottom: "1.25rem",
+              fontSize: "0.825rem",
               border: "1px solid var(--border-color)",
-              maxHeight: "45vh",
+              maxHeight: "42vh",
               overflowY: "auto",
             }}
           >
@@ -106,11 +127,11 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
               <div
                 key={idx}
                 style={{
-                  padding: "0.5rem 0",
+                  padding: "0.55rem 0",
                   borderBottom: idx < dialog.details!.length - 1 ? "1px dashed #cbd5e1" : "none",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.15rem" }}>
                   <span
                     style={{
                       fontSize: "0.68rem",
@@ -125,7 +146,7 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
                   {item.subValue && (
                     <span
                       style={{
-                        fontSize: "0.72rem",
+                        fontSize: "0.7rem",
                         fontWeight: 700,
                         backgroundColor: "#ffffff",
                         padding: "1px 7px",
@@ -139,7 +160,7 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
                   )}
                 </div>
 
-                <div style={{ fontWeight: 800, color: "var(--text-main)", fontSize: "0.925rem", lineHeight: 1.35 }}>
+                <div style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "0.9rem", lineHeight: 1.35 }}>
                   {item.value}
                 </div>
 
@@ -149,10 +170,10 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
                       display: "flex",
                       alignItems: "center",
                       gap: "5px",
-                      fontSize: "0.775rem",
+                      fontSize: "0.75rem",
                       fontWeight: 600,
-                      color: "#475569",
-                      marginTop: "0.25rem",
+                      color: "#64748b",
+                      marginTop: "0.2rem",
                       fontFamily: "var(--font-mono)",
                     }}
                   >

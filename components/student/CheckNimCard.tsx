@@ -371,7 +371,7 @@ export function CheckNimCard({
             </div>
 
             {/* Status & Balasan Kendala dari Admin (Reset KRS / Ditolak / Menunggu) */}
-            {studentInfo.status_kendala === "resolved" && studentInfo.pesan_admin && (
+            {studentInfo.status_kendala === "resolved" && (
               <div
                 style={{
                   padding: "0.85rem 1rem",
@@ -386,20 +386,23 @@ export function CheckNimCard({
               >
                 <div style={{ fontWeight: 800, marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: "6px", color: "#047857" }}>
                   <span>✅</span>
-                  <span>Pendaftaran KRS Telah Direset Admin</span>
+                  <span>Permohonan Reset KRS Disetujui (ACC) Admin</span>
                 </div>
                 <div
                   style={{
                     backgroundColor: "#ffffff",
                     border: "1px solid #a7f3d0",
                     borderRadius: "var(--radius-sm)",
-                    padding: "0.5rem 0.7rem",
+                    padding: "0.55rem 0.75rem",
                     fontWeight: 600,
                     color: "#064e3b",
-                    marginBottom: "0.3rem",
+                    marginBottom: "0.35rem",
                   }}
                 >
-                  💬 Balasan Admin: &ldquo;{studentInfo.pesan_admin}&rdquo;
+                  💬 Balasan / Arahan Admin: &ldquo;
+                  {studentInfo.pesan_admin ||
+                    "Pendaftaran KRS Anda telah direset oleh Admin. Silakan masuk kembali untuk memilih ulang mata kuliah."}
+                  &rdquo;
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "#047857" }}>
                   Silakan tekan tombol <strong>Masuk Antrian</strong> di bawah untuk memilih ulang mata kuliah.
@@ -407,7 +410,7 @@ export function CheckNimCard({
               </div>
             )}
 
-            {studentInfo.status_kendala === "rejected" && studentInfo.pesan_admin && (
+            {studentInfo.status_kendala === "rejected" && (
               <div
                 style={{
                   padding: "0.85rem 1rem",
@@ -429,12 +432,14 @@ export function CheckNimCard({
                     backgroundColor: "#ffffff",
                     border: "1px solid #fecaca",
                     borderRadius: "var(--radius-sm)",
-                    padding: "0.5rem 0.7rem",
+                    padding: "0.55rem 0.75rem",
                     fontWeight: 600,
                     color: "#7f1d1d",
                   }}
                 >
-                  💬 Balasan Admin: &ldquo;{studentInfo.pesan_admin}&rdquo;
+                  💬 Balasan / Arahan Admin: &ldquo;
+                  {studentInfo.pesan_admin || "Laporan kendala Anda telah ditolak oleh Admin Akademik."}
+                  &rdquo;
                 </div>
               </div>
             )}

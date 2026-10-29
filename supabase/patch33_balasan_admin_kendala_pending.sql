@@ -203,7 +203,10 @@ BEGIN
             -- Direset oleh Admin: tampilkan balasan Admin selama mahasiswa belum menyelesaikan pendaftaran ulang baru
             IF NOT v_sudah_daftar THEN
                 v_status_kendala := 'resolved';
-                v_pesan_admin := NULLIF(trim(v_complaint.catatan_admin), '');
+                v_pesan_admin := COALESCE(
+                    NULLIF(trim(v_complaint.catatan_admin), ''),
+                    'Pendaftaran KRS Anda telah direset oleh Admin. Silakan masuk kembali untuk memilih ulang mata kuliah.'
+                );
             ELSE
                 v_status_kendala := NULL;
                 v_pesan_admin := NULL;
