@@ -183,7 +183,8 @@ body {
 .form-control,
 .form-input,
 .form-select,
-.form-textarea {
+.form-textarea,
+.input {
   width: 100%;
   padding: 0.85rem 1rem;
   font-size: 0.95rem;
@@ -198,7 +199,8 @@ body {
 .form-control:focus,
 .form-input:focus,
 .form-select:focus,
-.form-textarea:focus {
+.form-textarea:focus,
+.input:focus {
   outline: none;
   background-color: #ffffff;
   border-color: var(--primary);
@@ -206,7 +208,8 @@ body {
 }
 
 .form-control::placeholder,
-.form-input::placeholder {
+.form-input::placeholder,
+.input::placeholder {
   color: var(--text-light);
 }
 

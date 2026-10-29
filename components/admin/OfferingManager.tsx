@@ -34,6 +34,32 @@ export function OfferingManager({
 }: OfferingManagerProps) {
   const [search, setSearch] = useState("");
   const [filterJenis, setFilterJenis] = useState<"all" | "matkul" | "proyek">("all");
+  const [filterMatkul, setFilterMatkul] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"matkul_asc" | "kelas_asc" | "terisi_desc" | "sisa_desc">("matkul_asc");
+
+  // Ekstraksi nama dasar mata kuliah tanpa buntut huruf kelas (misal "Biofuel A" -> "Biofuel")
+  const getBaseCourseName = (o: Offering): string => {
+    const raw = o.nama.trim();
+    if (o.kelas && o.kelas !== "-") {
+      const escapedKelas = o.kelas.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const suffixRegex = new RegExp(`\\s+(?:Kelas\\s+)?${escapedKelas}$`, "i");
+      if (suffixRegex.test(raw)) {
+        return raw.replace(suffixRegex, "").trim();
+      }
+    }
+    return raw.replace(/\s+[A-Z]$/, "").trim() || raw;
+  };
+
+  // Daftar mata kuliah unik beserta jumlah kelasnya
+  const courseGroupMap = new Map<string, number>();
+  offerings.forEach((o) => {
+    if (filterJenis !== "all" && o.jenis !== filterJenis) return;
+    const base = getBaseCourseName(o);
+    courseGroupMap.set(base, (courseGroupMap.get(base) || 0) + 1);
+  });
+  const courseOptions = Array.from(courseGroupMap.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0], "id")
+  );
 
   // Upsert Modal State
   const [showModal, setShowModal] = useState(false);
@@ -60,13 +86,38 @@ export function OfferingManager({
   const [schedRuang, setSchedRuang] = useState("");
   const [savingSchedule, setSavingSchedule] = useState(false);
 
-  const filtered = offerings.filter((o) => {
-    const matchSearch =
-      o.nama.toLowerCase().includes(search.toLowerCase()) ||
-      (o.kelas && o.kelas.toLowerCase().includes(search.toLowerCase()));
-    const matchJenis = filterJenis === "all" || o.jenis === filterJenis;
-    return matchSearch && matchJenis;
-  });
+  const filtered = offerings
+    .filter((o) => {
+      const matchSearch =
+        o.nama.toLowerCase().includes(search.toLowerCase()) ||
+        (o.kelas && o.kelas.toLowerCase().includes(search.toLowerCase()));
+      const matchJenis = filterJenis === "all" || o.jenis === filterJenis;
+      const matchMatkul = filterMatkul === "all" || getBaseCourseName(o) === filterMatkul;
+      return matchSearch && matchJenis && matchMatkul;
+    })
+    .sort((a, b) => {
+      if (sortBy === "matkul_asc") {
+        const baseCmp = getBaseCourseName(a).localeCompare(getBaseCourseName(b), "id");
+        if (baseCmp !== 0) return baseCmp;
+        return (a.kelas || "").localeCompare(b.kelas || "", "id");
+      }
+      if (sortBy === "kelas_asc") {
+        const kelasCmp = (a.kelas || "").localeCompare(b.kelas || "", "id");
+        if (kelasCmp !== 0) return kelasCmp;
+        return a.nama.localeCompare(b.nama, "id");
+      }
+      if (sortBy === "terisi_desc") {
+        if (b.terisi !== a.terisi) return b.terisi - a.terisi;
+        return a.nama.localeCompare(b.nama, "id");
+      }
+      if (sortBy === "sisa_desc") {
+        const sisaA = a.kuota - a.terisi;
+        const sisaB = b.kuota - b.terisi;
+        if (sisaB !== sisaA) return sisaB - sisaA;
+        return a.nama.localeCompare(b.nama, "id");
+      }
+      return 0;
+    });
 
   const handleOpenAdd = () => {
     setEditId(null);
@@ -147,23 +198,56 @@ export function OfferingManager({
           marginBottom: "1.25rem",
         }}
       >
-        <div style={{ display: "flex", gap: "0.75rem", flex: 1, minWidth: 260 }}>
+        <div style={{ display: "flex", gap: "0.65rem", flex: 1, minWidth: 260, flexWrap: "wrap" }}>
           <input
             type="text"
             className="form-control"
+            style={{ flex: "1 1 200px", minWidth: 180 }}
             placeholder="Cari mata kuliah atau kelas (A-E)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
             className="form-control"
-            style={{ width: 140 }}
+            style={{ width: "auto", minWidth: 185 }}
+            value={filterMatkul}
+            onChange={(e) => setFilterMatkul(e.target.value)}
+            title="Filter per Mata Kuliah"
+          >
+            <option value="all">Semua Mata Kuliah ({courseOptions.length})</option>
+            {courseOptions.map(([baseName, count]) => (
+              <option key={baseName} value={baseName}>
+                {baseName} ({count} Kelas)
+              </option>
+            ))}
+          </select>
+          <select
+            className="form-control"
+            style={{ width: "auto", minWidth: 145 }}
             value={filterJenis}
-            onChange={(e) => setFilterJenis(e.target.value as "all" | "matkul" | "proyek")}
+            onChange={(e) => {
+              setFilterJenis(e.target.value as "all" | "matkul" | "proyek");
+              setFilterMatkul("all");
+            }}
+            title="Filter Jenis Pilihan"
           >
             <option value="all">Semua Jenis</option>
             <option value="matkul">Mata Kuliah</option>
             <option value="proyek">Proyek Terapan</option>
+          </select>
+          <select
+            className="form-control"
+            style={{ width: "auto", minWidth: 180 }}
+            value={sortBy}
+            onChange={(e) =>
+              setSortBy(e.target.value as "matkul_asc" | "kelas_asc" | "terisi_desc" | "sisa_desc")
+            }
+            title="Urutkan Daftar Mata Kuliah"
+          >
+            <option value="matkul_asc">Urut: Mata Kuliah (A-Z)</option>
+            <option value="kelas_asc">Urut: Kelas (A → E)</option>
+            <option value="terisi_desc">Urut: Terisi Terbanyak</option>
+            <option value="sisa_desc">Urut: Sisa Kuota Terbanyak</option>
           </select>
         </div>
 

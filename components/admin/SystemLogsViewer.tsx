@@ -206,14 +206,33 @@ export function SystemLogsViewer({
             </button>
           </div>
 
-          <div style={{ minWidth: 260, flex: 1, maxWidth: 380 }}>
+          <div style={{ position: "relative", minWidth: 260, flex: 1, maxWidth: 380 }}>
+            <span
+              style={{
+                position: "absolute",
+                left: "0.9rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "0.85rem",
+                color: "var(--text-muted)",
+                pointerEvents: "none",
+              }}
+            >
+              🔍
+            </span>
             <input
               type="text"
-              className="input"
+              className="form-control"
               placeholder="Cari NIM, Nama, atau Pesan..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ fontSize: "0.825rem", padding: "0.45rem 0.75rem" }}
+              style={{
+                fontSize: "0.825rem",
+                padding: "0.55rem 0.95rem 0.55rem 2.25rem",
+                borderRadius: "var(--radius-full)",
+                backgroundColor: "#f8fafc",
+                border: "1.5px solid var(--border-color)",
+              }}
             />
           </div>
         </div>

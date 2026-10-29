@@ -514,6 +514,48 @@ export default function AdminPage() {
     showAdminPopup("success", "Pengajuan Ditolak", "Pengajuan akses mahasiswa telah ditolak dengan catatan yang tersimpan.");
   };
 
+  // Handler Setujui Banyak Pengajuan Akses Sekaligus (Bulk Approve)
+  const handleBulkApproveRequest = async (ids: number[], catatan?: string) => {
+    let successCount = 0;
+    for (const id of ids) {
+      const { data, error } = await supabase.rpc("admin_setujui_pengajuan", {
+        p_id: id,
+        p_catatan: catatan || null,
+      });
+      if (error) throw new Error(error.message);
+      const res = data as { ok?: boolean; error?: string } | null;
+      if (res?.ok === false) throw new Error(res.error || "Gagal menyetujui pengajuan.");
+      successCount++;
+    }
+    loadAdminData(true);
+    showAdminPopup(
+      "success",
+      "Pengajuan Massal Disetujui",
+      `${successCount} pengajuan akses mahasiswa berhasil disetujui dan didaftarkan ke sistem.`
+    );
+  };
+
+  // Handler Tolak Banyak Pengajuan Akses Sekaligus (Bulk Reject)
+  const handleBulkRejectRequest = async (ids: number[], catatan: string) => {
+    let successCount = 0;
+    for (const id of ids) {
+      const { data, error } = await supabase.rpc("admin_tolak_pengajuan", {
+        p_id: id,
+        p_catatan: catatan,
+      });
+      if (error) throw new Error(error.message);
+      const res = data as { ok?: boolean; error?: string } | null;
+      if (res?.ok === false) throw new Error(res.error || "Gagal menolak pengajuan.");
+      successCount++;
+    }
+    loadAdminData(true);
+    showAdminPopup(
+      "success",
+      "Pengajuan Massal Ditolak",
+      `${successCount} pengajuan akses mahasiswa telah ditolak beserta pesan balasan admin.`
+    );
+  };
+
   // Handler Balas Pengajuan
   const handleReplyRequest = async (id: number, catatan: string) => {
     const { data, error } = await supabase.rpc("admin_balas_pengajuan", {
@@ -663,6 +705,36 @@ export default function AdminPage() {
     loadAdminData(true);
   };
 
+  // Handler Resolve Banyak Laporan Kendala Sekaligus (Bulk Reset / Reject)
+  const handleBulkResolveComplaint = async (
+    ids: number[],
+    action: "reset_and_batal" | "reject",
+    catatan: string
+  ) => {
+    let successCount = 0;
+    for (const id of ids) {
+      const { data, error } = await supabase.rpc("admin_resolve_complaint", {
+        p_id: id,
+        p_action: action,
+        p_catatan: catatan || null,
+      });
+      if (error) throw new Error(error.message);
+      const res = data as { ok?: boolean; error?: string } | null;
+      if (res && res.ok === false) {
+        throw new Error(res.error || "Gagal memproses laporan kendala.");
+      }
+      successCount++;
+    }
+    loadAdminData(true);
+    showAdminPopup(
+      "success",
+      action === "reset_and_batal" ? "Reset KRS Massal Berhasil" : "Penolakan Massal Berhasil",
+      action === "reset_and_batal"
+        ? `${successCount} pendaftaran mahasiswa berhasil direset beserta pesan balasan admin.`
+        : `${successCount} laporan kendala mahasiswa telah ditolak beserta pesan balasan admin.`
+    );
+  };
+
   // Handler Bersihkan Seluruh Riwayat Log
   const handleClearLogs = async () => {
     showAdminPopup(
@@ -786,7 +858,24 @@ export default function AdminPage() {
             className={`admin-nav-item ${activeTab === "pengajuan" ? "active" : ""}`}
             onClick={() => setActiveTab("pengajuan")}
           >
-            <span>Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "0.5rem" }}>
+              <span>Pengajuan Akses ({requests.filter((r) => r.status === "pending").length})</span>
+              {requests.filter((r) => r.status === "pending").length > 0 && (
+                <span
+                  style={{
+                    backgroundColor: "var(--warning)",
+                    color: "#ffffff",
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    padding: "1px 6px",
+                    borderRadius: "var(--radius-full)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {requests.filter((r) => r.status === "pending").length} Baru
+                </span>
+              )}
+            </div>
           </button>
           <button
             type="button"
@@ -923,6 +1012,8 @@ export default function AdminPage() {
               onApprove={handleApproveRequest}
               onReject={handleRejectRequest}
               onReply={handleReplyRequest}
+              onBulkApprove={handleBulkApproveRequest}
+              onBulkReject={handleBulkRejectRequest}
             />
           )}
 
@@ -930,6 +1021,7 @@ export default function AdminPage() {
             <ComplaintManager
               complaints={complaints}
               onResolveComplaint={handleResolveComplaint}
+              onBulkResolveComplaint={handleBulkResolveComplaint}
               onReplyComplaint={handleReplyComplaint}
               onSuccess={(msg) => showAdminPopup("success", "Berhasil", msg)}
               onError={(err) => showAdminPopup("danger", "Gagal", err)}

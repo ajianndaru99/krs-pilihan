@@ -7,6 +7,7 @@ import { formatWIBDateTime } from "@/lib/admin-adapter";
 interface ComplaintManagerProps {
   complaints: StudentComplaintItem[];
   onResolveComplaint: (id: number, action: "reset_and_batal" | "reject", catatan?: string) => Promise<void>;
+  onBulkResolveComplaint?: (ids: number[], action: "reset_and_batal" | "reject", catatan: string) => Promise<void>;
   onReplyComplaint?: (id: number, catatan: string) => Promise<void>;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
@@ -15,15 +16,17 @@ interface ComplaintManagerProps {
 export function ComplaintManager({
   complaints,
   onResolveComplaint,
+  onBulkResolveComplaint,
   onReplyComplaint,
   onSuccess,
   onError,
 }: ComplaintManagerProps) {
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "resolved" | "rejected">("pending");
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [activeModal, setActiveModal] = useState<{
     isOpen: boolean;
-    type: "reset_and_batal" | "reject" | "reply";
+    type: "reset_and_batal" | "reject" | "reply" | "bulk_reset" | "bulk_reject";
     item: StudentComplaintItem | null;
   }>({
     isOpen: false,
@@ -50,6 +53,27 @@ export function ComplaintManager({
   const resolvedCount = complaints.filter((c) => c.status === "resolved").length;
   const rejectedCount = complaints.filter((c) => c.status === "rejected").length;
 
+  const selectableIds = filtered.filter((c) => c.status === "pending").map((c) => c.id);
+  const validSelectedIds = selectedIds.filter((id) =>
+    complaints.some((c) => c.id === id && c.status === "pending")
+  );
+  const isAllSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => validSelectedIds.includes(id));
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllVisible = () => {
+    if (isAllSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !selectableIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...selectableIds])));
+    }
+  };
+
   const formatWhatsAppLink = (phone: string, nama: string, nim: string) => {
     let clean = phone.replace(/[^0-9]/g, "");
     if (clean.startsWith("0")) {
@@ -73,6 +97,17 @@ export function ComplaintManager({
     setModalError("");
   };
 
+  const openBulkModal = (type: "bulk_reset" | "bulk_reject") => {
+    if (validSelectedIds.length === 0) return;
+    setActiveModal({ isOpen: true, type, item: null });
+    setCatatanInput(
+      type === "bulk_reset"
+        ? "Pendaftaran KRS Anda telah direset oleh Admin. Silakan masuk kembali untuk memilih ulang mata kuliah."
+        : "Laporan kendala ditolak oleh Admin Akademik."
+    );
+    setModalError("");
+  };
+
   const closeModal = () => {
     setActiveModal({ isOpen: false, type: "reset_and_batal", item: null });
     setCatatanInput("");
@@ -81,13 +116,16 @@ export function ComplaintManager({
 
   const handleSubmitModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeModal.item) return;
+
+    const isBulk = activeModal.type === "bulk_reset" || activeModal.type === "bulk_reject";
+    if (!isBulk && !activeModal.item) return;
+    if (isBulk && validSelectedIds.length === 0) return;
 
     if (!catatanInput.trim()) {
       setModalError(
-        activeModal.type === "reset_and_batal"
+        activeModal.type === "reset_and_batal" || activeModal.type === "bulk_reset"
           ? "Balasan admin saat mereset KRS wajib diisi agar mahasiswa mengetahui tindak lanjutnya."
-          : activeModal.type === "reject"
+          : activeModal.type === "reject" || activeModal.type === "bulk_reject"
           ? "Alasan penolakan / balasan kendala wajib diisi agar mahasiswa paham."
           : "Pesan balasan admin tidak boleh kosong."
       );
@@ -97,20 +135,37 @@ export function ComplaintManager({
     setSubmitting(true);
     setModalError("");
     try {
-      if (activeModal.type === "reset_and_batal" || activeModal.type === "reject") {
+      if ((activeModal.type === "reset_and_batal" || activeModal.type === "reject") && activeModal.item) {
         await onResolveComplaint(activeModal.item.id, activeModal.type, catatanInput.trim());
+        setSelectedIds((prev) => prev.filter((id) => id !== activeModal.item?.id));
         if (activeModal.type === "reset_and_batal") {
           onSuccess(`Pendaftaran untuk ${activeModal.item.nama} (${activeModal.item.nim}) berhasil direset beserta pesan balasan admin.`);
         } else {
           onSuccess(`Laporan untuk ${activeModal.item.nama} (${activeModal.item.nim}) telah ditolak beserta pesan balasan admin.`);
         }
-      } else if (activeModal.type === "reply") {
+      } else if (activeModal.type === "reply" && activeModal.item) {
         if (onReplyComplaint) {
           await onReplyComplaint(activeModal.item.id, catatanInput.trim());
           onSuccess(`Pesan balasan untuk ${activeModal.item.nama} berhasil diperbarui.`);
         } else {
           await onResolveComplaint(activeModal.item.id, "reject", catatanInput.trim());
         }
+      } else if (activeModal.type === "bulk_reset" || activeModal.type === "bulk_reject") {
+        const actionType = activeModal.type === "bulk_reset" ? "reset_and_batal" : "reject";
+        const count = validSelectedIds.length;
+        if (onBulkResolveComplaint) {
+          await onBulkResolveComplaint(validSelectedIds, actionType, catatanInput.trim());
+        } else {
+          for (const id of validSelectedIds) {
+            await onResolveComplaint(id, actionType, catatanInput.trim());
+          }
+          onSuccess(
+            actionType === "reset_and_batal"
+              ? `${count} pendaftaran mahasiswa berhasil direset beserta pesan balasan admin.`
+              : `${count} laporan kendala telah ditolak beserta pesan balasan admin.`
+          );
+        }
+        setSelectedIds([]);
       }
       closeModal();
     } catch (err: unknown) {
@@ -157,7 +212,7 @@ export function ComplaintManager({
             </h2>
           </div>
           <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.35rem", marginBottom: 0 }}>
-            Daftar pengaduan kendala dan permohonan reset pemilihan. Admin dapat mereset KRS (ACC), menolak, atau membalas pesan.
+            Pilih 1 atau banyak laporan sekaligus dengan mencentang kotak di kiri untuk mereset KRS (ACC) atau menolak dengan cepat.
           </p>
         </div>
 
@@ -215,27 +270,98 @@ export function ComplaintManager({
       >
         <span style={{ fontSize: "1.1rem" }}>💡</span>
         <div>
-          Menyetujui kendala dengan <strong>Reset KRS (ACC)</strong> akan otomatis membatalkan seluruh pilihan mata kuliah mahasiswa bersangkutan, mengembalikan kuota ke penawaran, dan memperbolehkan mahasiswa memilih ulang (&quot;tinggal masuk ke sistem&quot;).
+          Menyetujui kendala dengan <strong>Reset KRS (ACC)</strong> akan otomatis membatalkan seluruh pilihan mata kuliah mahasiswa bersangkutan, mengembalikan kuota ke penawaran, dan mengirimkan pesan balasan agar mahasiswa dapat memilih ulang.
         </div>
       </div>
 
-      {/* Search Input */}
-      <div style={{ marginBottom: "1.25rem" }}>
+      {/* Search Input & Quick Select All */}
+      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap", marginBottom: "1rem" }}>
         <input
           type="text"
           className="form-control"
           placeholder="Cari berdasarkan NIM, Nama, atau isi alasan kendala..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ fontSize: "0.875rem", padding: "0.6rem 0.9rem" }}
+          style={{ fontSize: "0.875rem", padding: "0.6rem 0.9rem", flex: "1 1 240px" }}
         />
+        {selectableIds.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-sm btn-secondary"
+            onClick={toggleSelectAllVisible}
+            style={{ fontSize: "0.775rem", padding: "0.5rem 0.9rem", fontWeight: 700 }}
+          >
+            {isAllSelected
+              ? `Batal Pilih Semua (${selectableIds.length})`
+              : `☑️ Pilih Semua Menunggu (${selectableIds.length})`}
+          </button>
+        )}
       </div>
+
+      {/* Bulk Action Bar ketika ada laporan yang dicentang */}
+      {validSelectedIds.length > 0 && (
+        <div
+          style={{
+            backgroundColor: "#ecfdf5",
+            border: "1.5px solid #6ee7b7",
+            borderRadius: "var(--radius-md)",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "0.75rem",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: 800, color: "#065f46", fontSize: "0.875rem" }}>
+            <span>☑️</span>
+            <span>{validSelectedIds.length} Laporan Kendala Terpilih</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={() => openBulkModal("bulk_reset")}
+              style={{ fontSize: "0.8rem", padding: "0.45rem 0.9rem", fontWeight: 700 }}
+            >
+              Reset KRS Terpilih ({validSelectedIds.length})
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-danger"
+              onClick={() => openBulkModal("bulk_reject")}
+              style={{ fontSize: "0.8rem", padding: "0.45rem 0.9rem", fontWeight: 700 }}
+            >
+              Tolak Terpilih ({validSelectedIds.length})
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary"
+              onClick={() => setSelectedIds([])}
+              style={{ fontSize: "0.775rem", padding: "0.45rem 0.75rem" }}
+            >
+              Batal Pilih
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
           <thead>
             <tr style={{ backgroundColor: "var(--bg-subtle)", borderBottom: "2px solid var(--border-color)" }}>
+              <th style={{ padding: "10px 10px", width: 40, textAlign: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  disabled={selectableIds.length === 0}
+                  onChange={toggleSelectAllVisible}
+                  title="Pilih semua laporan kendala yang menunggu"
+                  style={{ width: 16, height: 16, cursor: selectableIds.length > 0 ? "pointer" : "default", accentColor: "var(--primary)" }}
+                />
+              </th>
               <th style={{ padding: "10px 10px", width: 45, textAlign: "center" }}>No</th>
               <th style={{ padding: "10px 10px", width: 120 }}>Waktu Lapor</th>
               <th style={{ padding: "10px 10px", width: 110 }}>NIM</th>
@@ -253,9 +379,28 @@ export function ComplaintManager({
                 const timeObj = formatWIBDateTime(item.created_at);
                 const isPending = item.status === "pending";
                 const isResolved = item.status === "resolved";
+                const isSelected = validSelectedIds.includes(item.id);
 
                 return (
-                  <tr key={item.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <tr
+                    key={item.id}
+                    style={{
+                      borderBottom: "1px solid var(--border-color)",
+                      backgroundColor: isSelected ? "#f0fdf4" : undefined,
+                    }}
+                  >
+                    <td style={{ padding: "10px 10px", textAlign: "center" }}>
+                      {isPending ? (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(item.id)}
+                          style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--primary)" }}
+                        />
+                      ) : (
+                        <span style={{ color: "var(--text-light)", fontSize: "0.75rem" }}>—</span>
+                      )}
+                    </td>
                     <td style={{ padding: "10px 10px", textAlign: "center", color: "var(--text-muted)" }}>
                       {idx + 1}
                     </td>
@@ -408,7 +553,7 @@ export function ComplaintManager({
               })
             ) : (
               <tr>
-                <td colSpan={9} style={{ padding: "2.5rem 1rem", textAlign: "center", color: "var(--text-muted)" }}>
+                <td colSpan={10} style={{ padding: "2.5rem 1rem", textAlign: "center", color: "var(--text-muted)" }}>
                   <div style={{ fontSize: "1rem", fontWeight: 600 }}>Tidak ada laporan pengaduan ditemukan</div>
                 </td>
               </tr>
@@ -418,7 +563,7 @@ export function ComplaintManager({
       </div>
 
       {/* Modal Dialog Tindakan Admin Kendala */}
-      {activeModal.isOpen && activeModal.item && (
+      {activeModal.isOpen && (
         <div
           style={{
             position: "fixed",
@@ -450,9 +595,13 @@ export function ComplaintManager({
               <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>
                 {activeModal.type === "reset_and_batal"
                   ? "Setujui & Reset Pendaftaran (ACC)"
+                  : activeModal.type === "bulk_reset"
+                  ? `Setujui & Reset KRS ${validSelectedIds.length} Mahasiswa Sekaligus`
                   : activeModal.type === "reject"
                   ? "Tolak Pengaduan Kendala"
-                  : "Kirim Balasan Pesan Kendala"}
+                  : activeModal.type === "bulk_reject"
+                  ? `Tolak ${validSelectedIds.length} Pengaduan Kendala Sekaligus`
+                  : "Ubah Balasan Pesan Kendala"}
               </h3>
               <button
                 type="button"
@@ -470,23 +619,31 @@ export function ComplaintManager({
               </button>
             </div>
 
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.85rem" }}>
-              Mahasiswa: <strong>{activeModal.item.nama}</strong> ({activeModal.item.nim})
-            </p>
+            {activeModal.item ? (
+              <>
+                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "0.85rem" }}>
+                  Mahasiswa: <strong>{activeModal.item.nama}</strong> ({activeModal.item.nim})
+                </p>
 
-            <div
-              style={{
-                backgroundColor: "#f8fafc",
-                border: "1px solid var(--border-color)",
-                borderRadius: "var(--radius-sm)",
-                padding: "8px 10px",
-                fontSize: "0.8rem",
-                color: "#475569",
-                marginBottom: "1rem",
-              }}
-            >
-              <strong>Alasan Kendala:</strong> {activeModal.item.alasan}
-            </div>
+                <div
+                  style={{
+                    backgroundColor: "#f8fafc",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "8px 10px",
+                    fontSize: "0.8rem",
+                    color: "#475569",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  <strong>Alasan Kendala:</strong> {activeModal.item.alasan}
+                </div>
+              </>
+            ) : (
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                Tindakan massal untuk <strong>{validSelectedIds.length} laporan kendala mahasiswa terpilih</strong>.
+              </p>
+            )}
 
             {modalError && (
               <div
@@ -507,9 +664,9 @@ export function ComplaintManager({
             <form onSubmit={handleSubmitModal}>
               <div className="form-group" style={{ marginBottom: "1rem" }}>
                 <label className="form-label" style={{ fontSize: "0.825rem", fontWeight: 700 }}>
-                  {activeModal.type === "reset_and_batal"
+                  {activeModal.type === "reset_and_batal" || activeModal.type === "bulk_reset"
                     ? "Balasan Admin untuk Mahasiswa (Wajib — Tampil Saat Cek NIM):"
-                    : activeModal.type === "reject"
+                    : activeModal.type === "reject" || activeModal.type === "bulk_reject"
                     ? "Balasan / Alasan Penolakan untuk Mahasiswa (Wajib):"
                     : "Ubah Pesan Balasan Admin:"}
                 </label>
@@ -538,9 +695,9 @@ export function ComplaintManager({
                 <button
                   type="submit"
                   className={`btn ${
-                    activeModal.type === "reset_and_batal"
+                    activeModal.type === "reset_and_batal" || activeModal.type === "bulk_reset"
                       ? "btn-primary"
-                      : activeModal.type === "reject"
+                      : activeModal.type === "reject" || activeModal.type === "bulk_reject"
                       ? "btn-danger"
                       : "btn-primary"
                   }`}
@@ -548,11 +705,15 @@ export function ComplaintManager({
                   style={{ fontSize: "0.85rem", padding: "0.5rem 1rem" }}
                 >
                   {submitting ? (
-                    "Menyimpan..."
+                    "Memproses..."
                   ) : activeModal.type === "reset_and_batal" ? (
                     "Setujui & Reset KRS"
+                  ) : activeModal.type === "bulk_reset" ? (
+                    `Reset KRS ${validSelectedIds.length} Mahasiswa`
                   ) : activeModal.type === "reject" ? (
                     "Tolak Kendala"
+                  ) : activeModal.type === "bulk_reject" ? (
+                    `Tolak ${validSelectedIds.length} Laporan`
                   ) : (
                     "Simpan Pesan Balasan"
                   )}
