@@ -124,7 +124,7 @@ export default function StudentPage() {
     }
   }, [selectedIds]);
 
-  // Sinkronisasi sesi: jika sessionStorage tidak memiliki token aktif, kembalikan ke login
+  // Sinkronisasi sesi: jika sessionStorage tidak memiliki token aktif atau mahasiswa sudah terdaftar, paksa kembali ke halaman input NIM
   useEffect(() => {
     if (typeof window !== "undefined") {
       const curToken = sessionStorage.getItem("token");
@@ -138,6 +138,27 @@ export default function StudentPage() {
           setSelectedIds([]);
         }, 0);
         return () => clearTimeout(timer);
+      }
+
+      if (curNim && curToken && phase !== "login") {
+        let isMounted = true;
+        supabase.rpc("cek_nim", { p_nim: curNim.trim() }).then(({ data }) => {
+          if (!isMounted) return;
+          const res = (data as { sudah_daftar?: boolean; sudah_terdaftar?: boolean } | null) || null;
+          if (res?.sudah_daftar || res?.sudah_terdaftar) {
+            sessionStorage.removeItem("nim");
+            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("krs_selected_ids");
+            setPhase("login");
+            setNim("");
+            setToken("");
+            setStudentInfo(null);
+            setSelectedIds([]);
+          }
+        });
+        return () => {
+          isMounted = false;
+        };
       }
     }
   }, [phase]);
@@ -338,6 +359,11 @@ export default function StudentPage() {
           fetchOfferings(curNim, curToken);
           return false; // Berhenti polling antrian ruang tunggu
         } else if (res.state === "done") {
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("token");
+            sessionStorage.removeItem("krs_selected_ids");
+            localStorage.setItem("krs_saved_nim", curNim.trim());
+          }
           router.push("/bukti");
           return false;
         }
@@ -764,6 +790,7 @@ export default function StudentPage() {
               const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
               if (hasPilihan) {
                 if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("token");
                   sessionStorage.removeItem("krs_selected_ids");
                   localStorage.setItem("krs_saved_nim", nim.trim());
                 }
@@ -781,6 +808,7 @@ export default function StudentPage() {
           const res = (data as { ok?: boolean; error?: string }) || {};
           if (res.ok) {
             if (typeof window !== "undefined") {
+              sessionStorage.removeItem("token");
               sessionStorage.removeItem("krs_selected_ids");
               localStorage.setItem("krs_saved_nim", nim.trim());
             }
@@ -797,6 +825,7 @@ export default function StudentPage() {
                 const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
                 if (hasPilihan) {
                   if (typeof window !== "undefined") {
+                    sessionStorage.removeItem("token");
                     sessionStorage.removeItem("krs_selected_ids");
                     localStorage.setItem("krs_saved_nim", nim.trim());
                   }
@@ -820,6 +849,7 @@ export default function StudentPage() {
             const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
             if (hasPilihan) {
               if (typeof window !== "undefined") {
+                sessionStorage.removeItem("token");
                 sessionStorage.removeItem("krs_selected_ids");
                 localStorage.setItem("krs_saved_nim", nim.trim());
               }
@@ -1173,10 +1203,9 @@ export default function StudentPage() {
                 onClick={() => {
                   if (typeof window !== "undefined") {
                     sessionStorage.setItem("nim", registeredData.nim);
+                    sessionStorage.removeItem("token");
+                    sessionStorage.removeItem("krs_selected_ids");
                     localStorage.setItem("krs_saved_nim", registeredData.nim);
-                    if (registeredData.token) {
-                      sessionStorage.setItem("token", registeredData.token);
-                    }
                   }
                   setShowRegisteredModal(false);
                   router.push("/bukti");

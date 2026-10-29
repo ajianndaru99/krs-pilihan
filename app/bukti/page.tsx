@@ -65,9 +65,12 @@ export default function BuktiPage() {
         return;
       }
 
-      // Simpan ke storage peramban agar sesi tidak hilang
+      // Simpan NIM untuk ketahanan refresh di halaman bukti, namun bersihkan token antrian
+      // agar kembali ke halaman utama selalu masuk ke form input NIM
       if (typeof window !== "undefined") {
         sessionStorage.setItem("nim", targetNim.trim());
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("krs_selected_ids");
         localStorage.setItem("krs_saved_nim", targetNim.trim());
       }
 
@@ -112,6 +115,12 @@ export default function BuktiPage() {
   };
 
   const handleBackToHome = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("nim");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("krs_selected_ids");
+      localStorage.removeItem("krs_saved_nim");
+    }
     router.replace("/");
   };
 
@@ -666,8 +675,6 @@ export default function BuktiPage() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          gap: "1rem",
-          flexWrap: "wrap",
         }}
       >
         <button
@@ -680,28 +687,11 @@ export default function BuktiPage() {
             minHeight: 46,
             fontSize: "0.9rem",
             width: "100%",
-            maxWidth: 260,
+            maxWidth: 280,
             justifyContent: "center",
           }}
         >
           Kembali ke Halaman Utama
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={() => setShowLookupInput(true)}
-          style={{
-            fontWeight: 600,
-            padding: "0.75rem 1.5rem",
-            minHeight: 46,
-            fontSize: "0.85rem",
-            width: "100%",
-            maxWidth: 240,
-            justifyContent: "center",
-          }}
-        >
-          🔍 Cari NIM Lain
         </button>
       </div>
     </div>
