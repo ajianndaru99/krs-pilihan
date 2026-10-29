@@ -378,5 +378,109 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_sapu_sesi() TO authenticated;
 
+-- ------------------------------------------------------------------------------
+-- 3. PASTIKAN SKEMA access_requests & FUNGSI ajukan_akses() (4 & 5 PARAMETER)
+-- ------------------------------------------------------------------------------
+ALTER TABLE public.access_requests ADD COLUMN IF NOT EXISTS catatan TEXT;
+ALTER TABLE public.access_requests ADD COLUMN IF NOT EXISTS catatan_admin TEXT;
+ALTER TABLE public.access_requests ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+
+CREATE OR REPLACE FUNCTION public.ajukan_akses(
+    p_nim TEXT,
+    p_nama TEXT,
+    p_kelas TEXT,
+    p_catatan TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_nim TEXT := trim(COALESCE(p_nim, ''));
+    v_nama TEXT := trim(COALESCE(p_nama, ''));
+    v_kelas TEXT := trim(COALESCE(p_kelas, ''));
+    v_catatan TEXT := trim(COALESCE(p_catatan, ''));
+    v_id INT;
+BEGIN
+    IF v_nim = '' OR length(v_nim) < 5 THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'NIM wajib diisi dengan benar (minimal 5 digit).');
+    END IF;
+
+    IF v_nama = '' THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Nama lengkap wajib diisi.');
+    END IF;
+
+    IF v_catatan = '' THEN
+        RETURN jsonb_build_object('ok', false, 'error', 'Alasan pengajuan dan nomor kontak wajib diisi.');
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM public.students WHERE nim = v_nim
+    ) THEN
+        RETURN jsonb_build_object(
+            'ok', false,
+            'error', format('NIM %s sudah terdaftar di database mahasiswa. Silakan tutup formulir ini dan langsung Cek NIM di halaman utama.', v_nim)
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM public.access_requests
+        WHERE nim = v_nim AND status = 'pending'
+    ) THEN
+        RETURN jsonb_build_object(
+            'ok', false,
+            'error', 'Pengajuan akses untuk NIM ini sudah terkirim sebelumnya dan sedang menunggu verifikasi admin.'
+        );
+    END IF;
+
+    INSERT INTO public.access_requests (nim, nama, kelas, catatan, status)
+    VALUES (v_nim, v_nama, NULLIF(v_kelas, ''), v_catatan, 'pending')
+    RETURNING id INTO v_id;
+
+    INSERT INTO public.system_logs (level, event_type, nim, nama, pesan, detail)
+    VALUES (
+        'info',
+        'AJUKAN_AKSES',
+        v_nim,
+        v_nama,
+        format('Mahasiswa %s (%s) mengajukan verifikasi akses NIM baru.', v_nama, v_nim),
+        jsonb_build_object('request_id', v_id, 'kelas', NULLIF(v_kelas, ''), 'catatan', v_catatan)
+    );
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'message', 'Pengajuan akses berhasil dikirim! Silakan tunggu verifikasi dari Admin Akademik.',
+        'id', v_id
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ajukan_akses(
+    p_nim TEXT,
+    p_nama TEXT,
+    p_kelas TEXT,
+    p_alasan TEXT,
+    p_kontak TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_gabungan TEXT;
+BEGIN
+    v_gabungan := CASE 
+        WHEN NULLIF(trim(COALESCE(p_kontak, '')), '') IS NOT NULL THEN trim(COALESCE(p_alasan, '')) || ' (Kontak: ' || trim(p_kontak) || ')'
+        ELSE trim(COALESCE(p_alasan, ''))
+    END;
+    RETURN public.ajukan_akses(p_nim, p_nama, p_kelas, v_gabungan);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.ajukan_akses(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ajukan_akses(TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+
 COMMIT;
 

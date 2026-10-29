@@ -41,7 +41,7 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 9999,
+        zIndex: 100050,
         padding: "1rem",
         animation: "fadeIn 0.15s ease-out",
       }}

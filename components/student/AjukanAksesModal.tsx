@@ -26,13 +26,19 @@ export function AjukanAksesModal({
   const [alasan, setAlasan] = useState("");
   const [kontak, setKontak] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  const activeNim = nim || initialNim;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nim.trim() || !nama.trim() || !alasan.trim() || !kontak.trim()) {
-      onError("Mohon lengkapi NIM, Nama Lengkap, Alasan pengajuan, dan Nomor WhatsApp aktif.");
+    setLocalError(null);
+    if (!activeNim.trim() || !nama.trim() || !alasan.trim() || !kontak.trim()) {
+      const msg = "Mohon lengkapi NIM, Nama Lengkap, Alasan pengajuan, dan Nomor WhatsApp aktif.";
+      setLocalError(msg);
+      onError(msg);
       return;
     }
 
@@ -42,7 +48,7 @@ export function AjukanAksesModal({
 
       // Coba panggil versi 4 parameter terlebih dahulu (sesuai schema yang aktif di database Supabase)
       let { data, error } = await supabase.rpc("ajukan_akses", {
-        p_nim: nim.trim(),
+        p_nim: activeNim.trim(),
         p_nama: nama.trim(),
         p_kelas: kelas.trim(),
         p_catatan: fullCatatan,
@@ -51,7 +57,7 @@ export function AjukanAksesModal({
       // Jika error not found / signature mismatch, coba fallback ke versi 5 parameter
       if (error && (error.code === "PGRST202" || error.message.includes("function"))) {
         const fallbackRes = await supabase.rpc("ajukan_akses", {
-          p_nim: nim.trim(),
+          p_nim: activeNim.trim(),
           p_nama: nama.trim(),
           p_kelas: kelas.trim(),
           p_alasan: alasan.trim(),
@@ -62,19 +68,30 @@ export function AjukanAksesModal({
       }
 
       if (error) {
-        onError(error.message || "Gagal mengirim pengajuan akses.");
+        const errMsg = error.message || "Gagal mengirim pengajuan akses.";
+        setLocalError(errMsg);
+        onError(errMsg);
         return;
       }
 
       const res = data as { ok?: boolean; error?: string; message?: string } | null;
       if (res?.ok) {
-        onSuccess(res.message || "Pengajuan akses berhasil dikirim! Admin akan segera memverifikasi.");
+        setNim("");
+        setNama("");
+        setKelas("");
+        setAlasan("");
+        setKontak("");
+        setLocalError(null);
         onClose();
+        onSuccess(res.message || "Pengajuan akses berhasil dikirim! Admin akan segera memverifikasi.");
       } else {
-        onError(res?.error || "Pengajuan tidak dapat diproses.");
+        const errMsg = res?.error || "Pengajuan tidak dapat diproses.";
+        setLocalError(errMsg);
+        onError(errMsg);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan koneksi.";
+      setLocalError(msg);
       onError(msg);
     } finally {
       setSubmitting(false);
@@ -144,8 +161,11 @@ export function AjukanAksesModal({
               pattern="[0-9]*"
               className="form-control"
               placeholder="Contoh: 2110211001"
-              value={nim}
-              onChange={(e) => setNim(e.target.value.replace(/\D/g, ""))}
+              value={activeNim}
+              onChange={(e) => {
+                setNim(e.target.value.replace(/\D/g, ""));
+                setLocalError(null);
+              }}
               required
             />
           </div>
@@ -204,7 +224,22 @@ export function AjukanAksesModal({
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem" }}>
+          {localError && (
+            <div
+              className="alert alert-danger"
+              style={{
+                marginTop: "1rem",
+                marginBottom: "0.25rem",
+                fontSize: "0.825rem",
+                fontWeight: 600,
+                lineHeight: 1.45,
+              }}
+            >
+              <span>⚠️ {localError}</span>
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.25rem" }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
               Batal
             </button>

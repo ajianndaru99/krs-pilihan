@@ -1081,8 +1081,6 @@ export default function StudentPage() {
         />
       )}
 
-      <InteractiveModal dialog={modalDialog} onClose={closeModal} />
-
       <AjukanAksesModal
         isOpen={showAjukanModal}
         onClose={() => setShowAjukanModal(false)}
@@ -1100,6 +1098,8 @@ export default function StudentPage() {
         onSuccess={(msg) => showPopup("info", "Laporan Terkirim", msg)}
         onError={(err) => showPopup("danger", "Gagal Mengirim Laporan", err)}
       />
+
+      <InteractiveModal dialog={modalDialog} onClose={closeModal} />
 
       {/* Modal Interaktif Khusus Mahasiswa yang Sudah Menyelesaikan Pendaftaran */}
       {showRegisteredModal && registeredData && (
