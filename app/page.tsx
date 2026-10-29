@@ -208,7 +208,16 @@ export default function StudentPage() {
           return;
         }
 
-        setOfferings(res.pilihan || []);
+        const loadedOfferings = res.pilihan || [];
+        setOfferings(loadedOfferings);
+
+        if (loadedOfferings.length > 0) {
+          const validIdSet = new Set(loadedOfferings.map((o) => o.id));
+          setSelectedIds((prev) => {
+            const filtered = prev.filter((id) => validIdSet.has(id));
+            return filtered.length === prev.length ? prev : filtered;
+          });
+        }
 
         if (res.ada_antrian) {
           setHasQueue(true);

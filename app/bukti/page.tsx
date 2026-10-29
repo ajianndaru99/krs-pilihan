@@ -92,12 +92,17 @@ export default function BuktiPage() {
     const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 
     if (!nim) {
-      setLoading(false);
-      setShowLookupInput(true);
-      return;
+      const timer = setTimeout(() => {
+        setLoading(false);
+        setShowLookupInput(true);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
-    fetchBuktiWithNim(nim, token);
+    const timer = setTimeout(() => {
+      void fetchBuktiWithNim(nim, token);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchBuktiWithNim]);
 
   const handlePrint = () => {

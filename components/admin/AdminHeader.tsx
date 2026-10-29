@@ -125,7 +125,7 @@ export function AdminHeader({
               borderRadius: "var(--radius-full)",
               backgroundColor: "var(--bg-subtle)",
             }}
-            title="Dashboard melakukan sinkronisasi otomatis ke database Supabase setiap 5 detik"
+            title="Dashboard melakukan sinkronisasi otomatis ke database Supabase setiap 10 detik"
           >
             <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--success)" }} />
             {lastSyncTime ? `Live ${lastSyncTime}` : "Sinkron..."}

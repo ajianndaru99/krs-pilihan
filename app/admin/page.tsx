@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   Offering,
@@ -65,7 +65,7 @@ export default function AdminPage() {
   const [requests, setRequests] = useState<AdminPengajuanItem[]>([]);
   const [complaints, setComplaints] = useState<StudentComplaintItem[]>([]);
   const [logs, setLogs] = useState<SystemLogItem[]>([]);
-  const [lastAlertId, setLastAlertId] = useState<number>(0);
+  const lastAlertIdRef = useRef<number | null>(null);
   const [incomingAlert, setIncomingAlert] = useState<AdminAlertItem | null>(null);
   const [kelasList, setKelasList] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -180,7 +180,12 @@ export default function AdminPage() {
       try {
         const { data: logData, error: logErr } = await supabase.rpc("admin_list_logs", { p_limit: 100 });
         if (!logErr) {
-          setLogs(parseLogsData(logData));
+          const parsedLogs = parseLogsData(logData);
+          setLogs(parsedLogs);
+          if (lastAlertIdRef.current === null) {
+            const maxLogId = parsedLogs.reduce((max, item) => (item.id > max ? item.id : max), 0);
+            lastAlertIdRef.current = maxLogId;
+          }
         }
       } catch {
         // Fallback aman jika patch31 belum dieksekusi di database server
@@ -241,19 +246,31 @@ export default function AdminPage() {
     }
   }, [sessionUser, loadAdminData]);
 
-  // Polling Real-time Pop-up Notifikasi jika ada data mental / error (setiap 6 detik)
+  // Polling Pop-up Notifikasi jika ada data mental / error baru (setiap 10 detik)
   useEffect(() => {
     if (!sessionUser) return;
 
     const pollAlerts = async () => {
       try {
-        const { data: alertRes } = await supabase.rpc("admin_get_latest_alerts", {
-          p_after_id: lastAlertId,
+        const isFirstCursorSync = lastAlertIdRef.current === null;
+        const cursorId = lastAlertIdRef.current ?? 0;
+
+        const { data: alertRes, error: alertErr } = await supabase.rpc("admin_get_latest_alerts", {
+          p_after_id: cursorId,
         });
-        const resObj = alertRes as { latest_id?: number } | null;
-        if (resObj?.latest_id && resObj.latest_id > lastAlertId) {
-          setLastAlertId(resObj.latest_id);
+        if (alertErr) return;
+
+        const resObj = alertRes as { ok?: boolean; latest_id?: number } | null;
+        if (resObj?.ok === false) return;
+
+        if (typeof resObj?.latest_id === "number" && resObj.latest_id > cursorId) {
+          lastAlertIdRef.current = resObj.latest_id;
+        } else if (isFirstCursorSync) {
+          lastAlertIdRef.current = typeof resObj?.latest_id === "number" ? resObj.latest_id : 0;
         }
+
+        // Jangan tampilkan pop-up untuk log historis saat halaman baru dimuat
+        if (isFirstCursorSync) return;
 
         const parsedAlerts = parseAlertsData(alertRes);
         if (parsedAlerts.length > 0) {
@@ -270,12 +287,12 @@ export default function AdminPage() {
 
     const alertInterval = setInterval(() => {
       void pollAlerts();
-    }, 6000);
+    }, ADMIN_POLL_INTERVAL_MS);
 
     return () => {
       clearInterval(alertInterval);
     };
-  }, [sessionUser, lastAlertId, loadAdminData]);
+  }, [sessionUser, loadAdminData]);
 
   // Handler Login Admin
   const handleLogin = async (e: React.FormEvent) => {
@@ -347,27 +364,35 @@ export default function AdminPage() {
   };
 
   // Handler Sapu Sesi Menggantung / Idle
-  const handleSapuSesi = async () => {
-    try {
-      setIsRefreshing(true);
-      const { data, error } = await supabase.rpc("admin_sapu_sesi");
-      if (error) {
-        showAdminPopup("danger", "Gagal Menyapu Sesi", error.message);
-        return;
+  const handleSapuSesi = () => {
+    showAdminPopup(
+      "confirm",
+      "Sapukan Sesi Aktif Tertahan?",
+      "Sesi aktif yang menggantung akan dibersihkan dan slot antrian yang menunggu (jika ada) akan dipromosikan. Mahasiswa yang masih memilih tetap dilindungi otomatis jika slot masih tersedia.",
+      undefined,
+      async () => {
+        try {
+          setIsRefreshing(true);
+          const { data, error } = await supabase.rpc("admin_sapu_sesi");
+          if (error) {
+            showAdminPopup("danger", "Gagal Menyapu Sesi", error.message);
+            return;
+          }
+          const res = data as { ok?: boolean; message?: string; error?: string } | null;
+          if (res?.ok) {
+            showAdminPopup("info", "Pembersihan Sesi Selesai", res.message || "Sesi aktif tertahan berhasil dibersihkan.");
+            await loadAdminData(true);
+          } else {
+            showAdminPopup("danger", "Gagal", res?.error || "Gagal menyapu sesi.");
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
+          showAdminPopup("danger", "Kesalahan", msg);
+        } finally {
+          setIsRefreshing(false);
+        }
       }
-      const res = data as { ok?: boolean; message?: string; error?: string } | null;
-      if (res?.ok) {
-        showAdminPopup("info", "Pembersihan Sesi Selesai", res.message || "Sesi aktif tertahan berhasil dibersihkan.");
-        await loadAdminData(true);
-      } else {
-        showAdminPopup("danger", "Gagal", res?.error || "Gagal menyapu sesi.");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
-      showAdminPopup("danger", "Kesalahan", msg);
-    } finally {
-      setIsRefreshing(false);
-    }
+    );
   };
 
   // Handler Kuota
@@ -646,11 +671,17 @@ export default function AdminPage() {
       "Seluruh riwayat log aktivitas database dan catatan pendaftaran mental akan dihapus permanen.",
       undefined,
       async () => {
-        const { error } = await supabase.rpc("admin_clear_logs");
+        const { data, error } = await supabase.rpc("admin_clear_logs");
         if (error) {
           showAdminPopup("danger", "Gagal Membersihkan Log", error.message);
           return;
         }
+        const res = data as { ok?: boolean; error?: string } | null;
+        if (res && res.ok === false) {
+          showAdminPopup("danger", "Gagal Membersihkan Log", res.error || "Gagal membersihkan log.");
+          return;
+        }
+        lastAlertIdRef.current = 0;
         setLogs([]);
         showAdminPopup("success", "Berhasil", "Seluruh riwayat log berhasil dibersihkan.");
       }
