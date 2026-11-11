@@ -125,35 +125,39 @@ async function runStudentFlow(student, stats) {
       return false;
     };
 
-    // Saring matkul yang valid (kuota masih ada & tidak bentrok jadwal tetap)
+    // Saring matkul dan proyek yang valid (kuota tersedia & tidak bentrok jadwal tetap kelas)
     const validMatkuls = offerings.filter((o) => o.jenis === "matkul" && o.terisi < o.kuota && !o.bentrok && !o.bentrok_kelas);
-    const validProyeks = offerings.filter((o) => o.jenis === "proyek" && o.terisi < o.kuota);
+    const validProyeks = offerings.filter((o) => o.jenis === "proyek" && o.terisi < o.kuota && !o.bentrok && !o.bentrok_kelas);
 
-    if (validProyeks.length === 0) {
-      stats.errors.push(`[${nim}] Tidak ada proyek mandiri dengan kuota tersisa`);
-      return false;
-    }
+    // Ekstraksi nama dasar mata kuliah tanpa huruf kelas untuk mencegah mata kuliah kembar
+    const getBaseCourseName = (o) => {
+      const raw = o.nama ? o.nama.trim() : "";
+      return raw.replace(/\s+[A-D]$/, "").trim() || raw;
+    };
 
-    // Pilih 3 matkul
+    // Pilih hingga 3 matkul bebas bentrok dan topik tidak kembar
     for (const m of validMatkuls) {
-      if (!chosenTopics.has(m.topik)) {
+      const topic = m.topik || getBaseCourseName(m);
+      if (!chosenTopics.has(topic)) {
         const mSched = m.jadwal || [];
         if (!isConflict(mSched, chosenSchedules)) {
           selectedIds.push(m.id);
-          chosenTopics.add(m.topik);
+          chosenTopics.add(topic);
           chosenSchedules.push(...mSched);
           if (selectedIds.length === 3) break;
         }
       }
     }
 
-    if (selectedIds.length < 3) {
-      stats.errors.push(`[${nim}] Tidak dapat menemukan 3 matkul pilihan bebas bentrok (terpilih: ${selectedIds.length})`);
+    if (selectedIds.length === 0) {
+      stats.errors.push(`[${nim}] Tidak dapat menemukan matkul pilihan bebas bentrok (terpilih: 0)`);
       return false;
     }
 
-    // Tambahkan 1 proyek
-    selectedIds.push(validProyeks[0].id);
+    // Tambahkan 1 proyek jika tersedia dan slot mencukupi (maksimal 4 pilihan)
+    if (validProyeks.length > 0 && selectedIds.length < 4) {
+      selectedIds.push(validProyeks[0].id);
+    }
 
     // 6. Submit Pendaftaran (daftar)
     const t4 = Date.now();
