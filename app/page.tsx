@@ -789,7 +789,6 @@ export default function StudentPage() {
             try {
               const { data: checkData } = await supabase.rpc("hasil_saya", {
                 p_nim: nim.trim(),
-                p_token: token.trim(),
               });
               const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
               const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
@@ -824,7 +823,6 @@ export default function StudentPage() {
               try {
                 const { data: checkData } = await supabase.rpc("hasil_saya", {
                   p_nim: nim.trim(),
-                  p_token: token.trim(),
                 });
                 const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
                 const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
@@ -848,7 +846,6 @@ export default function StudentPage() {
           try {
             const { data: checkData } = await supabase.rpc("hasil_saya", {
               p_nim: nim.trim(),
-              p_token: token.trim(),
             });
             const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
             const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);

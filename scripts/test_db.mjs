@@ -307,6 +307,26 @@ async function runTestSuite() {
     return data.ok === false || "Bukti pendaftaran keluar untuk NIM fiktif!";
   });
 
+  await assertTest("Bisnis: hasil_saya() dapat dipanggil hanya dengan p_nim (p_token opsional)", async () => {
+    const { data, error } = await supabase.rpc("hasil_saya", {
+      p_nim: "2110211001",
+    });
+    if (error) return `Error RPC: ${error.message}`;
+    return data !== null && typeof data === "object";
+  });
+
+  await assertTest("Bisnis: cek_nim() memuat struktur respon sinkronisasi kendala (status_kendala & pesan_admin)", async () => {
+    const { data, error } = await supabase.rpc("cek_nim", {
+      p_nim: "2110211001",
+    });
+    if (error) return `Error RPC: ${error.message}`;
+    return (
+      data?.ok === true &&
+      "status_kendala" in data &&
+      "pesan_admin" in data
+    );
+  });
+
   await assertTest("Bisnis: daftar_kelas() merespons array JSON yang aman", async () => {
     const { data, error } = await supabase.rpc("daftar_kelas");
     if (error) return `Error RPC: ${error.message}`;

@@ -268,6 +268,10 @@ export default function AdminPage() {
     };
 
     const timer = setInterval(() => {
+      // Jeda polling otomatis bila tab browser di latar belakang (hemat kuota koneksi)
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
       void pollAlertsAndData();
     }, ADMIN_POLL_INTERVAL_MS);
 
