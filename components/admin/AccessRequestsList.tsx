@@ -8,8 +8,16 @@ interface AccessRequestsListProps {
   onApprove: (id: number, catatan?: string) => Promise<void>;
   onReject: (id: number, catatan: string) => Promise<void>;
   onReply: (id: number, catatan: string) => Promise<void>;
-  onBulkApprove?: (ids: number[], catatan?: string) => Promise<void>;
-  onBulkReject?: (ids: number[], catatan: string) => Promise<void>;
+  onBulkApprove?: (
+    ids: number[],
+    catatan?: string,
+    onProgress?: (current: number, total: number) => void
+  ) => Promise<void>;
+  onBulkReject?: (
+    ids: number[],
+    catatan: string,
+    onProgress?: (current: number, total: number) => void
+  ) => Promise<void>;
 }
 
 export function AccessRequestsList({
@@ -23,6 +31,7 @@ export function AccessRequestsList({
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [progressMsg, setProgressMsg] = useState("");
   const [activeModal, setActiveModal] = useState<{
     isOpen: boolean;
     type: "approve" | "reject" | "reply" | "bulk_approve" | "bulk_reject";
@@ -134,19 +143,29 @@ export function AccessRequestsList({
         await onReply(activeModal.item.id, catatanInput.trim());
       } else if (activeModal.type === "bulk_approve") {
         if (onBulkApprove) {
-          await onBulkApprove(validSelectedIds, catatanInput.trim() || undefined);
+          await onBulkApprove(
+            validSelectedIds,
+            catatanInput.trim() || undefined,
+            (curr, tot) => setProgressMsg(`Memproses ${curr}/${tot}...`)
+          );
         } else {
-          for (const id of validSelectedIds) {
-            await onApprove(id, catatanInput.trim() || undefined);
+          for (let i = 0; i < validSelectedIds.length; i++) {
+            setProgressMsg(`Memproses ${i + 1}/${validSelectedIds.length}...`);
+            await onApprove(validSelectedIds[i], catatanInput.trim() || undefined);
           }
         }
         setSelectedIds([]);
       } else if (activeModal.type === "bulk_reject") {
         if (onBulkReject) {
-          await onBulkReject(validSelectedIds, catatanInput.trim());
+          await onBulkReject(
+            validSelectedIds,
+            catatanInput.trim(),
+            (curr, tot) => setProgressMsg(`Memproses ${curr}/${tot}...`)
+          );
         } else {
-          for (const id of validSelectedIds) {
-            await onReject(id, catatanInput.trim());
+          for (let i = 0; i < validSelectedIds.length; i++) {
+            setProgressMsg(`Memproses ${i + 1}/${validSelectedIds.length}...`);
+            await onReject(validSelectedIds[i], catatanInput.trim());
           }
         }
         setSelectedIds([]);
@@ -157,6 +176,7 @@ export function AccessRequestsList({
       setErrorMsg(msg);
     } finally {
       setSubmitting(false);
+      setProgressMsg("");
     }
   };
 
@@ -605,7 +625,7 @@ export function AccessRequestsList({
                   style={{ fontSize: "0.85rem", padding: "0.5rem 1rem" }}
                 >
                   {submitting ? (
-                    "Memproses..."
+                    progressMsg || "Memproses..."
                   ) : activeModal.type === "approve" ? (
                     "Setujui & Daftarkan"
                   ) : activeModal.type === "bulk_approve" ? (

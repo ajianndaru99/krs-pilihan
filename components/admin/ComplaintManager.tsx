@@ -7,7 +7,12 @@ import { formatWIBDateTime } from "@/lib/admin-adapter";
 interface ComplaintManagerProps {
   complaints: StudentComplaintItem[];
   onResolveComplaint: (id: number, action: "reset_and_batal" | "reject", catatan?: string) => Promise<void>;
-  onBulkResolveComplaint?: (ids: number[], action: "reset_and_batal" | "reject", catatan: string) => Promise<void>;
+  onBulkResolveComplaint?: (
+    ids: number[],
+    action: "reset_and_batal" | "reject",
+    catatan: string,
+    onProgress?: (current: number, total: number) => void
+  ) => Promise<void>;
   onReplyComplaint?: (id: number, catatan: string) => Promise<void>;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
@@ -24,6 +29,7 @@ export function ComplaintManager({
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "resolved" | "rejected">("pending");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [progressMsg, setProgressMsg] = useState("");
   const [activeModal, setActiveModal] = useState<{
     isOpen: boolean;
     type: "reset_and_batal" | "reject" | "reply" | "bulk_reset" | "bulk_reject";
@@ -76,6 +82,7 @@ export function ComplaintManager({
 
   const formatWhatsAppLink = (phone: string, nama: string, nim: string) => {
     let clean = phone.replace(/[^0-9]/g, "");
+    if (clean.length < 8) return null;
     if (clean.startsWith("0")) {
       clean = "62" + clean.slice(1);
     }
@@ -154,10 +161,16 @@ export function ComplaintManager({
         const actionType = activeModal.type === "bulk_reset" ? "reset_and_batal" : "reject";
         const count = validSelectedIds.length;
         if (onBulkResolveComplaint) {
-          await onBulkResolveComplaint(validSelectedIds, actionType, catatanInput.trim());
+          await onBulkResolveComplaint(
+            validSelectedIds,
+            actionType,
+            catatanInput.trim(),
+            (curr, tot) => setProgressMsg(`Memproses ${curr}/${tot}...`)
+          );
         } else {
-          for (const id of validSelectedIds) {
-            await onResolveComplaint(id, actionType, catatanInput.trim());
+          for (let i = 0; i < validSelectedIds.length; i++) {
+            setProgressMsg(`Memproses ${i + 1}/${count}...`);
+            await onResolveComplaint(validSelectedIds[i], actionType, catatanInput.trim());
           }
           onSuccess(
             actionType === "reset_and_batal"
@@ -174,6 +187,7 @@ export function ComplaintManager({
       onError(msg);
     } finally {
       setSubmitting(false);
+      setProgressMsg("");
     }
   };
 
@@ -464,26 +478,34 @@ export function ComplaintManager({
                     </td>
                     <td style={{ padding: "10px 10px", fontSize: "0.8rem" }}>
                       {item.kontak ? (
-                        <a
-                          href={formatWhatsAppLink(item.kontak, item.nama, item.nim)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn btn-sm btn-secondary"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            padding: "3px 7px",
-                            fontSize: "0.725rem",
-                            textDecoration: "none",
-                            color: "#059669",
-                            borderColor: "#a7f3d0",
-                            backgroundColor: "#ecfdf5",
-                            fontWeight: 600,
-                          }}
-                        >
-                          <span>WA: {item.kontak}</span>
-                        </a>
+                        (() => {
+                          const waUrl = formatWhatsAppLink(item.kontak, item.nama, item.nim);
+                          if (!waUrl) {
+                            return <span>{item.kontak}</span>;
+                          }
+                          return (
+                            <a
+                              href={waUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-sm btn-secondary"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                padding: "3px 7px",
+                                fontSize: "0.725rem",
+                                textDecoration: "none",
+                                color: "#059669",
+                                borderColor: "#a7f3d0",
+                                backgroundColor: "#ecfdf5",
+                                fontWeight: 600,
+                              }}
+                            >
+                              <span>WA: {item.kontak}</span>
+                            </a>
+                          );
+                        })()
                       ) : (
                         <span style={{ color: "var(--text-muted)" }}>-</span>
                       )}
@@ -705,7 +727,7 @@ export function ComplaintManager({
                   style={{ fontSize: "0.85rem", padding: "0.5rem 1rem" }}
                 >
                   {submitting ? (
-                    "Memproses..."
+                    progressMsg || "Memproses..."
                   ) : activeModal.type === "reset_and_batal" ? (
                     "Setujui & Reset KRS"
                   ) : activeModal.type === "bulk_reset" ? (

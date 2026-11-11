@@ -224,33 +224,12 @@ export default function AdminPage() {
     };
   }, [loadAdminData]);
 
-  // Polling data admin otomatis setiap 10 detik saat admin login + sinkron saat tab aktif
-  useEffect(() => {
-    if (sessionUser) {
-      const timer = setInterval(() => {
-        void loadAdminData(true);
-      }, ADMIN_POLL_INTERVAL_MS);
-
-      const handleVisibilityChange = () => {
-        if (typeof document !== "undefined" && document.visibilityState === "visible") {
-          void loadAdminData(true);
-        }
-      };
-
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-
-      return () => {
-        clearInterval(timer);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-      };
-    }
-  }, [sessionUser, loadAdminData]);
-
-  // Polling Pop-up Notifikasi jika ada data mental / error baru (setiap 10 detik)
+  // Polling data admin & notifikasi log sistem (tunggal & terkoordinasi setiap 10 detik)
   useEffect(() => {
     if (!sessionUser) return;
 
-    const pollAlerts = async () => {
+    const pollAlertsAndData = async () => {
+      // 1. Cek notifikasi peringatan log mental / error terkini
       try {
         const isFirstCursorSync = lastAlertIdRef.current === null;
         const cursorId = lastAlertIdRef.current ?? 0;
@@ -258,39 +237,51 @@ export default function AdminPage() {
         const { data: alertRes, error: alertErr } = await supabase.rpc("admin_get_latest_alerts", {
           p_after_id: cursorId,
         });
-        if (alertErr) return;
 
-        const resObj = alertRes as { ok?: boolean; latest_id?: number } | null;
-        if (resObj?.ok === false) return;
+        if (!alertErr) {
+          const resObj = alertRes as { ok?: boolean; latest_id?: number } | null;
+          if (resObj && resObj.ok !== false) {
+            if (typeof resObj.latest_id === "number" && resObj.latest_id > cursorId) {
+              lastAlertIdRef.current = resObj.latest_id;
+            } else if (isFirstCursorSync) {
+              lastAlertIdRef.current = typeof resObj.latest_id === "number" ? resObj.latest_id : 0;
+            }
 
-        if (typeof resObj?.latest_id === "number" && resObj.latest_id > cursorId) {
-          lastAlertIdRef.current = resObj.latest_id;
-        } else if (isFirstCursorSync) {
-          lastAlertIdRef.current = typeof resObj?.latest_id === "number" ? resObj.latest_id : 0;
-        }
-
-        // Jangan tampilkan pop-up untuk log historis saat halaman baru dimuat
-        if (isFirstCursorSync) return;
-
-        const parsedAlerts = parseAlertsData(alertRes);
-        if (parsedAlerts.length > 0) {
-          const firstError = parsedAlerts.find((a) => a.level === "error" || a.level === "warning");
-          if (firstError) {
-            setIncomingAlert(firstError);
+            // Pop-up hanya untuk event baru setelah sinkronisasi cursor pertama
+            if (!isFirstCursorSync) {
+              const parsedAlerts = parseAlertsData(alertRes);
+              if (parsedAlerts.length > 0) {
+                const firstError = parsedAlerts.find((a) => a.level === "error" || a.level === "warning");
+                if (firstError) {
+                  setIncomingAlert(firstError);
+                }
+              }
+            }
           }
-          void loadAdminData(true);
         }
       } catch {
-        // Abaikan jika RPC belum aktif di database
+        // Abaikan jika RPC alerts belum aktif
+      }
+
+      // 2. Muat data master admin (silent refresh)
+      await loadAdminData(true);
+    };
+
+    const timer = setInterval(() => {
+      void pollAlertsAndData();
+    }, ADMIN_POLL_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void pollAlertsAndData();
       }
     };
 
-    const alertInterval = setInterval(() => {
-      void pollAlerts();
-    }, ADMIN_POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      clearInterval(alertInterval);
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [sessionUser, loadAdminData]);
 
@@ -515,45 +506,101 @@ export default function AdminPage() {
   };
 
   // Handler Setujui Banyak Pengajuan Akses Sekaligus (Bulk Approve)
-  const handleBulkApproveRequest = async (ids: number[], catatan?: string) => {
+  const handleBulkApproveRequest = async (
+    ids: number[],
+    catatan?: string,
+    onProgress?: (current: number, total: number) => void
+  ) => {
     let successCount = 0;
-    for (const id of ids) {
-      const { data, error } = await supabase.rpc("admin_setujui_pengajuan", {
-        p_id: id,
-        p_catatan: catatan || null,
-      });
-      if (error) throw new Error(error.message);
-      const res = data as { ok?: boolean; error?: string } | null;
-      if (res?.ok === false) throw new Error(res.error || "Gagal menyetujui pengajuan.");
-      successCount++;
+    let failCount = 0;
+    let lastError = "";
+
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        if (onProgress) onProgress(i + 1, ids.length);
+        const id = ids[i];
+        try {
+          const { data, error } = await supabase.rpc("admin_setujui_pengajuan", {
+            p_id: id,
+            p_catatan: catatan || null,
+          });
+          if (error) throw new Error(error.message);
+          const res = data as { ok?: boolean; error?: string } | null;
+          if (res?.ok === false) throw new Error(res.error || "Gagal menyetujui pengajuan.");
+          successCount++;
+        } catch (err) {
+          failCount++;
+          lastError = err instanceof Error ? err.message : "Gagal memproses";
+        }
+      }
+    } finally {
+      loadAdminData(true);
     }
-    loadAdminData(true);
-    showAdminPopup(
-      "success",
-      "Pengajuan Massal Disetujui",
-      `${successCount} pengajuan akses mahasiswa berhasil disetujui dan didaftarkan ke sistem.`
-    );
+
+    if (failCount === 0) {
+      showAdminPopup(
+        "success",
+        "Pengajuan Massal Disetujui",
+        `${successCount} pengajuan akses mahasiswa berhasil disetujui dan didaftarkan ke sistem.`
+      );
+    } else if (successCount > 0) {
+      showAdminPopup(
+        "warning",
+        "Pengajuan Massal Sebagian Berhasil",
+        `${successCount} pengajuan berhasil disetujui, namun ${failCount} pengajuan gagal (${lastError}).`
+      );
+    } else {
+      showAdminPopup("danger", "Gagal Memproses Pengajuan", lastError || "Terjadi kesalahan.");
+    }
   };
 
   // Handler Tolak Banyak Pengajuan Akses Sekaligus (Bulk Reject)
-  const handleBulkRejectRequest = async (ids: number[], catatan: string) => {
+  const handleBulkRejectRequest = async (
+    ids: number[],
+    catatan: string,
+    onProgress?: (current: number, total: number) => void
+  ) => {
     let successCount = 0;
-    for (const id of ids) {
-      const { data, error } = await supabase.rpc("admin_tolak_pengajuan", {
-        p_id: id,
-        p_catatan: catatan,
-      });
-      if (error) throw new Error(error.message);
-      const res = data as { ok?: boolean; error?: string } | null;
-      if (res?.ok === false) throw new Error(res.error || "Gagal menolak pengajuan.");
-      successCount++;
+    let failCount = 0;
+    let lastError = "";
+
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        if (onProgress) onProgress(i + 1, ids.length);
+        const id = ids[i];
+        try {
+          const { data, error } = await supabase.rpc("admin_tolak_pengajuan", {
+            p_id: id,
+            p_catatan: catatan,
+          });
+          if (error) throw new Error(error.message);
+          const res = data as { ok?: boolean; error?: string } | null;
+          if (res?.ok === false) throw new Error(res.error || "Gagal menolak pengajuan.");
+          successCount++;
+        } catch (err) {
+          failCount++;
+          lastError = err instanceof Error ? err.message : "Gagal memproses";
+        }
+      }
+    } finally {
+      loadAdminData(true);
     }
-    loadAdminData(true);
-    showAdminPopup(
-      "success",
-      "Pengajuan Massal Ditolak",
-      `${successCount} pengajuan akses mahasiswa telah ditolak beserta pesan balasan admin.`
-    );
+
+    if (failCount === 0) {
+      showAdminPopup(
+        "success",
+        "Pengajuan Massal Ditolak",
+        `${successCount} pengajuan akses mahasiswa telah ditolak beserta pesan balasan admin.`
+      );
+    } else if (successCount > 0) {
+      showAdminPopup(
+        "warning",
+        "Pengajuan Massal Sebagian Berhasil",
+        `${successCount} pengajuan berhasil ditolak, namun ${failCount} pengajuan gagal (${lastError}).`
+      );
+    } else {
+      showAdminPopup("danger", "Gagal Memproses Pengajuan", lastError || "Terjadi kesalahan.");
+    }
   };
 
   // Handler Balas Pengajuan
@@ -709,30 +756,55 @@ export default function AdminPage() {
   const handleBulkResolveComplaint = async (
     ids: number[],
     action: "reset_and_batal" | "reject",
-    catatan: string
+    catatan: string,
+    onProgress?: (current: number, total: number) => void
   ) => {
     let successCount = 0;
-    for (const id of ids) {
-      const { data, error } = await supabase.rpc("admin_resolve_complaint", {
-        p_id: id,
-        p_action: action,
-        p_catatan: catatan || null,
-      });
-      if (error) throw new Error(error.message);
-      const res = data as { ok?: boolean; error?: string } | null;
-      if (res && res.ok === false) {
-        throw new Error(res.error || "Gagal memproses laporan kendala.");
+    let failCount = 0;
+    let lastError = "";
+
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        if (onProgress) onProgress(i + 1, ids.length);
+        const id = ids[i];
+        try {
+          const { data, error } = await supabase.rpc("admin_resolve_complaint", {
+            p_id: id,
+            p_action: action,
+            p_catatan: catatan || null,
+          });
+          if (error) throw new Error(error.message);
+          const res = data as { ok?: boolean; error?: string } | null;
+          if (res && res.ok === false) {
+            throw new Error(res.error || "Gagal memproses laporan kendala.");
+          }
+          successCount++;
+        } catch (err) {
+          failCount++;
+          lastError = err instanceof Error ? err.message : "Gagal memproses";
+        }
       }
-      successCount++;
+    } finally {
+      loadAdminData(true);
     }
-    loadAdminData(true);
-    showAdminPopup(
-      "success",
-      action === "reset_and_batal" ? "Reset KRS Massal Berhasil" : "Penolakan Massal Berhasil",
-      action === "reset_and_batal"
-        ? `${successCount} pendaftaran mahasiswa berhasil direset beserta pesan balasan admin.`
-        : `${successCount} laporan kendala mahasiswa telah ditolak beserta pesan balasan admin.`
-    );
+
+    if (failCount === 0) {
+      showAdminPopup(
+        "success",
+        action === "reset_and_batal" ? "Reset KRS Massal Berhasil" : "Penolakan Massal Berhasil",
+        action === "reset_and_batal"
+          ? `${successCount} pendaftaran mahasiswa berhasil direset beserta pesan balasan admin.`
+          : `${successCount} laporan kendala mahasiswa telah ditolak beserta pesan balasan admin.`
+      );
+    } else if (successCount > 0) {
+      showAdminPopup(
+        "warning",
+        "Tindakan Massal Sebagian Berhasil",
+        `${successCount} laporan berhasil diproses, namun ${failCount} laporan gagal (${lastError}).`
+      );
+    } else {
+      showAdminPopup("danger", "Gagal Memproses Tindakan Massal", lastError || "Terjadi kesalahan.");
+    }
   };
 
   // Handler Bersihkan Seluruh Riwayat Log
