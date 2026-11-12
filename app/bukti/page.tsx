@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { QrCode } from "@/lib/qr-generator";
 
 interface PilihanItem {
   id: number;
@@ -37,6 +38,10 @@ export default function BuktiPage() {
   const [data, setData] = useState<BuktiData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
+  // State verifikasi QR Code & scan
+  const [isVerifiedScan, setIsVerifiedScan] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+
   // State pencarian mandiri (Self-healing jika sesi kosong)
   const [showLookupInput, setShowLookupInput] = useState(false);
   const [searchNim, setSearchNim] = useState("");
@@ -87,14 +92,24 @@ export default function BuktiPage() {
   }, []);
 
   useEffect(() => {
-    let nim = typeof window !== "undefined" ? sessionStorage.getItem("nim") : null;
-    if (!nim && typeof window !== "undefined") {
-      nim = localStorage.getItem("krs_saved_nim");
+    let urlNim: string | null = null;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      urlNim = params.get("nim");
     }
 
+    const sessionNim = typeof window !== "undefined" ? sessionStorage.getItem("nim") : null;
+    const localNim = typeof window !== "undefined" ? localStorage.getItem("krs_saved_nim") : null;
     const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 
-    if (!nim) {
+    // Prioritas: URL param (mode scan QR ponsel dosen) > sessionStorage > localStorage
+    const targetNim = (urlNim && urlNim.trim()) || sessionNim || localNim;
+
+    if (urlNim && urlNim.trim()) {
+      setIsVerifiedScan(true);
+    }
+
+    if (!targetNim) {
       const timer = setTimeout(() => {
         setLoading(false);
         setShowLookupInput(true);
@@ -103,10 +118,18 @@ export default function BuktiPage() {
     }
 
     const timer = setTimeout(() => {
-      void fetchBuktiWithNim(nim, token);
+      void fetchBuktiWithNim(targetNim, token);
     }, 0);
     return () => clearTimeout(timer);
   }, [fetchBuktiWithNim]);
+
+  // Siapkan tautan verifikasi resmi untuk QR Code
+  useEffect(() => {
+    if (typeof window !== "undefined" && data?.mahasiswa?.nim) {
+      const origin = window.location.origin;
+      setQrUrl(`${origin}/bukti?nim=${encodeURIComponent(data.mahasiswa.nim)}`);
+    }
+  }, [data?.mahasiswa?.nim]);
 
   const handlePrint = () => {
     if (typeof window !== "undefined") {
@@ -219,6 +242,51 @@ export default function BuktiPage() {
 
   return (
     <div className="container" style={{ maxWidth: 850, paddingBottom: "3rem" }}>
+      {/* Banner Notifikasi Mode Verifikasi Scan Ponsel */}
+      {isVerifiedScan && (
+        <div
+          className="no-print"
+          style={{
+            backgroundColor: "#f0fdf4",
+            border: "1.5px solid #22c55e",
+            borderRadius: "var(--radius-lg)",
+            padding: "0.85rem 1.15rem",
+            marginBottom: "1rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.85rem",
+            boxShadow: "0 2px 8px rgba(34, 197, 94, 0.15)",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#22c55e",
+              color: "#ffffff",
+              borderRadius: "50%",
+              width: 34,
+              height: 34,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "1.15rem",
+              fontWeight: 800,
+              flexShrink: 0,
+            }}
+          >
+            ✓
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: "0.925rem", color: "#166534" }}>
+              DOKUMEN RESMI TERVERIFIKASI
+            </div>
+            <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "#15803d", lineHeight: 1.4 }}>
+              Data registrasi tercatat sah dalam basis data akademik FAPERTA INSTIPER Yogyakarta.
+              Cocokkan daftar mata kuliah di bawah ini dengan dokumen cetak mahasiswa.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* =========================================================================
           TAMPILAN KHUSUS LAYAR HP (Layar <= 640px)
           ========================================================================= */}
@@ -639,6 +707,7 @@ export default function BuktiPage() {
             style={{
               display: "flex",
               justifyContent: "space-between",
+              alignItems: "flex-end",
               marginTop: "0.75rem",
               textAlign: "center",
             }}
@@ -648,6 +717,47 @@ export default function BuktiPage() {
               <p style={{ margin: "2px 0 0 0" }}>Dosen Pembimbing Akademik / Admin</p>
               <div style={{ height: 35 }}></div>
               <p style={{ margin: 0 }}>( .................................................... )</p>
+            </div>
+
+            {/* QR Code Barcode Keaslian Digital */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 0.5rem",
+              }}
+            >
+              <div
+                style={{
+                  padding: 3,
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 4,
+                  display: "inline-block",
+                }}
+              >
+                <QrCode
+                  value={qrUrl || (mahasiswa.nim ? `https://instiper.ac.id/bukti?nim=${mahasiswa.nim}` : "")}
+                  size={75}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: "0.625rem",
+                  fontWeight: 700,
+                  color: "#334155",
+                  marginTop: 3,
+                  letterSpacing: "0.02em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Pindai Verifikasi
+              </span>
+              <span style={{ fontSize: "0.575rem", color: "#64748b", fontFamily: "monospace" }}>
+                KRS-{mahasiswa.nim}
+              </span>
             </div>
 
             <div style={{ width: 220 }}>
