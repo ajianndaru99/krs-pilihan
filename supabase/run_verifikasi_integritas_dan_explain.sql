@@ -46,12 +46,12 @@ UNION ALL
 SELECT 
     '4. Konsistensi Mahasiswa Selesai vs Registrations' AS uji,
     ABS(
-        (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL AND nim BETWEEN '2110211001' AND '2110211070') - 
-        (SELECT count(DISTINCT nim) FROM public.registrations WHERE nim BETWEEN '2110211001' AND '2110211070')
+        (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL) - 
+        (SELECT count(DISTINCT nim) FROM public.registrations)
     ) AS jumlah_pelanggaran,
-    CASE WHEN (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL AND nim BETWEEN '2110211001' AND '2110211070') = 
-              (SELECT count(DISTINCT nim) FROM public.registrations WHERE nim BETWEEN '2110211001' AND '2110211070')
-         THEN format('✅ COCOK (%s mahasiswa)', (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL AND nim BETWEEN '2110211001' AND '2110211070'))
+    CASE WHEN (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL) = 
+              (SELECT count(DISTINCT nim) FROM public.registrations)
+         THEN format('✅ COCOK (%s mahasiswa)', (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL))
          ELSE '❌ TIDAK COCOK' 
     END AS status;
 
