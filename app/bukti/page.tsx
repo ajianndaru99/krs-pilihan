@@ -364,6 +364,57 @@ export default function BuktiPage() {
             </div>
           </div>
 
+          {/* Segel Keaslian Digital Mobile */}
+          {hasPilihan && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: "#f0fdf4",
+                border: "1px solid #bbf7d0",
+                borderRadius: "var(--radius-md)",
+                padding: "0.6rem 0.75rem",
+                marginBottom: "0.85rem",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div style={{ backgroundColor: "#ffffff", padding: 2, borderRadius: 4, border: "1px solid #cbd5e1", flexShrink: 0 }}>
+                  <QrCode
+                    value={
+                      qrUrl ||
+                      (mahasiswa.nim
+                        ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
+                        : "")
+                    }
+                    size={44}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.775rem", fontWeight: 800, color: "#166534" }}>
+                    Segel Digital Keaslian
+                  </div>
+                  <div style={{ fontSize: "0.675rem", color: "#15803d", fontFamily: "monospace" }}>
+                    KRS-{mahasiswa.nim}
+                  </div>
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  padding: "3px 8px",
+                  borderRadius: "var(--radius-full)",
+                  backgroundColor: "#16a34a",
+                  color: "#ffffff",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                TERCATAT ASLI
+              </span>
+            </div>
+          )}
+
           {/* Tombol Cetak / Pemilihan */}
           <div style={{ marginBottom: "1.25rem" }}>
             {hasPilihan ? (
@@ -739,7 +790,12 @@ export default function BuktiPage() {
                 }}
               >
                 <QrCode
-                  value={qrUrl || (mahasiswa.nim ? `https://instiper.ac.id/bukti?nim=${mahasiswa.nim}` : "")}
+                  value={
+                    qrUrl ||
+                    (mahasiswa.nim
+                      ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
+                      : "")
+                  }
                   size={75}
                 />
               </div>
