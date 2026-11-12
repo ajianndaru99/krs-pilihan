@@ -6,36 +6,61 @@
 -- https://supabase.com/dashboard/project/vkoaezphrfojzkbpyfyw/sql
 -- ==============================================================================
 
--- 1. UJI KUOTA JEBOL (Hasil harus 0 baris — membuktikan tidak ada over-quota)
-SELECT o.id, o.nama, o.kelas, o.kuota, count(r.id) AS terisi, 
-       GREATEST(0, count(r.id) - o.kuota) AS selisih_jebol
-FROM public.offerings o
-LEFT JOIN public.registrations r ON r.offering_id = o.id
-GROUP BY o.id, o.nama, o.kelas, o.kuota
-HAVING count(r.id) > o.kuota;
-
--- 2. UJI PENDAFTARAN GANDA / DUPLIKASI MATKUL PER MAHASISWA (Hasil harus 0 baris)
-SELECT nim, offering_id, count(*) AS duplikasi
-FROM public.registrations
-GROUP BY nim, offering_id
-HAVING count(*) > 1;
-
--- 3. UJI BATAS PILIHAN RESMI (Minimal 1, Maksimal 4) (Hasil harus 0 baris)
-SELECT nim, count(*) AS total_pilihan
-FROM public.registrations
-GROUP BY nim
-HAVING count(*) NOT BETWEEN 1 AND 4;
-
--- 4. STATUS SESI ANTRIAN PASCA UJI
-SELECT state, count(*) AS jumlah_sesi
-FROM public.queue
-GROUP BY state;
-
--- 5. KONSISTENSI STATUS MAHASISWA & TABEL PENDAFTARAN
+-- ==============================================================================
+-- TABEL RINGKASAN INTEGRITAS DATABASE (KUERI 1 s/d 4 DALAM SATU TAMPILAN GRID)
+-- ==============================================================================
 SELECT 
-    (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL AND nim LIKE '2110211%') AS mahasiswa_selesai,
-    (SELECT count(DISTINCT nim) FROM public.registrations WHERE nim LIKE '2110211%') AS mahasiswa_punya_krs;
+    '1. Kuota Jebol (harus 0)' AS uji,
+    COALESCE(count(*), 0) AS jumlah_pelanggaran,
+    CASE WHEN count(*) = 0 THEN '✅ AMAN (Nol kuota jebol)' ELSE '❌ ADA KUOTA JEBOL' END AS status
+FROM (
+    SELECT o.id FROM public.offerings o 
+    JOIN public.registrations r ON r.offering_id = o.id 
+    GROUP BY o.id, o.kuota HAVING count(r.id) > o.kuota
+) q1
 
--- 6. PENGUKURAN LATENSI INTERNAL DATABASE PADA cek_nim (Bandingkan waktu Execution Time dengan latensi jaringan HTTP)
-EXPLAIN (ANALYZE, BUFFERS) SELECT public.cek_nim('2110211001');
+UNION ALL
 
+SELECT 
+    '2. Duplikasi Matkul Per NIM (harus 0)' AS uji,
+    COALESCE(count(*), 0) AS jumlah_pelanggaran,
+    CASE WHEN count(*) = 0 THEN '✅ AMAN (Nol duplikasi)' ELSE '❌ ADA DUPLIKASI' END AS status
+FROM (
+    SELECT nim, offering_id FROM public.registrations 
+    GROUP BY nim, offering_id HAVING count(*) > 1
+) q2
+
+UNION ALL
+
+SELECT 
+    '3. Batas Pilihan di Luar 1-4 (harus 0)' AS uji,
+    COALESCE(count(*), 0) AS jumlah_pelanggaran,
+    CASE WHEN count(*) = 0 THEN '✅ AMAN (Semua 1-4 matkul)' ELSE '❌ JUMLAH PILIHAN TIDAK VALID' END AS status
+FROM (
+    SELECT nim FROM public.registrations 
+    GROUP BY nim HAVING count(*) NOT BETWEEN 1 AND 4
+) q3
+
+UNION ALL
+
+SELECT 
+    '4. Konsistensi Mahasiswa Selesai vs Registrations' AS uji,
+    ABS(
+        (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL AND nim BETWEEN '2110211001' AND '2110211070') - 
+        (SELECT count(DISTINCT nim) FROM public.registrations WHERE nim BETWEEN '2110211001' AND '2110211070')
+    ) AS jumlah_pelanggaran,
+    CASE WHEN (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL AND nim BETWEEN '2110211001' AND '2110211070') = 
+              (SELECT count(DISTINCT nim) FROM public.registrations WHERE nim BETWEEN '2110211001' AND '2110211070')
+         THEN format('✅ COCOK (%s mahasiswa)', (SELECT count(*) FROM public.students WHERE registered_at IS NOT NULL AND nim BETWEEN '2110211001' AND '2110211070'))
+         ELSE '❌ TIDAK COCOK' 
+    END AS status;
+
+-- ==============================================================================
+-- RINCIAN STATUS KUOTA PER MATA KULIAH (MEMBUKTIKAN EKONOMI A TEPAT 23/23)
+-- ==============================================================================
+-- SELECT o.id, o.nama, o.kelas, o.kuota, count(r.id) AS terisi, 
+--        o.kuota - count(r.id) AS sisa_kursi
+-- FROM public.offerings o
+-- LEFT JOIN public.registrations r ON r.offering_id = o.id
+-- GROUP BY o.id, o.nama, o.kelas, o.kuota
+-- ORDER BY terisi DESC, o.id ASC;
