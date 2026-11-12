@@ -244,45 +244,72 @@ export default function BuktiPage() {
     <div className="container" style={{ maxWidth: 850, paddingBottom: "3rem" }}>
       {/* Banner Notifikasi Mode Verifikasi Scan Ponsel */}
       {isVerifiedScan && (
-        <div
-          className="no-print"
-          style={{
-            backgroundColor: "#f0fdf4",
-            border: "1.5px solid #22c55e",
-            borderRadius: "var(--radius-lg)",
-            padding: "0.85rem 1.15rem",
-            marginBottom: "1rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.85rem",
-            boxShadow: "0 2px 8px rgba(34, 197, 94, 0.15)",
-          }}
-        >
+        <div className="no-print" style={{ marginBottom: "1.1rem" }}>
           <div
             style={{
-              backgroundColor: "#22c55e",
-              color: "#ffffff",
-              borderRadius: "50%",
-              width: 34,
-              height: 34,
+              backgroundColor: "#f0fdf4",
+              border: "1.5px solid #22c55e",
+              borderRadius: "var(--radius-lg)",
+              padding: "0.65rem 1rem",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: "1.15rem",
-              fontWeight: 800,
-              flexShrink: 0,
+              gap: "0.75rem",
+              boxShadow: "0 2px 8px rgba(34, 197, 94, 0.12)",
             }}
           >
-            ✓
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: "0.925rem", color: "#166534" }}>
-              DOKUMEN RESMI TERVERIFIKASI
+            {/* Vektor Shield Check Sesuai Referensi Foto */}
+            <svg
+              viewBox="0 0 24 24"
+              width={34}
+              height={34}
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <path
+                d="M12 2L4 5.5V11.5C4 16.5 7.4 21.1 12 22.5C16.6 21.1 20 16.5 20 11.5V5.5L12 2Z"
+                fill="#15803d"
+                stroke="#166534"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 3.8L5.8 6.5V11.5C5.8 15.5 8.4 19.3 12 20.6C15.6 19.3 18.2 15.5 18.2 11.5V6.5L12 3.8Z"
+                fill="#16a34a"
+              />
+              <path
+                d="M9.2 11.8L11 13.6L15 9.4"
+                stroke="#ffffff"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "0.925rem", color: "#166534", lineHeight: 1.25 }}>
+                Dokumen Terverifikasi Asli
+              </div>
+              <div style={{ fontSize: "0.775rem", color: "#15803d", marginTop: 2 }}>
+                Tercatat sah di sistem akademik FAPERTA INSTIPER
+              </div>
             </div>
-            <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "#15803d", lineHeight: 1.4 }}>
-              Data registrasi tercatat sah dalam basis data akademik FAPERTA INSTIPER Yogyakarta.
-              Cocokkan daftar mata kuliah di bawah ini dengan dokumen cetak mahasiswa.
-            </p>
+          </div>
+
+          {/* Kalimat petunjuk verifikasi di bawah kotak banner */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              marginTop: "0.4rem",
+              padding: "0 0.4rem",
+              fontSize: "0.75rem",
+              color: "#64748b",
+            }}
+          >
+            <span>ℹ️</span>
+            <span>Cocokkan data di layar ini dengan lembar fisik yang diberikan mahasiswa.</span>
           </div>
         </div>
       )}
@@ -766,7 +793,7 @@ export default function BuktiPage() {
             <div style={{ width: 220 }}>
               <p style={{ margin: 0 }}>Mengetahui,</p>
               <p style={{ margin: "2px 0 0 0" }}>Dosen Pembimbing Akademik / Admin</p>
-              <div style={{ height: 35 }}></div>
+              <div style={{ height: 60 }}></div>
               <p style={{ margin: 0 }}>( .................................................... )</p>
             </div>
 
@@ -821,11 +848,34 @@ export default function BuktiPage() {
                 Yogyakarta, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
               </p>
               <p style={{ margin: "2px 0 0 0" }}>Mahasiswa Bersangkutan,</p>
-              <div style={{ height: 35 }}></div>
+              <div style={{ height: 60 }}></div>
               <p style={{ margin: 0 }}>
                 <strong>( {mahasiswa.nama} )</strong>
               </p>
               <p style={{ fontSize: "0.725rem", margin: "2px 0 0 0" }}>NIM. {mahasiswa.nim}</p>
+            </div>
+          </div>
+
+          {/* Footer Formal Akademik */}
+          <div
+            className="print-formal-footer"
+            style={{
+              marginTop: "1.15rem",
+              paddingTop: "0.5rem",
+              borderTop: "1px solid #e2e8f0",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "0.7rem",
+              color: "#64748b",
+              pageBreakInside: "avoid",
+            }}
+          >
+            <div>
+              Dokumen ini sah diterbitkan melalui Portal Registrasi KRS Mata Kuliah Pilihan Fakultas Pertanian INSTIPER Yogyakarta.
+            </div>
+            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+              Dicetak: {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} • Lembar 1/1
             </div>
           </div>
         </div>
