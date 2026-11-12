@@ -727,13 +727,20 @@ export default function StudentPage() {
     }
 
     if (offering.bentrok_kelas) {
-      showPopup("danger", "Bentrok Jadwal Kelas", `Mata kuliah "${offering.nama}" bentrok dengan jadwal kelas Anda.`);
-      return;
-    }
-    const clash = findClashBetweenOfferings(offering, selectedItems);
-    if (clash.hasClash) {
-      showPopup("danger", "Bentrok Antar Pilihan", `Jadwal ${offering.nama} bentrok dengan pilihan "${clash.conflictWith}":\n${clash.detail}`);
-      return;
+      showPopup(
+        "warning",
+        "Informasi Jadwal Bersamaan",
+        `Perhatian: Jadwal "${offering.nama}" bersamaan dengan jadwal kelas Anda. Pilihan tetap disimpan (khusus mahasiswa mengulang atau penyesuaian jadwal).`
+      );
+    } else {
+      const clash = findClashBetweenOfferings(offering, selectedItems);
+      if (clash.hasClash) {
+        showPopup(
+          "warning",
+          "Informasi Jadwal Bersamaan",
+          `Perhatian: Jadwal "${offering.nama}" bersamaan dengan pilihan "${clash.conflictWith}":\n${clash.detail}\nPilihan tetap disimpan (khusus mahasiswa mengulang atau penyesuaian jadwal).`
+        );
+      }
     }
 
     setSelectedIds((prev) => {
