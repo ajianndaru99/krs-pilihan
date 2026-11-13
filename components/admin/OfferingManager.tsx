@@ -203,7 +203,14 @@ export function OfferingManager({
             <input
               type="text"
               className="form-control"
-              style={{ width: "100%", height: 40 }}
+              style={{
+                width: "100%",
+                height: 40,
+                minHeight: 40,
+                padding: "0.45rem 0.85rem",
+                fontSize: "0.875rem",
+                boxSizing: "border-box",
+              }}
               placeholder="Cari mata kuliah atau kelas (A-E)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -212,7 +219,14 @@ export function OfferingManager({
           <div style={{ flex: "1.2 1 200px", minWidth: 180 }}>
             <select
               className="form-control"
-              style={{ width: "100%", height: 40 }}
+              style={{
+                width: "100%",
+                height: 40,
+                minHeight: 40,
+                padding: "0.45rem 0.85rem",
+                fontSize: "0.875rem",
+                boxSizing: "border-box",
+              }}
               value={filterMatkul}
               onChange={(e) => setFilterMatkul(e.target.value)}
               title="Filter per Mata Kuliah"
@@ -228,7 +242,14 @@ export function OfferingManager({
           <div style={{ flex: "1 1 160px", minWidth: 150 }}>
             <select
               className="form-control"
-              style={{ width: "100%", height: 40 }}
+              style={{
+                width: "100%",
+                height: 40,
+                minHeight: 40,
+                padding: "0.45rem 0.85rem",
+                fontSize: "0.875rem",
+                boxSizing: "border-box",
+              }}
               value={filterJenis}
               onChange={(e) => {
                 setFilterJenis(e.target.value as "all" | "matkul" | "proyek");
@@ -256,7 +277,14 @@ export function OfferingManager({
           <div style={{ minWidth: 220, flex: "0 1 280px" }}>
             <select
               className="form-control"
-              style={{ width: "100%", height: 40 }}
+              style={{
+                width: "100%",
+                height: 40,
+                minHeight: 40,
+                padding: "0.45rem 0.85rem",
+                fontSize: "0.875rem",
+                boxSizing: "border-box",
+              }}
               value={sortBy}
               onChange={(e) =>
                 setSortBy(e.target.value as "matkul_asc" | "kelas_asc" | "terisi_desc" | "sisa_desc")
@@ -276,12 +304,15 @@ export function OfferingManager({
             onClick={handleOpenAdd}
             style={{
               height: 40,
+              minHeight: 40,
               padding: "0 1.25rem",
               fontWeight: 700,
               fontSize: "0.875rem",
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
+              boxSizing: "border-box",
+              whiteSpace: "nowrap",
             }}
           >
             + Tambah Pilihan Baru
