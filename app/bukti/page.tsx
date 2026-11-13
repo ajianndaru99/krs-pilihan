@@ -764,29 +764,23 @@ export default function BuktiPage() {
           </table>
         </div>
 
-        {/* Pernyataan & Tanda Tangan Kompak */}
+        {/* Area Tanda Tangan */}
         <div
           style={{
             fontSize: "0.75rem",
             color: "#475569",
             marginTop: "0.85rem",
             borderTop: "1px dashed #cbd5e1",
-            paddingTop: "0.65rem",
+            paddingTop: "0.75rem",
             pageBreakInside: "avoid",
             breakInside: "avoid",
           }}
         >
-          <p style={{ margin: "0 0 0.75rem 0", lineHeight: 1.35 }}>
-            * Dokumen ini adalah bukti sah registrasi mata kuliah pilihan yang dicatat secara elektronik oleh sistem.
-            Simpan atau cetak berkas ini sebagai bukti registrasi Anda.
-          </p>
-
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "flex-end",
-              marginTop: "0.75rem",
               textAlign: "center",
             }}
           >
@@ -872,7 +866,7 @@ export default function BuktiPage() {
             }}
           >
             <div>
-              Dokumen ini sah diterbitkan melalui Portal Registrasi KRS Mata Kuliah Pilihan Fakultas Pertanian INSTIPER Yogyakarta.
+              * Dokumen ini adalah bukti sah registrasi yang dicatat dan diterbitkan secara elektronik melalui Portal KRS Fakultas Pertanian INSTIPER Yogyakarta.
             </div>
             <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
               Dicetak: {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} • Lembar 1/1
