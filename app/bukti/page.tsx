@@ -32,6 +32,36 @@ interface BuktiData {
   };
 }
 
+// Helper: memotong detik :00 pada jam (13:00:00 -> 13:00)
+function formatJam(jam: string): string {
+  if (!jam) return "";
+  const parts = jam.split(":");
+  if (parts.length >= 2) {
+    return `${parts[0]}:${parts[1]}`;
+  }
+  return jam;
+}
+
+// Helper: membersihkan nama matkul/proyek agar tidak redundan dengan kolom Jenis & Kelas
+function formatOfferingName(nama: string, kelas?: string): string {
+  if (!nama) return "";
+  let clean = nama;
+  // Hapus prefix "Proyek Ketrampilan " atau "Proyek "
+  clean = clean.replace(/^(Proyek\s+Ketrampilan\s+|Proyek\s+)/i, "");
+  // Hapus suffix kelas di akhir nama jika ada (misal " A", " B", " C", " D")
+  if (kelas) {
+    const classRegex = new RegExp(`\\s+${kelas}$`, "i");
+    clean = clean.replace(classRegex, "");
+  } else {
+    clean = clean.replace(/\s+[A-D]$/i, "");
+  }
+  clean = clean.trim();
+  if (clean.length > 0) {
+    clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+  return clean;
+}
+
 export default function BuktiPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -459,7 +489,7 @@ export default function BuktiPage() {
                       }}
                     >
                       <strong style={{ fontSize: "0.875rem", color: "#0f172a" }}>
-                        {index + 1}. {item.nama}
+                        {index + 1}. {formatOfferingName(item.nama, item.kelas)}
                       </strong>
                       <span
                         style={{
@@ -519,7 +549,7 @@ export default function BuktiPage() {
                         ? item.jadwal
                             .map(
                               (j) =>
-                                `${j.hari}, ${j.jam_mulai}–${j.jam_selesai}${j.ruang ? ` (${j.ruang})` : ""}`
+                                `${j.hari}, ${formatJam(j.jam_mulai)}–${formatJam(j.jam_selesai)}${j.ruang ? ` (${j.ruang})` : ""}`
                             )
                             .join("; ")
                         : "Jadwal belum ditentukan"}
@@ -673,10 +703,10 @@ export default function BuktiPage() {
           >
             <thead>
               <tr style={{ backgroundColor: "#f1f5f9", borderBottom: "1.5px solid #cbd5e1" }}>
-                <th style={{ padding: "6px 8px", width: 36, textAlign: "center" }}>No</th>
+                <th style={{ padding: "6px 6px", width: 32, textAlign: "center" }}>No</th>
                 <th style={{ padding: "6px 8px" }}>Mata Kuliah / Proyek</th>
-                <th style={{ padding: "6px 8px", width: 80 }}>Jenis</th>
-                <th style={{ padding: "6px 8px", width: 80 }}>Kelas</th>
+                <th style={{ padding: "6px 4px", width: 56, textAlign: "center" }}>Jenis</th>
+                <th style={{ padding: "6px 4px", width: 46, textAlign: "center" }}>Kelas</th>
                 <th style={{ padding: "6px 8px" }}>Jadwal & Ruang</th>
               </tr>
             </thead>
@@ -684,18 +714,22 @@ export default function BuktiPage() {
               {hasPilihan ? (
                 pendaftaran.pilihan.map((item, index) => (
                   <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "5px 8px", textAlign: "center" }}>{index + 1}</td>
-                    <td style={{ padding: "5px 8px", fontWeight: 600 }}>{item.nama}</td>
-                    <td style={{ padding: "5px 8px", textTransform: "capitalize" }}>{item.jenis}</td>
-                    <td style={{ padding: "5px 8px", fontWeight: 700 }}>
+                    <td style={{ padding: "5px 6px", textAlign: "center" }}>{index + 1}</td>
+                    <td style={{ padding: "5px 8px", fontWeight: 600 }}>
+                      {formatOfferingName(item.nama, item.kelas)}
+                    </td>
+                    <td style={{ padding: "5px 4px", textAlign: "center", textTransform: "capitalize" }}>
+                      {item.jenis}
+                    </td>
+                    <td style={{ padding: "5px 4px", textAlign: "center", fontWeight: 700 }}>
                       {item.kelas || (item.jenis === "proyek" ? "Semua" : "A")}
                     </td>
-                    <td style={{ padding: "5px 8px", fontSize: "0.8rem" }}>
+                    <td style={{ padding: "5px 8px", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
                       {item.jadwal && item.jadwal.length > 0
                         ? item.jadwal
                             .map(
                               (j) =>
-                                `${j.hari}, ${j.jam_mulai}–${j.jam_selesai}${j.ruang ? ` (${j.ruang})` : ""}`
+                                `${j.hari}, ${formatJam(j.jam_mulai)}–${formatJam(j.jam_selesai)}${j.ruang ? ` (${j.ruang})` : ""}`
                             )
                             .join("; ")
                         : "-"}
