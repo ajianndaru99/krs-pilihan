@@ -42,6 +42,17 @@ export function ComplaintManager({
   const [catatanInput, setCatatanInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
+  const [sortField, setSortField] = useState<"waktu" | "nim" | "nama" | "status">("waktu");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: "waktu" | "nim" | "nama" | "status") => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder(field === "waktu" ? "desc" : "asc");
+    }
+  };
 
   const filtered = complaints.filter((c) => {
     const matchStatus = filterStatus === "all" || c.status === filterStatus;
@@ -53,6 +64,25 @@ export function ComplaintManager({
       c.alasan.toLowerCase().includes(q) ||
       (c.catatan_admin || "").toLowerCase().includes(q);
     return matchStatus && matchSearch;
+  });
+
+  const sortedComplaints = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "nama") {
+      cmp = a.nama.localeCompare(b.nama, "id");
+    } else if (sortField === "nim") {
+      cmp = a.nim.localeCompare(b.nim, "id", { numeric: true });
+    } else if (sortField === "status") {
+      cmp = a.status.localeCompare(b.status, "id");
+    } else if (sortField === "waktu") {
+      const tA = new Date(a.created_at).getTime();
+      const tB = new Date(b.created_at).getTime();
+      cmp = tA - tB;
+    }
+    if (cmp === 0) {
+      cmp = b.id - a.id;
+    }
+    return sortOrder === "asc" ? cmp : -cmp;
   });
 
   const pendingCount = complaints.filter((c) => c.status === "pending").length;
@@ -377,19 +407,63 @@ export function ComplaintManager({
                 />
               </th>
               <th style={{ padding: "10px 10px", width: 45, textAlign: "center" }}>No</th>
-              <th style={{ padding: "10px 10px", width: 120 }}>Waktu Lapor</th>
-              <th style={{ padding: "10px 10px", width: 110 }}>NIM</th>
-              <th style={{ padding: "10px 10px", width: 130 }}>Nama</th>
+              <th
+                onClick={() => handleSort("waktu")}
+                style={{ padding: "10px 10px", width: 135, cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Waktu Lapor (${sortField === "waktu" && sortOrder === "desc" ? "Terlama ke Terbaru" : "Terbaru ke Terlama"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Waktu Lapor</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "waktu" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "waktu" ? (sortOrder === "desc" ? "▼" : "▲") : "⇅"}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("nim")}
+                style={{ padding: "10px 10px", width: 110, cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan NIM (${sortField === "nim" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>NIM</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "nim" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "nim" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("nama")}
+                style={{ padding: "10px 10px", width: 140, cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Nama (${sortField === "nama" && sortOrder === "asc" ? "Z ke A (Z-A)" : "A ke Z (A-Z)"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Nama</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "nama" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "nama" ? (sortOrder === "asc" ? "▲ (A-Z)" : "▼ (Z-A)") : "⇅"}
+                  </span>
+                </div>
+              </th>
               <th style={{ padding: "10px 10px", minWidth: 150 }}>Kategori & Alasan</th>
               <th style={{ padding: "10px 10px", minWidth: 160 }}>Balasan / Catatan Admin</th>
               <th style={{ padding: "10px 10px", width: 130 }}>Kontak</th>
-              <th style={{ padding: "10px 10px", width: 90, textAlign: "center" }}>Status</th>
+              <th
+                onClick={() => handleSort("status")}
+                style={{ padding: "10px 10px", width: 95, textAlign: "center", cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Status (${sortField === "status" && sortOrder === "asc" ? "Status A-Z" : "Status Z-A"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                  <span>Status</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "status" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "status" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </div>
+              </th>
               <th style={{ padding: "10px 10px", width: 150, textAlign: "center" }}>Aksi Admin</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.length > 0 ? (
-              filtered.map((item, idx) => {
+            {sortedComplaints.length > 0 ? (
+              sortedComplaints.map((item, idx) => {
                 const timeObj = formatWIBDateTime(item.created_at);
                 const isPending = item.status === "pending";
                 const isResolved = item.status === "resolved";

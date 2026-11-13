@@ -13,6 +13,9 @@ interface StudentListTableProps {
   onBatalDaftar?: (nim: string, nama: string) => Promise<void>;
 }
 
+type SortField = "nim" | "nama" | "kelas" | "status";
+type SortOrder = "asc" | "desc";
+
 export function StudentListTable({
   students,
   kelasList,
@@ -23,7 +26,18 @@ export function StudentListTable({
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "registered" | "not_registered">("all");
+  const [sortField, setSortField] = useState<SortField>("nama");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [selectedStudentForEdit, setSelectedStudentForEdit] = useState<MasterStudentItem | null>(null);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
 
   const filtered = students.filter((s) => {
     const matchSearch =
@@ -36,6 +50,25 @@ export function StudentListTable({
       (filterStatus === "not_registered" && !s.has_registered);
 
     return matchSearch && matchKelas && matchStatus;
+  });
+
+  const sortedStudents = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "nama") {
+      cmp = a.nama.localeCompare(b.nama, "id");
+    } else if (sortField === "nim") {
+      cmp = a.nim.localeCompare(b.nim, "id", { numeric: true });
+    } else if (sortField === "kelas") {
+      cmp = (a.kelas || "").localeCompare(b.kelas || "", "id");
+    } else if (sortField === "status") {
+      const valA = a.has_registered ? 1 : 0;
+      const valB = b.has_registered ? 1 : 0;
+      cmp = valA - valB;
+    }
+    if (cmp === 0) {
+      cmp = a.nim.localeCompare(b.nim, "id", { numeric: true });
+    }
+    return sortOrder === "asc" ? cmp : -cmp;
   });
 
   const registeredCount = students.filter((s) => s.has_registered).length;
@@ -99,16 +132,60 @@ export function StudentListTable({
           <thead>
             <tr style={{ backgroundColor: "var(--bg-subtle)", borderBottom: "2px solid var(--border-color)" }}>
               <th style={{ padding: "11px 12px", width: 50, textAlign: "center", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)" }}>No</th>
-              <th style={{ padding: "11px 12px", width: 130, fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)" }}>NIM</th>
-              <th style={{ padding: "11px 12px", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)" }}>Nama Lengkap Mahasiswa</th>
-              <th style={{ padding: "11px 12px", width: 125, textAlign: "center", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)", whiteSpace: "nowrap" }}>Kelas Tetap</th>
-              <th style={{ padding: "11px 12px", width: 150, textAlign: "center", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)", whiteSpace: "nowrap" }}>Status KRS</th>
+              <th
+                onClick={() => handleSort("nim")}
+                style={{ padding: "11px 12px", width: 130, fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)", cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan NIM (${sortField === "nim" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>NIM</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "nim" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "nim" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("nama")}
+                style={{ padding: "11px 12px", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)", cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Nama Lengkap (${sortField === "nama" && sortOrder === "asc" ? "Z ke A (Z-A)" : "A ke Z (A-Z)"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Nama Lengkap Mahasiswa</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "nama" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "nama" ? (sortOrder === "asc" ? "▲ (A-Z)" : "▼ (Z-A)") : "⇅"}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("kelas")}
+                style={{ padding: "11px 12px", width: 125, textAlign: "center", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Kelas Tetap (${sortField === "kelas" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Kelas Tetap</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "kelas" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "kelas" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("status")}
+                style={{ padding: "11px 12px", width: 150, textAlign: "center", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)", whiteSpace: "nowrap", cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Status KRS (${sortField === "status" && sortOrder === "asc" ? "Sudah Memilih dahulu" : "Belum Memilih dahulu"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Status KRS</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "status" ? "var(--primary)" : "#94a3b8" }}>
+                    {sortField === "status" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </div>
+              </th>
               <th style={{ padding: "11px 12px", width: 230, textAlign: "center", fontSize: "0.78rem", fontWeight: 800, color: "var(--text-main)", whiteSpace: "nowrap" }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.length > 0 ? (
-              filtered.map((item, idx) => (
+            {sortedStudents.length > 0 ? (
+              sortedStudents.map((item, idx) => (
                 <tr key={item.nim} style={{ borderBottom: "1px solid var(--border-color)" }}>
                   <td style={{ padding: "10px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem", fontWeight: 600 }}>
                     {idx + 1}

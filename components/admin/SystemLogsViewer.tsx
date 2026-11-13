@@ -19,6 +19,17 @@ export function SystemLogsViewer({
   const [filterLevel, setFilterLevel] = useState<"all" | "error" | "warning" | "success" | "info">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLog, setSelectedLog] = useState<SystemLogItem | null>(null);
+  const [sortField, setSortField] = useState<"waktu" | "level" | "mahasiswa">("waktu");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: "waktu" | "level" | "mahasiswa") => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder(field === "waktu" ? "desc" : "asc");
+    }
+  };
 
   const errorCount = logs.filter((l) => l.level === "error").length;
   const warningCount = logs.filter((l) => l.level === "warning").length;
@@ -36,6 +47,25 @@ export function SystemLogsViewer({
       if (!matchNim && !matchNama && !matchPesan && !matchEvent) return false;
     }
     return true;
+  });
+
+  const sortedLogs = [...filteredLogs].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "mahasiswa") {
+      const nameA = a.nama || a.nim || "";
+      const nameB = b.nama || b.nim || "";
+      cmp = nameA.localeCompare(nameB, "id");
+    } else if (sortField === "level") {
+      cmp = a.level.localeCompare(b.level, "id");
+    } else if (sortField === "waktu") {
+      const tA = new Date(a.created_at).getTime();
+      const tB = new Date(b.created_at).getTime();
+      cmp = tA - tB;
+    }
+    if (cmp === 0) {
+      cmp = b.id - a.id;
+    }
+    return sortOrder === "asc" ? cmp : -cmp;
   });
 
   const getLevelBadge = (level: SystemLogItem["level"]) => {
@@ -244,16 +274,49 @@ export function SystemLogsViewer({
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.825rem", textAlign: "left" }}>
             <thead>
               <tr style={{ backgroundColor: "#f8fafc", borderBottom: "1.5px solid var(--border-color)" }}>
-                <th style={{ padding: "10px 12px", width: 140 }}>Waktu</th>
-                <th style={{ padding: "10px 12px", width: 140 }}>Status / Level</th>
-                <th style={{ padding: "10px 12px", width: 160 }}>Mahasiswa</th>
+                <th
+                  onClick={() => handleSort("waktu")}
+                  style={{ padding: "10px 12px", width: 140, cursor: "pointer", userSelect: "none" }}
+                  title={`Urutkan Waktu (${sortField === "waktu" && sortOrder === "desc" ? "Terlama ke Terbaru" : "Terbaru ke Terlama"})`}
+                >
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <span>Waktu</span>
+                    <span style={{ fontSize: "0.75rem", color: sortField === "waktu" ? "var(--primary)" : "#94a3b8" }}>
+                      {sortField === "waktu" ? (sortOrder === "desc" ? "▼" : "▲") : "⇅"}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort("level")}
+                  style={{ padding: "10px 12px", width: 140, cursor: "pointer", userSelect: "none" }}
+                  title={`Urutkan Level (${sortField === "level" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+                >
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <span>Status / Level</span>
+                    <span style={{ fontSize: "0.75rem", color: sortField === "level" ? "var(--primary)" : "#94a3b8" }}>
+                      {sortField === "level" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleSort("mahasiswa")}
+                  style={{ padding: "10px 12px", width: 160, cursor: "pointer", userSelect: "none" }}
+                  title={`Urutkan Mahasiswa (${sortField === "mahasiswa" && sortOrder === "asc" ? "Z ke A (Z-A)" : "A ke Z (A-Z)"})`}
+                >
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    <span>Mahasiswa</span>
+                    <span style={{ fontSize: "0.75rem", color: sortField === "mahasiswa" ? "var(--primary)" : "#94a3b8" }}>
+                      {sortField === "mahasiswa" ? (sortOrder === "asc" ? "▲ (A-Z)" : "▼ (Z-A)") : "⇅"}
+                    </span>
+                  </div>
+                </th>
                 <th style={{ padding: "10px 12px" }}>Keterangan Aktivitas</th>
                 <th style={{ padding: "10px 12px", width: 80, textAlign: "center" }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.length > 0 ? (
-                filteredLogs.map((log) => {
+              {sortedLogs.length > 0 ? (
+                sortedLogs.map((log) => {
                   const badge = getLevelBadge(log.level);
                   return (
                     <tr

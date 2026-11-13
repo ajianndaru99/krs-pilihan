@@ -12,15 +12,29 @@ interface PendaftarListProps {
   onBatalDaftar?: (nim: string) => Promise<void>;
 }
 
+type SortField = "nim" | "nama" | "kelas" | "waktu";
+type SortOrder = "asc" | "desc";
+
 export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: PendaftarListProps) {
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
+  const [sortField, setSortField] = useState<SortField>("waktu");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [modal, setModal] = useState<AdminModalState>({
     isOpen: false,
     type: "info",
     title: "",
     message: "",
   });
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder(field === "waktu" ? "desc" : "asc");
+    }
+  };
 
   const filtered = pendaftar
     .filter((item) => {
@@ -31,11 +45,22 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
       return matchSearch && matchKelas;
     })
     .sort((a, b) => {
-      // Pastikan data yang paling terakhir input selalu muncul paling atas
-      const timeA = a.registered_at ? new Date(a.registered_at.replace(" ", "T")).getTime() : 0;
-      const timeB = b.registered_at ? new Date(b.registered_at.replace(" ", "T")).getTime() : 0;
-      if (timeB !== timeA) return timeB - timeA;
-      return b.nim.localeCompare(a.nim);
+      let cmp = 0;
+      if (sortField === "nama") {
+        cmp = a.nama.localeCompare(b.nama, "id");
+      } else if (sortField === "nim") {
+        cmp = a.nim.localeCompare(b.nim, "id", { numeric: true });
+      } else if (sortField === "kelas") {
+        cmp = (a.kelas || "").localeCompare(b.kelas || "", "id");
+      } else if (sortField === "waktu") {
+        const timeA = a.registered_at ? new Date(a.registered_at.replace(" ", "T")).getTime() : 0;
+        const timeB = b.registered_at ? new Date(b.registered_at.replace(" ", "T")).getTime() : 0;
+        cmp = timeA - timeB;
+      }
+      if (cmp === 0) {
+        cmp = a.nim.localeCompare(b.nim, "id", { numeric: true });
+      }
+      return sortOrder === "asc" ? cmp : -cmp;
     });
 
   const handleExportExcel = () => {
@@ -127,11 +152,55 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
           <thead>
             <tr style={{ backgroundColor: "var(--bg-subtle)", borderBottom: "2px solid var(--border-color)" }}>
               <th style={{ padding: "8px 8px", width: 44, textAlign: "center" }}>No</th>
-              <th style={{ padding: "8px 10px", width: 115 }}>NIM</th>
-              <th style={{ padding: "8px 10px", minWidth: 150 }}>Nama Mahasiswa</th>
-              <th style={{ padding: "8px 8px", width: 75 }}>Kelas</th>
+              <th
+                onClick={() => handleSort("nim")}
+                style={{ padding: "8px 10px", width: 120, cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan NIM (${sortField === "nim" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>NIM</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "nim" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
+                    {sortField === "nim" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("nama")}
+                style={{ padding: "8px 10px", minWidth: 160, cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Nama Mahasiswa (${sortField === "nama" && sortOrder === "asc" ? "Z ke A (Z-A)" : "A ke Z (A-Z)"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Nama Mahasiswa</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "nama" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
+                    {sortField === "nama" ? (sortOrder === "asc" ? "▲ (A-Z)" : "▼ (Z-A)") : "⇅"}
+                  </span>
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("kelas")}
+                style={{ padding: "8px 8px", width: 85, cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Kelas (${sortField === "kelas" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Kelas</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "kelas" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
+                    {sortField === "kelas" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
+                </div>
+              </th>
               <th style={{ padding: "8px 10px", minWidth: 200 }}>Mata Kuliah / Proyek Terpilih</th>
-              <th style={{ padding: "8px 10px", width: 140 }}>Waktu Terdaftar</th>
+              <th
+                onClick={() => handleSort("waktu")}
+                style={{ padding: "8px 10px", width: 155, cursor: "pointer", userSelect: "none" }}
+                title={`Urutkan Waktu Terdaftar (${sortField === "waktu" && sortOrder === "desc" ? "Terlama ke Terbaru" : "Terbaru ke Terlama"})`}
+              >
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <span>Waktu Terdaftar</span>
+                  <span style={{ fontSize: "0.75rem", color: sortField === "waktu" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
+                    {sortField === "waktu" ? (sortOrder === "desc" ? "▼ (Terbaru)" : "▲ (Terlama)") : "⇅"}
+                  </span>
+                </div>
+              </th>
               {onBatalDaftar && <th style={{ padding: "8px 8px", width: 85, textAlign: "center" }}>Aksi</th>}
             </tr>
           </thead>
