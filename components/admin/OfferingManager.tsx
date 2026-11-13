@@ -188,72 +188,105 @@ export function OfferingManager({
 
   return (
     <div>
+      {/* Toolbar Filter & Aksi Kelola Kuota (Simetris & Terstruktur) */}
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "1rem",
-          flexWrap: "wrap",
+          flexDirection: "column",
+          gap: "0.75rem",
           marginBottom: "1.25rem",
         }}
       >
-        <div style={{ display: "flex", gap: "0.65rem", flex: 1, minWidth: 260, flexWrap: "wrap" }}>
-          <input
-            type="text"
-            className="form-control"
-            style={{ flex: "1 1 200px", minWidth: 180 }}
-            placeholder="Cari mata kuliah atau kelas (A-E)..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="form-control"
-            style={{ width: "auto", minWidth: 185 }}
-            value={filterMatkul}
-            onChange={(e) => setFilterMatkul(e.target.value)}
-            title="Filter per Mata Kuliah"
-          >
-            <option value="all">Semua Mata Kuliah ({courseOptions.length})</option>
-            {courseOptions.map(([baseName, count]) => (
-              <option key={baseName} value={baseName}>
-                {baseName} ({count} Kelas)
-              </option>
-            ))}
-          </select>
-          <select
-            className="form-control"
-            style={{ width: "auto", minWidth: 145 }}
-            value={filterJenis}
-            onChange={(e) => {
-              setFilterJenis(e.target.value as "all" | "matkul" | "proyek");
-              setFilterMatkul("all");
-            }}
-            title="Filter Jenis Pilihan"
-          >
-            <option value="all">Semua Jenis</option>
-            <option value="matkul">Mata Kuliah</option>
-            <option value="proyek">Proyek Terapan</option>
-          </select>
-          <select
-            className="form-control"
-            style={{ width: "auto", minWidth: 180 }}
-            value={sortBy}
-            onChange={(e) =>
-              setSortBy(e.target.value as "matkul_asc" | "kelas_asc" | "terisi_desc" | "sisa_desc")
-            }
-            title="Urutkan Daftar Mata Kuliah"
-          >
-            <option value="matkul_asc">Urut: Mata Kuliah (A-Z)</option>
-            <option value="kelas_asc">Urut: Kelas (A → E)</option>
-            <option value="terisi_desc">Urut: Terisi Terbanyak</option>
-            <option value="sisa_desc">Urut: Sisa Kuota Terbanyak</option>
-          </select>
+        {/* Baris 1: Pencarian & Filter Kategori */}
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ flex: "2 1 240px", minWidth: 200 }}>
+            <input
+              type="text"
+              className="form-control"
+              style={{ width: "100%", height: 40 }}
+              placeholder="Cari mata kuliah atau kelas (A-E)..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div style={{ flex: "1.2 1 200px", minWidth: 180 }}>
+            <select
+              className="form-control"
+              style={{ width: "100%", height: 40 }}
+              value={filterMatkul}
+              onChange={(e) => setFilterMatkul(e.target.value)}
+              title="Filter per Mata Kuliah"
+            >
+              <option value="all">Semua Mata Kuliah ({courseOptions.length})</option>
+              {courseOptions.map(([baseName, count]) => (
+                <option key={baseName} value={baseName}>
+                  {baseName} ({count} Kelas)
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: "1 1 160px", minWidth: 150 }}>
+            <select
+              className="form-control"
+              style={{ width: "100%", height: 40 }}
+              value={filterJenis}
+              onChange={(e) => {
+                setFilterJenis(e.target.value as "all" | "matkul" | "proyek");
+                setFilterMatkul("all");
+              }}
+              title="Filter Jenis Pilihan"
+            >
+              <option value="all">Semua Jenis</option>
+              <option value="matkul">Mata Kuliah</option>
+              <option value="proyek">Proyek Terapan</option>
+            </select>
+          </div>
         </div>
 
-        <button type="button" className="btn btn-primary" onClick={handleOpenAdd}>
-          + Tambah Pilihan Baru
-        </button>
+        {/* Baris 2: Pengurutan di Kiri, Aksi Tambah di Kanan (Simetris & Sejajar) */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "0.75rem",
+          }}
+        >
+          <div style={{ minWidth: 220, flex: "0 1 280px" }}>
+            <select
+              className="form-control"
+              style={{ width: "100%", height: 40 }}
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(e.target.value as "matkul_asc" | "kelas_asc" | "terisi_desc" | "sisa_desc")
+              }
+              title="Urutkan Daftar Mata Kuliah"
+            >
+              <option value="matkul_asc">Urut: Mata Kuliah (A-Z)</option>
+              <option value="kelas_asc">Urut: Kelas (A → E)</option>
+              <option value="terisi_desc">Urut: Terisi Terbanyak</option>
+              <option value="sisa_desc">Urut: Sisa Kuota Terbanyak</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleOpenAdd}
+            style={{
+              height: 40,
+              padding: "0 1.25rem",
+              fontWeight: 700,
+              fontSize: "0.875rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            + Tambah Pilihan Baru
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>

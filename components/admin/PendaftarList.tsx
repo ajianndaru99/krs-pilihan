@@ -151,57 +151,57 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
           <thead>
             <tr style={{ backgroundColor: "var(--bg-subtle)", borderBottom: "2px solid var(--border-color)" }}>
-              <th style={{ padding: "8px 8px", width: 44, textAlign: "center" }}>No</th>
+              <th style={{ padding: "8px 8px", width: 44, textAlign: "center", whiteSpace: "nowrap" }}>No</th>
               <th
                 onClick={() => handleSort("nim")}
-                style={{ padding: "8px 10px", width: 120, cursor: "pointer", userSelect: "none" }}
-                title={`Urutkan NIM (${sortField === "nim" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+                style={{ padding: "8px 10px", width: 120, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                title="Urutkan NIM"
               >
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                   <span>NIM</span>
-                  <span style={{ fontSize: "0.75rem", color: sortField === "nim" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
+                  <span style={{ fontSize: "0.8rem", color: sortField === "nim" ? "#059669" : "#94a3b8", fontWeight: 800 }}>
                     {sortField === "nim" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
                   </span>
                 </div>
               </th>
               <th
                 onClick={() => handleSort("nama")}
-                style={{ padding: "8px 10px", minWidth: 160, cursor: "pointer", userSelect: "none" }}
-                title={`Urutkan Nama Mahasiswa (${sortField === "nama" && sortOrder === "asc" ? "Z ke A (Z-A)" : "A ke Z (A-Z)"})`}
+                style={{ padding: "8px 10px", minWidth: 160, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                title="Urutkan Nama Mahasiswa"
               >
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                   <span>Nama Mahasiswa</span>
-                  <span style={{ fontSize: "0.75rem", color: sortField === "nama" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
-                    {sortField === "nama" ? (sortOrder === "asc" ? "▲ (A-Z)" : "▼ (Z-A)") : "⇅"}
+                  <span style={{ fontSize: "0.8rem", color: sortField === "nama" ? "#059669" : "#94a3b8", fontWeight: 800 }}>
+                    {sortField === "nama" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
                   </span>
                 </div>
               </th>
               <th
                 onClick={() => handleSort("kelas")}
-                style={{ padding: "8px 8px", width: 85, cursor: "pointer", userSelect: "none" }}
-                title={`Urutkan Kelas (${sortField === "kelas" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+                style={{ padding: "8px 8px", width: 85, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                title="Urutkan Kelas"
               >
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                   <span>Kelas</span>
-                  <span style={{ fontSize: "0.75rem", color: sortField === "kelas" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
+                  <span style={{ fontSize: "0.8rem", color: sortField === "kelas" ? "#059669" : "#94a3b8", fontWeight: 800 }}>
                     {sortField === "kelas" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
                   </span>
                 </div>
               </th>
-              <th style={{ padding: "8px 10px", minWidth: 200 }}>Mata Kuliah / Proyek Terpilih</th>
+              <th style={{ padding: "8px 10px", minWidth: 200, whiteSpace: "nowrap" }}>Mata Kuliah / Proyek Terpilih</th>
               <th
                 onClick={() => handleSort("waktu")}
-                style={{ padding: "8px 10px", width: 155, cursor: "pointer", userSelect: "none" }}
-                title={`Urutkan Waktu Terdaftar (${sortField === "waktu" && sortOrder === "desc" ? "Terlama ke Terbaru" : "Terbaru ke Terlama"})`}
+                style={{ padding: "8px 10px", width: 155, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                title="Urutkan Waktu Terdaftar"
               >
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                   <span>Waktu Terdaftar</span>
-                  <span style={{ fontSize: "0.75rem", color: sortField === "waktu" ? "var(--primary)" : "#94a3b8", fontWeight: 700 }}>
-                    {sortField === "waktu" ? (sortOrder === "desc" ? "▼ (Terbaru)" : "▲ (Terlama)") : "⇅"}
+                  <span style={{ fontSize: "0.8rem", color: sortField === "waktu" ? "#059669" : "#94a3b8", fontWeight: 800 }}>
+                    {sortField === "waktu" ? (sortOrder === "desc" ? "▼" : "▲") : "⇅"}
                   </span>
                 </div>
               </th>
-              {onBatalDaftar && <th style={{ padding: "8px 8px", width: 85, textAlign: "center" }}>Aksi</th>}
+              {onBatalDaftar && <th style={{ padding: "8px 8px", width: 85, textAlign: "center", whiteSpace: "nowrap" }}>Aksi</th>}
             </tr>
           </thead>
           <tbody>

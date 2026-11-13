@@ -10,13 +10,15 @@ interface SystemLogsViewerProps {
   isRefreshing?: boolean;
 }
 
+type FilterCategory = "all" | "mental" | "error" | "warning" | "success" | "info";
+
 export function SystemLogsViewer({
   logs,
   onRefresh,
   onClearLogs,
   isRefreshing,
 }: SystemLogsViewerProps) {
-  const [filterLevel, setFilterLevel] = useState<"all" | "error" | "warning" | "success" | "info">("all");
+  const [filterCategory, setFilterCategory] = useState<FilterCategory>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLog, setSelectedLog] = useState<SystemLogItem | null>(null);
   const [sortField, setSortField] = useState<"waktu" | "level" | "mahasiswa">("waktu");
@@ -31,13 +33,33 @@ export function SystemLogsViewer({
     }
   };
 
-  const errorCount = logs.filter((l) => l.level === "error").length;
-  const warningCount = logs.filter((l) => l.level === "warning").length;
+  // Helper pembeda Mental (kalah kuota / aturan pemilihan) vs Error teknis sistem/database
+  const isMentalLog = (log: SystemLogItem): boolean => {
+    const ev = (log.event_type || "").toUpperCase();
+    const msg = (log.pesan || "").toLowerCase();
+    return (
+      ev.includes("MENTAL") ||
+      msg.includes("mental") ||
+      msg.includes("kuota") ||
+      msg.includes("penuh") ||
+      msg.includes("bentrok") ||
+      msg.includes("pilihan harus")
+    );
+  };
+
+  const mentalCount = logs.filter((l) => isMentalLog(l)).length;
+  const sysErrorCount = logs.filter((l) => l.level === "error" && !isMentalLog(l)).length;
+  const warningCount = logs.filter((l) => l.level === "warning" && !isMentalLog(l)).length;
   const successCount = logs.filter((l) => l.level === "success").length;
   const infoCount = logs.filter((l) => l.level === "info").length;
 
   const filteredLogs = logs.filter((log) => {
-    if (filterLevel !== "all" && log.level !== filterLevel) return false;
+    if (filterCategory === "mental" && !isMentalLog(log)) return false;
+    if (filterCategory === "error" && (log.level !== "error" || isMentalLog(log))) return false;
+    if (filterCategory === "warning" && log.level !== "warning") return false;
+    if (filterCategory === "success" && log.level !== "success") return false;
+    if (filterCategory === "info" && log.level !== "info") return false;
+
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       const matchNim = log.nim.toLowerCase().includes(term);
@@ -68,14 +90,23 @@ export function SystemLogsViewer({
     return sortOrder === "asc" ? cmp : -cmp;
   });
 
-  const getLevelBadge = (level: SystemLogItem["level"]) => {
-    switch (level) {
+  const getLogBadge = (log: SystemLogItem) => {
+    if (isMentalLog(log)) {
+      return {
+        bg: "#fff7ed",
+        color: "#c2410c",
+        border: "#fed7aa",
+        label: "🟠 MENTAL (KUOTA / ATURAN)",
+      };
+    }
+
+    switch (log.level) {
       case "error":
         return {
           bg: "#fef2f2",
           color: "#991b1b",
           border: "#f87171",
-          label: "🔴 MENTAL / ERROR",
+          label: "🔴 ERROR SISTEM",
         };
       case "warning":
         return {
@@ -181,55 +212,70 @@ export function SystemLogsViewer({
           <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
             <button
               type="button"
-              className={`btn btn-sm ${filterLevel === "all" ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setFilterLevel("all")}
+              className={`btn btn-sm ${filterCategory === "all" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFilterCategory("all")}
               style={{ fontSize: "0.775rem", fontWeight: 700 }}
             >
               Semua ({logs.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filterLevel === "error" ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setFilterLevel("error")}
+              className={`btn btn-sm ${filterCategory === "mental" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFilterCategory("mental")}
               style={{
                 fontSize: "0.775rem",
                 fontWeight: 700,
-                backgroundColor: filterLevel === "error" ? "#dc2626" : undefined,
-                color: filterLevel === "error" ? "#ffffff" : "#dc2626",
+                backgroundColor: filterCategory === "mental" ? "#ea580c" : undefined,
+                color: filterCategory === "mental" ? "#ffffff" : "#c2410c",
+                borderColor: filterCategory === "mental" ? "#ea580c" : "#fdba74",
               }}
             >
-              🔴 Mental / Error ({errorCount})
+              🟠 Mental Kuota / Aturan ({mentalCount})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filterLevel === "warning" ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setFilterLevel("warning")}
+              className={`btn btn-sm ${filterCategory === "error" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFilterCategory("error")}
               style={{
                 fontSize: "0.775rem",
                 fontWeight: 700,
-                backgroundColor: filterLevel === "warning" ? "#d97706" : undefined,
-                color: filterLevel === "warning" ? "#ffffff" : "#d97706",
+                backgroundColor: filterCategory === "error" ? "#dc2626" : undefined,
+                color: filterCategory === "error" ? "#ffffff" : "#dc2626",
+                borderColor: filterCategory === "error" ? "#dc2626" : "#fca5a5",
+              }}
+            >
+              🔴 Error Sistem / DB ({sysErrorCount})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${filterCategory === "warning" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFilterCategory("warning")}
+              style={{
+                fontSize: "0.775rem",
+                fontWeight: 700,
+                backgroundColor: filterCategory === "warning" ? "#d97706" : undefined,
+                color: filterCategory === "warning" ? "#ffffff" : "#d97706",
               }}
             >
               🟡 Peringatan ({warningCount})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filterLevel === "success" ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setFilterLevel("success")}
+              className={`btn btn-sm ${filterCategory === "success" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFilterCategory("success")}
               style={{
                 fontSize: "0.775rem",
                 fontWeight: 700,
-                backgroundColor: filterLevel === "success" ? "#059669" : undefined,
-                color: filterLevel === "success" ? "#ffffff" : "#059669",
+                backgroundColor: filterCategory === "success" ? "#059669" : undefined,
+                color: filterCategory === "success" ? "#ffffff" : "#059669",
               }}
             >
               🟢 Sukses ({successCount})
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${filterLevel === "info" ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setFilterLevel("info")}
+              className={`btn btn-sm ${filterCategory === "info" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setFilterCategory("info")}
               style={{ fontSize: "0.775rem", fontWeight: 700 }}
             >
               🔵 Info ({infoCount})
@@ -276,54 +322,55 @@ export function SystemLogsViewer({
               <tr style={{ backgroundColor: "#f8fafc", borderBottom: "1.5px solid var(--border-color)" }}>
                 <th
                   onClick={() => handleSort("waktu")}
-                  style={{ padding: "10px 12px", width: 140, cursor: "pointer", userSelect: "none" }}
-                  title={`Urutkan Waktu (${sortField === "waktu" && sortOrder === "desc" ? "Terlama ke Terbaru" : "Terbaru ke Terlama"})`}
+                  style={{ padding: "10px 12px", width: 140, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                  title="Urutkan Waktu"
                 >
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                     <span>Waktu</span>
-                    <span style={{ fontSize: "0.75rem", color: sortField === "waktu" ? "var(--primary)" : "#94a3b8" }}>
+                    <span style={{ fontSize: "0.8rem", color: sortField === "waktu" ? "#059669" : "#94a3b8", fontWeight: 800 }}>
                       {sortField === "waktu" ? (sortOrder === "desc" ? "▼" : "▲") : "⇅"}
                     </span>
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort("level")}
-                  style={{ padding: "10px 12px", width: 140, cursor: "pointer", userSelect: "none" }}
-                  title={`Urutkan Level (${sortField === "level" && sortOrder === "asc" ? "Z ke A" : "A ke Z"})`}
+                  style={{ padding: "10px 12px", width: 140, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                  title="Urutkan Level"
                 >
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                     <span>Status / Level</span>
-                    <span style={{ fontSize: "0.75rem", color: sortField === "level" ? "var(--primary)" : "#94a3b8" }}>
+                    <span style={{ fontSize: "0.8rem", color: sortField === "level" ? "#059669" : "#94a3b8", fontWeight: 800 }}>
                       {sortField === "level" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
                     </span>
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort("mahasiswa")}
-                  style={{ padding: "10px 12px", width: 160, cursor: "pointer", userSelect: "none" }}
-                  title={`Urutkan Mahasiswa (${sortField === "mahasiswa" && sortOrder === "asc" ? "Z ke A (Z-A)" : "A ke Z (A-Z)"})`}
+                  style={{ padding: "10px 12px", width: 160, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                  title="Urutkan Mahasiswa"
                 >
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                     <span>Mahasiswa</span>
-                    <span style={{ fontSize: "0.75rem", color: sortField === "mahasiswa" ? "var(--primary)" : "#94a3b8" }}>
-                      {sortField === "mahasiswa" ? (sortOrder === "asc" ? "▲ (A-Z)" : "▼ (Z-A)") : "⇅"}
+                    <span style={{ fontSize: "0.8rem", color: sortField === "mahasiswa" ? "#059669" : "#94a3b8", fontWeight: 800 }}>
+                      {sortField === "mahasiswa" ? (sortOrder === "asc" ? "▲" : "▼") : "⇅"}
                     </span>
                   </div>
                 </th>
-                <th style={{ padding: "10px 12px" }}>Keterangan Aktivitas</th>
-                <th style={{ padding: "10px 12px", width: 80, textAlign: "center" }}>Aksi</th>
+                <th style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>Keterangan Aktivitas</th>
+                <th style={{ padding: "10px 12px", width: 80, textAlign: "center", whiteSpace: "nowrap" }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {sortedLogs.length > 0 ? (
                 sortedLogs.map((log) => {
-                  const badge = getLevelBadge(log.level);
+                  const badge = getLogBadge(log);
+                  const isMental = isMentalLog(log);
                   return (
                     <tr
                       key={log.id}
                       style={{
                         borderBottom: "1px solid var(--border-color)",
-                        backgroundColor: log.level === "error" ? "#fff5f5" : undefined,
+                        backgroundColor: isMental ? "#fffaf5" : log.level === "error" ? "#fff5f5" : undefined,
                       }}
                     >
                       <td style={{ padding: "8px 12px", color: "var(--text-muted)", fontSize: "0.775rem", whiteSpace: "nowrap" }}>
@@ -359,8 +406,8 @@ export function SystemLogsViewer({
                       <td style={{ padding: "8px 12px" }}>
                         <div
                           style={{
-                            color: log.level === "error" ? "#991b1b" : "var(--text-main)",
-                            fontWeight: log.level === "error" ? 600 : 400,
+                            color: isMental ? "#c2410c" : log.level === "error" ? "#991b1b" : "var(--text-main)",
+                            fontWeight: isMental || log.level === "error" ? 600 : 400,
                             lineHeight: 1.4,
                           }}
                         >

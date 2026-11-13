@@ -993,13 +993,19 @@ export default function AdminPage() {
                   style={{
                     backgroundColor: "var(--danger)",
                     color: "#ffffff",
-                    fontSize: "0.68rem",
+                    fontSize: "0.72rem",
                     fontWeight: 800,
-                    padding: "1px 6px",
+                    padding: "2px 7px",
                     borderRadius: "var(--radius-full)",
+                    flexShrink: 0,
+                    minWidth: "22px",
+                    textAlign: "center",
+                    lineHeight: "1.2",
+                    whiteSpace: "nowrap",
                   }}
+                  title={`${logs.filter((l) => l.level === "error").length} catatan perhatian / kendala`}
                 >
-                  {logs.filter((l) => l.level === "error").length} Mental
+                  {logs.filter((l) => l.level === "error").length}
                 </span>
               )}
             </div>
