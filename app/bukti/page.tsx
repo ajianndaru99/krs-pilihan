@@ -769,21 +769,6 @@ export default function BuktiPage() {
                   size={105}
                 />
               </div>
-              <span
-                style={{
-                  fontSize: "0.675rem",
-                  fontWeight: 700,
-                  color: "#334155",
-                  marginTop: 4,
-                  letterSpacing: "0.02em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Pindai Verifikasi
-              </span>
-              <span style={{ fontSize: "0.625rem", color: "#64748b", fontFamily: "monospace" }}>
-                KRS-{mahasiswa.nim}
-              </span>
             </div>
 
             <div style={{ width: 220 }}>
@@ -806,18 +791,16 @@ export default function BuktiPage() {
               marginTop: "1.15rem",
               paddingTop: "0.5rem",
               borderTop: "1px solid #e2e8f0",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
               fontSize: "0.7rem",
               color: "#64748b",
               pageBreakInside: "avoid",
+              lineHeight: 1.45,
             }}
           >
             <div>
               * Dokumen ini adalah bukti sah registrasi yang dicatat dan diterbitkan secara elektronik melalui Portal KRS Fakultas Pertanian INSTIPER Yogyakarta.
             </div>
-            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+            <div style={{ marginTop: "3px", fontSize: "0.65rem", color: "#94a3b8" }}>
               Dicetak: {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} • Lembar 1/1
             </div>
           </div>

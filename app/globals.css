@@ -827,7 +827,7 @@ body {
   }
 
   .print-formal-footer {
-    display: flex !important;
+    display: block !important;
     font-size: 7pt !important;
     color: #475569 !important;
     border-top: 1px solid #cbd5e1 !important;
