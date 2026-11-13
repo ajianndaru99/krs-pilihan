@@ -46,8 +46,8 @@ function formatJam(jam: string): string {
 function formatOfferingName(nama: string, kelas?: string): string {
   if (!nama) return "";
   let clean = nama;
-  // Hapus prefix "Proyek Ketrampilan " atau "Proyek "
-  clean = clean.replace(/^(Proyek\s+Ketrampilan\s+|Proyek\s+)/i, "");
+  // Hapus hanya kata "Proyek " di awal nama (kata Ketrampilan/Keterampilan tetap dipertahankan)
+  clean = clean.replace(/^Proyek\s+/i, "");
   // Hapus suffix kelas di akhir nama jika ada (misal " A", " B", " C", " D")
   if (kelas) {
     const classRegex = new RegExp(`\\s+${kelas}$`, "i");
@@ -666,7 +666,7 @@ export default function BuktiPage() {
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: "0.35rem 1.5rem",
-            marginBottom: "0.85rem",
+            marginBottom: "0",
             fontSize: "0.85rem",
           }}
         >
@@ -690,7 +690,14 @@ export default function BuktiPage() {
 
         {/* Tabel Mata Kuliah Terpilih */}
         <div style={{ marginBottom: "1rem" }}>
-          <h4 style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "0.4rem", color: "#1e293b" }}>
+          <h4
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 700,
+              margin: "0.85rem 0",
+              color: "#1e293b",
+            }}
+          >
             Daftar Mata Kuliah & Proyek Terpilih:
           </h4>
           <table
