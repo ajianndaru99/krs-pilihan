@@ -391,57 +391,6 @@ export default function BuktiPage() {
             </div>
           </div>
 
-          {/* Segel Keaslian Digital Mobile */}
-          {hasPilihan && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                backgroundColor: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                borderRadius: "var(--radius-md)",
-                padding: "0.6rem 0.75rem",
-                marginBottom: "0.85rem",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <div style={{ backgroundColor: "#ffffff", padding: 2, borderRadius: 4, border: "1px solid #cbd5e1", flexShrink: 0 }}>
-                  <QrCode
-                    value={
-                      qrUrl ||
-                      (mahasiswa.nim
-                        ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
-                        : "")
-                    }
-                    size={44}
-                  />
-                </div>
-                <div>
-                  <div style={{ fontSize: "0.775rem", fontWeight: 800, color: "#166534" }}>
-                    Segel Digital Keaslian
-                  </div>
-                  <div style={{ fontSize: "0.675rem", color: "#15803d", fontFamily: "monospace" }}>
-                    KRS-{mahasiswa.nim}
-                  </div>
-                </div>
-              </div>
-              <span
-                style={{
-                  fontSize: "0.65rem",
-                  fontWeight: 700,
-                  padding: "3px 8px",
-                  borderRadius: "var(--radius-full)",
-                  backgroundColor: "#16a34a",
-                  color: "#ffffff",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                TERCATAT ASLI
-              </span>
-            </div>
-          )}
-
           {/* Tombol Cetak / Pemilihan */}
           <div style={{ marginBottom: "1.25rem" }}>
             {hasPilihan ? (
@@ -803,7 +752,7 @@ export default function BuktiPage() {
             >
               <div
                 style={{
-                  padding: 3,
+                  padding: 4,
                   backgroundColor: "#ffffff",
                   border: "1px solid #cbd5e1",
                   borderRadius: 4,
@@ -817,22 +766,22 @@ export default function BuktiPage() {
                       ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
                       : "")
                   }
-                  size={75}
+                  size={105}
                 />
               </div>
               <span
                 style={{
-                  fontSize: "0.625rem",
+                  fontSize: "0.675rem",
                   fontWeight: 700,
                   color: "#334155",
-                  marginTop: 3,
+                  marginTop: 4,
                   letterSpacing: "0.02em",
                   textTransform: "uppercase",
                 }}
               >
                 Pindai Verifikasi
               </span>
-              <span style={{ fontSize: "0.575rem", color: "#64748b", fontFamily: "monospace" }}>
+              <span style={{ fontSize: "0.625rem", color: "#64748b", fontFamily: "monospace" }}>
                 KRS-{mahasiswa.nim}
               </span>
             </div>
@@ -874,6 +823,89 @@ export default function BuktiPage() {
           </div>
         </div>
       </div>
+
+      {/* =========================================================================
+          KARTU BARCODE BESAR UNTUK SCAN DARI HP LAIN
+          ========================================================================= */}
+      {hasPilihan && (
+        <div
+          className="no-print"
+          style={{
+            marginTop: "1.75rem",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              padding: "1.5rem 1.25rem",
+              textAlign: "center",
+              backgroundColor: "#ffffff",
+              border: "1.5px solid var(--border-color)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-card)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.35rem" }}>
+              <span style={{ fontSize: "1.25rem" }}>📱</span>
+              <strong style={{ fontSize: "1rem", color: "#0f172a" }}>
+                QR Code Verifikasi Keaslian
+              </strong>
+            </div>
+
+            <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0 0 1.15rem 0", lineHeight: 1.45, maxWidth: 320 }}>
+              Tunjukkan QR Code ini kepada Dosen Pembimbing / Admin untuk dipindai langsung dari kamera HP lain.
+            </p>
+
+            <div
+              style={{
+                padding: "0.75rem",
+                backgroundColor: "#ffffff",
+                border: "2px solid #e2e8f0",
+                borderRadius: "var(--radius-md)",
+                display: "inline-block",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.06)",
+              }}
+            >
+              <QrCode
+                value={
+                  qrUrl ||
+                  (mahasiswa.nim
+                    ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
+                    : "")
+                }
+                size={180}
+              />
+            </div>
+
+            <div style={{ marginTop: "0.75rem" }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "#166534",
+                  backgroundColor: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  padding: "3px 12px",
+                  borderRadius: "var(--radius-full)",
+                  fontFamily: "monospace",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                KRS-{mahasiswa.nim}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           TOMBOL NAVIGASI BAWAH
