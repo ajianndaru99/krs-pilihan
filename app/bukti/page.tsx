@@ -271,7 +271,7 @@ export default function BuktiPage() {
   const hasPilihan = Boolean(pendaftaran.pilihan && pendaftaran.pilihan.length > 0);
 
   return (
-    <div className="container" style={{ maxWidth: 850, paddingBottom: "3rem" }}>
+    <div className="container" style={{ maxWidth: 850, paddingBottom: "1.25rem" }}>
       {/* Banner Notifikasi Mode Verifikasi Scan Ponsel */}
       {isVerifiedScan && (
         <div className="no-print" style={{ marginBottom: "1.1rem" }}>
@@ -329,17 +329,13 @@ export default function BuktiPage() {
           {/* Kalimat petunjuk verifikasi di bawah kotak banner */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
               marginTop: "0.4rem",
               padding: "0 0.4rem",
               fontSize: "0.75rem",
               color: "#64748b",
             }}
           >
-            <span>ℹ️</span>
-            <span>Cocokkan data di layar ini dengan lembar fisik yang diberikan mahasiswa.</span>
+            Cocokkan data di layar ini dengan lembar fisik yang diberikan mahasiswa.
           </div>
         </div>
       )}
@@ -383,9 +379,6 @@ export default function BuktiPage() {
             <h3 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0, color: "#0f172a" }}>
               Bukti Registrasi Mata Kuliah Pilihan
             </h3>
-            <p style={{ fontSize: "0.775rem", color: "#64748b", margin: "3px 0 0" }}>
-              Tercatat secara elektronik di sistem akademik FAPERTA
-            </p>
           </div>
 
           {/* Kartu Profil Mahasiswa Ringkas */}
@@ -849,95 +842,13 @@ export default function BuktiPage() {
       </div>
 
       {/* =========================================================================
-          KARTU BARCODE BESAR UNTUK SCAN DARI HP LAIN
-          ========================================================================= */}
-      {hasPilihan && (
-        <div
-          className="no-print"
-          style={{
-            marginTop: "1.75rem",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              width: "100%",
-              maxWidth: 380,
-              padding: "1.5rem 1.25rem",
-              textAlign: "center",
-              backgroundColor: "#ffffff",
-              border: "1.5px solid var(--border-color)",
-              borderRadius: "var(--radius-lg)",
-              boxShadow: "var(--shadow-card)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginBottom: "0.35rem" }}>
-              <span style={{ fontSize: "1.25rem" }}>📱</span>
-              <strong style={{ fontSize: "1rem", color: "#0f172a" }}>
-                QR Code Verifikasi Keaslian
-              </strong>
-            </div>
-
-            <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0 0 1.15rem 0", lineHeight: 1.45, maxWidth: 320 }}>
-              Tunjukkan QR Code ini kepada Dosen Pembimbing / Admin untuk dipindai langsung dari kamera HP lain.
-            </p>
-
-            <div
-              style={{
-                padding: "0.75rem",
-                backgroundColor: "#ffffff",
-                border: "2px solid #e2e8f0",
-                borderRadius: "var(--radius-md)",
-                display: "inline-block",
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.06)",
-              }}
-            >
-              <QrCode
-                value={
-                  qrUrl ||
-                  (mahasiswa.nim
-                    ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
-                    : "")
-                }
-                size={180}
-              />
-            </div>
-
-            <div style={{ marginTop: "0.75rem" }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  color: "#166534",
-                  backgroundColor: "#f0fdf4",
-                  border: "1px solid #bbf7d0",
-                  padding: "3px 12px",
-                  borderRadius: "var(--radius-full)",
-                  fontFamily: "monospace",
-                  letterSpacing: "0.04em",
-                }}
-              >
-                KRS-{mahasiswa.nim}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
           TOMBOL NAVIGASI BAWAH
           ========================================================================= */}
       <div
         className="no-print"
         style={{
-          marginTop: "1.75rem",
+          marginTop: "1.25rem",
+          marginBottom: "0.5rem",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
