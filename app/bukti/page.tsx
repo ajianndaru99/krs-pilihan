@@ -806,7 +806,7 @@ export default function BuktiPage() {
                       ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
                       : "")
                   }
-                  size={105}
+                  size={115}
                 />
               </div>
             </div>

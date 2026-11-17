@@ -550,7 +550,7 @@ export function QrCode({
   className,
   style,
   logoSrc,
-  logoRatio = 0.23,
+  logoRatio = 0.28,
 }: QrCodeProps) {
   if (!value) return null;
 
@@ -571,9 +571,9 @@ export function QrCode({
     const badgeUnits = hasLogo ? Number((fullSize * logoRatio).toFixed(2)) : 0;
     const badgeX = Number(((fullSize - badgeUnits) / 2).toFixed(2));
     const badgeY = Number(((fullSize - badgeUnits) / 2).toFixed(2));
-    const badgeRadius = Number((badgeUnits * 0.14).toFixed(2));
+    const badgeRadius = Number((badgeUnits * 0.12).toFixed(2));
 
-    const logoUnits = Number((badgeUnits * 0.84).toFixed(2));
+    const logoUnits = Number((badgeUnits * 0.90).toFixed(2));
     const logoX = Number(((fullSize - logoUnits) / 2).toFixed(2));
     const logoY = Number(((fullSize - logoUnits) / 2).toFixed(2));
 
