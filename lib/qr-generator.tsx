@@ -1,4 +1,5 @@
 import React from "react";
+import { INSTIPER_LOGO_DATA_URI } from "./instiper-logo-data";
 
 /**
  * QR Code Generator Mandiri (Zero Dependency)
@@ -540,7 +541,7 @@ export interface QrCodeProps {
   className?: string;
   style?: React.CSSProperties;
   logoSrc?: string;
-  logoSize?: number;
+  logoRatio?: number;
 }
 
 export function QrCode({
@@ -548,81 +549,74 @@ export function QrCode({
   size = 80,
   className,
   style,
-  logoSrc = "/logo-instiper.png",
-  logoSize,
+  logoSrc,
+  logoRatio = 0.23,
 }: QrCodeProps) {
   if (!value) return null;
 
+  // Gunakan data URI bawaan (Base64) jika logoSrc tidak diisi atau merujuk ke logo instiper default
+  const effectiveLogo =
+    logoSrc === undefined || logoSrc === "/logo-instiper.png"
+      ? INSTIPER_LOGO_DATA_URI
+      : logoSrc;
+
   try {
+    const hasLogo = Boolean(effectiveLogo);
     // Bila ada logo di tengah, gunakan Ecc.HIGH (~30% error recovery) agar toleransi tinggi
-    const ecc = logoSrc ? Ecc.HIGH : Ecc.MEDIUM;
-    const { size: matrixSize, modules } = createQrMatrix(value, 1, 10, ecc);
+    const ecc = hasLogo ? Ecc.HIGH : Ecc.MEDIUM;
     const margin = 2;
+    const { size: matrixSize, modules } = createQrMatrix(value, 1, 10, ecc);
     const { fullSize, pathData } = qrMatrixToSvgPath(matrixSize, modules, margin);
 
-    const actualLogoPixelSize = logoSize ?? Math.max(18, Math.round(size * 0.22));
+    const badgeUnits = hasLogo ? Number((fullSize * logoRatio).toFixed(2)) : 0;
+    const badgeX = Number(((fullSize - badgeUnits) / 2).toFixed(2));
+    const badgeY = Number(((fullSize - badgeUnits) / 2).toFixed(2));
+    const badgeRadius = Number((badgeUnits * 0.14).toFixed(2));
+
+    const logoUnits = Number((badgeUnits * 0.84).toFixed(2));
+    const logoX = Number(((fullSize - logoUnits) / 2).toFixed(2));
+    const logoY = Number(((fullSize - logoUnits) / 2).toFixed(2));
 
     return (
-      <div
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox={`0 0 ${fullSize} ${fullSize}`}
+        width={size}
+        height={size}
         className={className}
-        style={{
-          position: "relative",
-          display: "inline-block",
-          width: size,
-          height: size,
-          lineHeight: 0,
-          ...style,
-        }}
+        style={{ display: "block", ...style }}
+        aria-label="QR Code Verifikasi Keaslian"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox={`0 0 ${fullSize} ${fullSize}`}
-          width={size}
-          height={size}
-          style={{ display: "block", width: "100%", height: "100%" }}
-          aria-label="QR Code Verifikasi Keaslian"
-        >
-          <rect width="100%" height="100%" fill="#ffffff" />
-          <path d={pathData} fill="#000000" />
-        </svg>
+        <rect width="100%" height="100%" fill="#ffffff" />
+        <path d={pathData} fill="#000000" />
 
-        {logoSrc && (
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: actualLogoPixelSize,
-              height: actualLogoPixelSize,
-              backgroundColor: "#ffffff",
-              padding: Math.max(2, Math.round(actualLogoPixelSize * 0.08)),
-              borderRadius: Math.max(3, Math.round(actualLogoPixelSize * 0.12)),
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 1px 4px rgba(0, 0, 0, 0.2)",
-              pointerEvents: "none",
-              printColorAdjust: "exact",
-              WebkitPrintColorAdjust: "exact",
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logoSrc}
-              alt="Logo INSTIPER"
-              width={actualLogoPixelSize}
-              height={actualLogoPixelSize}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                display: "block",
-              }}
+        {hasLogo && (
+          <g>
+            {/* Latar bantalan putih dengan radius halus di belakang logo */}
+            <rect
+              x={badgeX}
+              y={badgeY}
+              width={badgeUnits}
+              height={badgeUnits}
+              rx={badgeRadius}
+              ry={badgeRadius}
+              fill="#ffffff"
+              stroke="#cbd5e1"
+              strokeWidth={Number((fullSize * 0.008).toFixed(2))}
             />
-          </div>
+            {/* Logo resmi disematkan langsung di dalam SVG via data URI untuk keandalan cetak PDF */}
+            <image
+              href={effectiveLogo}
+              xlinkHref={effectiveLogo}
+              x={logoX}
+              y={logoY}
+              width={logoUnits}
+              height={logoUnits}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          </g>
         )}
-      </div>
+      </svg>
     );
   } catch {
     return (
