@@ -40,7 +40,7 @@ export function CheckNimCard({
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   return (
-    <div style={{ maxWidth: 460, margin: "2rem auto" }}>
+    <div style={{ maxWidth: 460, margin: "1rem auto 1.5rem auto" }}>
       {/* Header Branding — Clean & Professional */}
       <div
         style={{
@@ -48,7 +48,7 @@ export function CheckNimCard({
           flexDirection: "column",
           alignItems: "center",
           textAlign: "center",
-          marginBottom: "1.25rem",
+          marginBottom: "0.85rem",
           width: "100%",
         }}
       >
@@ -58,19 +58,21 @@ export function CheckNimCard({
             justifyContent: "center",
             alignItems: "center",
             width: "100%",
-            marginBottom: "0.85rem",
+            marginBottom: "0.35rem",
           }}
         >
           <Image
             src="/logo-instiper.png"
             alt="Logo INSTIPER"
-            width={56}
-            height={52}
+            width={88}
+            height={80}
             priority
             style={{
               objectFit: "contain",
               display: "block",
               margin: "0 auto",
+              width: 88,
+              height: 80,
             }}
           />
         </div>
@@ -81,7 +83,7 @@ export function CheckNimCard({
             color: "var(--primary)",
             letterSpacing: "-0.025em",
             textTransform: "uppercase",
-            margin: "0 0 0.25rem",
+            margin: "0 0 0.2rem",
             textAlign: "center",
             width: "100%",
           }}

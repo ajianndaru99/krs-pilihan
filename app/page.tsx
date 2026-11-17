@@ -993,21 +993,21 @@ export default function StudentPage() {
               justifyContent: "center",
               alignItems: "center",
               width: "100%",
-              margin: "0 auto",
+              margin: "0 auto 0.25rem auto",
             }}
           >
             <Image
               src="/logo-instiper.png"
               alt="Logo INSTIPER"
-              width={38}
-              height={38}
+              width={62}
+              height={56}
               priority
               style={{
                 objectFit: "contain",
                 display: "block",
                 margin: "0 auto",
-                width: 38,
-                height: 38,
+                width: 62,
+                height: 56,
               }}
             />
           </div>

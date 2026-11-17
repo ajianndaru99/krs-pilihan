@@ -347,7 +347,7 @@ export default function BuktiPage() {
         <div
           className="card"
           style={{
-            padding: "1.35rem 1.25rem",
+            padding: "1.15rem 1.25rem 1.35rem",
             backgroundColor: "#ffffff",
             border: "1px solid var(--border-color)",
             borderRadius: "var(--radius-lg)",
@@ -362,17 +362,23 @@ export default function BuktiPage() {
               flexDirection: "column",
               alignItems: "center",
               textAlign: "center",
-              marginBottom: "1.15rem",
+              marginBottom: "0.75rem",
             }}
           >
-            <div style={{ marginBottom: "0.6rem" }}>
+            <div style={{ marginBottom: "0.35rem" }}>
               <Image
                 src="/logo-instiper.png"
                 alt="Logo INSTIPER"
-                width={52}
-                height={52}
+                width={84}
+                height={76}
                 priority
-                style={{ objectFit: "contain", display: "block", margin: "0 auto" }}
+                style={{
+                  objectFit: "contain",
+                  display: "block",
+                  margin: "0 auto",
+                  width: 84,
+                  height: 76,
+                }}
               />
             </div>
 

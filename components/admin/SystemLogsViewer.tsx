@@ -175,9 +175,30 @@ export function SystemLogsViewer({
             className="btn btn-secondary"
             onClick={onRefresh}
             disabled={isRefreshing}
-            style={{ fontSize: "0.825rem", padding: "0.5rem 1rem" }}
+            style={{ fontSize: "0.825rem", padding: "0.5rem 1rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            {isRefreshing ? "Menyinkron..." : "🔄 Refresh Log"}
+            <svg
+              viewBox="0 0 24 24"
+              width={14}
+              height={14}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                display: "inline-block",
+                animation: isRefreshing ? "spin 0.8s linear infinite" : "none",
+                flexShrink: 0,
+              }}
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 21h5v-5" />
+            </svg>
+            <span>{isRefreshing ? "Menyinkron..." : "Refresh Log"}</span>
           </button>
 
           {onClearLogs && logs.length > 0 && (

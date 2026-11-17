@@ -270,14 +270,27 @@ export function OfferingSelector({
                 }}
                 title="Perbarui kuota terkini"
               >
-                <span
+                <svg
+                  viewBox="0 0 24 24"
+                  width={12}
+                  height={12}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   style={{
                     display: "inline-block",
-                    animation: isRefreshingQuota ? "spin 1s linear infinite" : "none",
+                    animation: isRefreshingQuota ? "spin 0.8s linear infinite" : "none",
+                    flexShrink: 0,
                   }}
+                  aria-hidden="true"
                 >
-                  🔄
-                </span>
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                  <path d="M16 21h5v-5" />
+                </svg>
                 <span>{isRefreshingQuota ? "Memuat..." : "Refresh"}</span>
               </button>
             )}
@@ -338,7 +351,7 @@ export function OfferingSelector({
                 cursor: isRefreshingQuota ? "wait" : "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "4px",
+                gap: "5px",
                 height: 34,
                 padding: "0 0.65rem",
                 boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
@@ -346,15 +359,27 @@ export function OfferingSelector({
               }}
               title="Perbarui kuota terkini"
             >
-              <span
+              <svg
+                viewBox="0 0 24 24"
+                width={13}
+                height={13}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 style={{
                   display: "inline-block",
-                  animation: isRefreshingQuota ? "spin 1s linear infinite" : "none",
-                  fontSize: "0.8rem",
+                  animation: isRefreshingQuota ? "spin 0.8s linear infinite" : "none",
+                  flexShrink: 0,
                 }}
+                aria-hidden="true"
               >
-                🔄
-              </span>
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 21h5v-5" />
+              </svg>
               <span>{isRefreshingQuota ? "..." : "Refresh"}</span>
             </button>
           )}
