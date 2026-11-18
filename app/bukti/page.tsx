@@ -81,6 +81,13 @@ export default function BuktiPage() {
   const [searching, setSearching] = useState(false);
 
   // State panel kirim email
+  const [sentEmail, setSentEmail] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("krs_sent_email") || "";
+    }
+    return "";
+  });
+  const [showResendForm, setShowResendForm] = useState<boolean>(false);
   const [emailInput, setEmailInput] = useState("");
   const [emailState, setEmailState] = useState<EmailState>("idle");
   const [emailFeedback, setEmailFeedback] = useState("");
@@ -210,8 +217,14 @@ export default function BuktiPage() {
       const json = (await res.json()) as { ok: boolean; email?: string; error?: string };
 
       if (json.ok) {
+        const confirmedEmail = json.email ?? emailInput.trim();
+        setSentEmail(confirmedEmail);
+        setShowResendForm(false);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("krs_sent_email", confirmedEmail);
+        }
         setEmailState("success");
-        setEmailFeedback(`Bukti berhasil dikirim ke ${json.email ?? emailInput.trim()}.`);
+        setEmailFeedback(`Bukti berhasil dikirim ke ${confirmedEmail}.`);
         // Cooldown 60 detik agar tidak spam
         let sisa = 60;
         setCooldownSec(sisa);
@@ -468,6 +481,14 @@ export default function BuktiPage() {
                 {pendaftaran.waktu_daftar ? new Date(pendaftaran.waktu_daftar).toLocaleString("id-ID") : "-"}
               </span>
             </div>
+            {sentEmail && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "var(--text-muted)" }}>Email Bukti</span>
+                <span style={{ color: "#166534", fontWeight: 700, fontSize: "0.8rem", wordBreak: "break-all", textAlign: "right" }}>
+                  ✉️ {sentEmail}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Tombol Cetak / Pemilihan */}
@@ -735,6 +756,13 @@ export default function BuktiPage() {
             <span style={{ color: "#64748b", display: "inline-block", width: 110 }}>Waktu Terdaftar:</span>
             <span suppressHydrationWarning>{pendaftaran.waktu_daftar ? new Date(pendaftaran.waktu_daftar).toLocaleString("id-ID") : "-"}</span>
           </div>
+          {sentEmail && (
+            <div style={{ gridColumn: "span 2" }}>
+              <span style={{ color: "#64748b", display: "inline-block", width: 110 }}>Email Bukti:</span>
+              <strong style={{ color: "#166534" }}>{sentEmail}</strong>
+              <span style={{ color: "#15803d", fontSize: "0.775rem", marginLeft: "0.5rem" }}>(Salinan resmi telah dikirim)</span>
+            </div>
+          )}
         </div>
 
         {/* Tabel Mata Kuliah Terpilih */}
@@ -898,110 +926,191 @@ export default function BuktiPage() {
       </div>
 
       {/* =========================================================================
-          PANEL KIRIM EMAIL BUKTI
+          PANEL STATUS PENGIRIMAN EMAIL BUKTI
           ========================================================================= */}
       {hasPilihan && (
-        <div
-          className="no-print"
-          style={{ marginTop: "1rem" }}
-        >
-          <div
-            style={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "var(--radius-lg)",
-              padding: "1.25rem 1.5rem",
-              boxShadow: "var(--shadow-card)",
-            }}
-          >
+        <div className="no-print" style={{ marginTop: "1rem" }}>
+          {sentEmail && !showResendForm ? (
             <div
               style={{
-                fontWeight: 800,
-                fontSize: "0.95rem",
-                color: "#0f172a",
-                marginBottom: "0.3rem",
+                backgroundColor: "#f0fdf4",
+                border: "1.5px solid #22c55e",
+                borderRadius: "var(--radius-lg)",
+                padding: "1.25rem 1.5rem",
+                boxShadow: "0 4px 16px rgba(34, 197, 94, 0.12)",
+                textAlign: "left",
               }}
             >
-              ✉️ Kirim Bukti ke Email
-            </div>
-            <p style={{ fontSize: "0.78rem", color: "#64748b", margin: "0 0 0.9rem 0", lineHeight: 1.5 }}>
-              Masukkan email aktif Anda untuk menerima salinan bukti pendaftaran resmi ini.
-            </p>
-
-            {(emailState === "success" || emailState === "cooldown") && (
               <div
                 style={{
-                  backgroundColor: "#f0fdf4",
-                  border: "1px solid #22c55e",
-                  borderRadius: "var(--radius-md)",
-                  padding: "0.6rem 0.85rem",
-                  fontSize: "0.825rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  fontWeight: 800,
+                  fontSize: "1rem",
                   color: "#166534",
-                  fontWeight: 600,
-                  marginBottom: "0.75rem",
                 }}
               >
-                ✓ {emailFeedback}
-                {emailState === "cooldown" && (
-                  <span style={{ fontWeight: 400, color: "#15803d" }}>
-                    {" "}(Kirim ulang dalam {cooldownSec}d)
-                  </span>
+                <span style={{ fontSize: "1.2rem" }}>✅</span> Salinan Bukti Resmi Telah Dikirim ke Email
+              </div>
+
+              <p style={{ margin: "0.5rem 0 0.6rem 0", fontSize: "0.875rem", color: "#15803d", lineHeight: 1.5 }}>
+                Dokumen tanda bukti pendaftaran resmi dan rincian jadwal perkuliahan telah dikirimkan ke:{" "}
+                <strong style={{ color: "#14532d", wordBreak: "break-all" }}>{sentEmail}</strong>
+              </p>
+
+              <div
+                style={{
+                  fontSize: "0.775rem",
+                  color: "#475569",
+                  backgroundColor: "#ffffff",
+                  padding: "0.55rem 0.85rem",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid #dcfce7",
+                  marginBottom: "0.75rem",
+                  lineHeight: 1.45,
+                }}
+              >
+                💡 Silakan periksa kotak masuk (<strong>Inbox</strong>), folder <strong>Promosi</strong>, atau folder <strong>Spam</strong> pada aplikasi email Anda jika dokumen belum muncul.
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowResendForm(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#15803d",
+                    fontSize: "0.775rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    padding: 0,
+                  }}
+                >
+                  ✉️ Kirim salinan ke alamat email lain
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "var(--radius-lg)",
+                padding: "1.25rem 1.5rem",
+                boxShadow: "var(--shadow-card)",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: "0.95rem",
+                  color: "#0f172a",
+                  marginBottom: "0.3rem",
+                }}
+              >
+                ✉️ Kirim Bukti ke Email
+              </div>
+              <p style={{ fontSize: "0.78rem", color: "#64748b", margin: "0 0 0.9rem 0", lineHeight: 1.5 }}>
+                Masukkan email aktif Anda untuk menerima salinan bukti pendaftaran resmi ini.
+              </p>
+
+              {(emailState === "success" || emailState === "cooldown") && (
+                <div
+                  style={{
+                    backgroundColor: "#f0fdf4",
+                    border: "1px solid #22c55e",
+                    borderRadius: "var(--radius-md)",
+                    padding: "0.6rem 0.85rem",
+                    fontSize: "0.825rem",
+                    color: "#166534",
+                    fontWeight: 600,
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  ✓ {emailFeedback}
+                  {emailState === "cooldown" && (
+                    <span style={{ fontWeight: 400, color: "#15803d" }}>
+                      {" "}(Kirim ulang dalam {cooldownSec}d)
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {emailState === "error" && (
+                <div
+                  style={{
+                    backgroundColor: "#fef2f2",
+                    border: "1px solid #fca5a5",
+                    borderRadius: "var(--radius-md)",
+                    padding: "0.6rem 0.85rem",
+                    fontSize: "0.825rem",
+                    color: "#b91c1c",
+                    fontWeight: 600,
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  ⚠ {emailFeedback}
+                </div>
+              )}
+
+              <form onSubmit={handleSendEmail} style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="contoh@gmail.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  disabled={emailState === "sending" || emailState === "cooldown"}
+                  style={{ flex: 1, minWidth: 0, fontSize: "0.875rem" }}
+                  required
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={emailState === "sending" || emailState === "cooldown" || !emailInput.trim()}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "0.875rem",
+                    padding: "0 1.25rem",
+                    whiteSpace: "nowrap",
+                    minHeight: 42,
+                  }}
+                >
+                  {emailState === "sending"
+                    ? "Mengirim..."
+                    : emailState === "cooldown"
+                    ? `Tunggu ${cooldownSec}d`
+                    : "Kirim Bukti"}
+                </button>
+              </form>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.6rem" }}>
+                <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0 }}>
+                  Periksa folder <strong>Promosi</strong> atau <strong>Spam</strong> jika email tidak masuk dalam beberapa menit.
+                </p>
+                {sentEmail && (
+                  <button
+                    type="button"
+                    onClick={() => setShowResendForm(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#64748b",
+                      fontSize: "0.75rem",
+                      cursor: "pointer",
+                      padding: "2px 6px",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Batal
+                  </button>
                 )}
               </div>
-            )}
-
-            {emailState === "error" && (
-              <div
-                style={{
-                  backgroundColor: "#fef2f2",
-                  border: "1px solid #fca5a5",
-                  borderRadius: "var(--radius-md)",
-                  padding: "0.6rem 0.85rem",
-                  fontSize: "0.825rem",
-                  color: "#b91c1c",
-                  fontWeight: 600,
-                  marginBottom: "0.75rem",
-                }}
-              >
-                ⚠ {emailFeedback}
-              </div>
-            )}
-
-            <form onSubmit={handleSendEmail} style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
-              <input
-                type="email"
-                className="input"
-                placeholder="contoh@gmail.com"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                disabled={emailState === "sending" || emailState === "cooldown"}
-                style={{ flex: 1, minWidth: 0, fontSize: "0.875rem" }}
-                required
-              />
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={emailState === "sending" || emailState === "cooldown" || !emailInput.trim()}
-                style={{
-                  fontWeight: 700,
-                  fontSize: "0.875rem",
-                  padding: "0 1.25rem",
-                  whiteSpace: "nowrap",
-                  minHeight: 42,
-                }}
-              >
-                {emailState === "sending"
-                  ? "Mengirim..."
-                  : emailState === "cooldown"
-                  ? `Tunggu ${cooldownSec}d`
-                  : "Kirim Bukti"}
-              </button>
-            </form>
-
-            <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: "0.6rem 0 0 0" }}>
-              Periksa folder <strong>Promosi</strong> atau <strong>Spam</strong> jika email tidak masuk dalam beberapa menit.
-            </p>
-          </div>
+            </div>
+          )}
         </div>
       )}
 
