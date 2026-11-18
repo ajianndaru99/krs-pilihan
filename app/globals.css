@@ -821,6 +821,19 @@ body {
     margin: 0 !important;
   }
 
+  .print-formal-sheet .student-info-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px 1.5rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .print-formal-sheet h4.print-section-title {
+    font-size: 8.5pt !important;
+    margin-top: 6px !important;
+    margin-bottom: 6px !important;
+  }
+
   .print-formal-sheet p {
     font-size: 7.5pt !important;
     margin: 2px 0 !important;

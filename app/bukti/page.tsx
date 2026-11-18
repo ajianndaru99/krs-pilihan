@@ -683,12 +683,14 @@ export default function BuktiPage() {
 
         {/* Data Mahasiswa (Grid Kompak) */}
         <div
+          className="student-info-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: "0.35rem 1.5rem",
-            marginBottom: "0",
+            gap: "0.45rem 1.5rem",
+            marginBottom: "0.45rem",
             fontSize: "0.85rem",
+            lineHeight: 1.4,
           }}
         >
           <div>
@@ -719,14 +721,15 @@ export default function BuktiPage() {
         {/* Tabel Mata Kuliah Terpilih */}
         <div style={{ marginBottom: "1rem" }}>
           <h4
+            className="print-section-title"
             style={{
               fontSize: "0.85rem",
               fontWeight: 700,
-              margin: "0.85rem 0",
+              margin: "0.45rem 0",
               color: "#1e293b",
             }}
           >
-            Daftar Mata Kuliah & Proyek Terpilih:
+            Daftar Mata Kuliah &amp; Proyek Terpilih:
           </h4>
           <table
             style={{
@@ -885,7 +888,7 @@ export default function BuktiPage() {
           style={{
             marginTop: "1.25rem",
             marginBottom: "0.5rem",
-            padding: "0.85rem 1.15rem",
+            padding: "0.9rem 1.25rem",
             backgroundColor: "#fefce8",
             border: "1.5px solid #fef08a",
             borderRadius: "var(--radius-lg)",
@@ -893,12 +896,40 @@ export default function BuktiPage() {
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: "0.875rem", color: "#854d0e", lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#713f12", marginBottom: "0.25rem" }}>
-              Bukti sudah dikirim ke: {sentEmail || (mahasiswa.nim ? `${mahasiswa.nim}@gmail.com` : "email Anda")}
+          <div style={{ fontSize: "0.875rem", lineHeight: 1.55 }}>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "0.95rem",
+                color: "#1e3a8a",
+                marginBottom: "0.35rem",
+                letterSpacing: "0.02em",
+              }}
+            >
+              CEK EMAIL ANDA:{" "}
+              <span style={{ color: "#15803d", fontWeight: 900, textDecoration: "underline" }}>
+                {sentEmail || (mahasiswa.nim ? `${mahasiswa.nim}@gmail.com` : "email Anda")}
+              </span>
             </div>
-            <div style={{ fontWeight: 600 }}>
-              Wajib cek <strong>SPAM/PROMOSI</strong> jika tidak ada di Kotak Masuk (Inbox) anda
+            <div style={{ fontSize: "0.85rem", color: "#713f12", fontWeight: 600 }}>
+              <span style={{ color: "#dc2626", fontWeight: 900 }}>WAJIB CEK</span> folder{" "}
+              <span
+                style={{
+                  color: "#92400e",
+                  fontWeight: 900,
+                  backgroundColor: "#fef08a",
+                  padding: "1px 6px",
+                  borderRadius: "4px",
+                  border: "1px solid #fde047",
+                }}
+              >
+                SPAM / PROMOSI
+              </span>{" "}
+              jika tidak ada di{" "}
+              <span style={{ color: "#0f172a", fontWeight: 900 }}>
+                KOTAK MASUK (INBOX)
+              </span>{" "}
+              Anda
             </div>
           </div>
         </div>

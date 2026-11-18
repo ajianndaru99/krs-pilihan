@@ -88,34 +88,53 @@ export function EmailSetelahDaftarModal({
         }}
       >
         {/* Header Status Sukses */}
-        <h3
-          style={{
-            fontSize: "1.15rem",
-            fontWeight: 800,
-            color: "#0f172a",
-            margin: "0 0 1rem 0",
-            lineHeight: 1.4,
-            textAlign: "center",
-          }}
-        >
-          DATA SUDAH TERSIMPAN, berikan email anda untuk salinan bukti
-        </h3>
+        <div style={{ textAlign: "center", marginBottom: "1.15rem" }}>
+          <h3
+            style={{
+              fontSize: "1.25rem",
+              fontWeight: 900,
+              color: "#166534",
+              margin: "0 0 0.35rem 0",
+              lineHeight: 1.3,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.45rem",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                backgroundColor: "#22c55e",
+                color: "#ffffff",
+                fontSize: "0.85rem",
+                fontWeight: 900,
+              }}
+            >
+              ✓
+            </span>
+            <span>DATA SUDAH TERSIMPAN</span>
+          </h3>
+          <p
+            style={{
+              fontSize: "0.925rem",
+              fontWeight: 700,
+              color: "#334155",
+              margin: 0,
+            }}
+          >
+            Wajib isi Gmail untuk Arsip data
+          </p>
+        </div>
 
         {/* Form Input Email */}
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: "1rem" }}>
-            <label
-              htmlFor="student-email-after-submit"
-              style={{
-                display: "block",
-                fontWeight: 700,
-                fontSize: "0.875rem",
-                color: "#1e293b",
-                marginBottom: "0.35rem",
-              }}
-            >
-              ✉️ Alamat Email Anda
-            </label>
             <input
               id="student-email-after-submit"
               type="email"
@@ -129,15 +148,19 @@ export function EmailSetelahDaftarModal({
               disabled={isSending}
               autoFocus
               required
+              aria-label="Alamat Gmail Anda"
               style={{
                 width: "100%",
-                fontSize: "0.95rem",
-                padding: "0.7rem 0.85rem",
-                borderColor: errorMsg ? "var(--danger)" : undefined,
+                fontSize: "1rem",
+                fontWeight: 600,
+                padding: "0.75rem 0.85rem",
+                textAlign: "center",
+                borderColor: errorMsg ? "var(--danger)" : "#22c55e",
+                borderRadius: "var(--radius-md)",
               }}
             />
             {errorMsg && (
-              <div style={{ color: "var(--danger)", fontSize: "0.75rem", marginTop: "0.35rem", fontWeight: 600 }}>
+              <div style={{ color: "var(--danger)", fontSize: "0.75rem", marginTop: "0.35rem", fontWeight: 600, textAlign: "center" }}>
                 ⚠ {errorMsg}
               </div>
             )}
@@ -176,7 +199,7 @@ export function EmailSetelahDaftarModal({
                 minHeight: 48,
               }}
             >
-              {isSending ? "Mengirim ke Email..." : "✉️ Kirim Bukti ke Email & Buka Hasil"}
+              {isSending ? "Mengirim ke Email..." : "Kirim Bukti ke Email & Buka Hasil"}
             </button>
           </div>
         </form>
