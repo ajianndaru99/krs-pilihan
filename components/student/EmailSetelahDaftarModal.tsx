@@ -9,7 +9,6 @@ interface EmailSetelahDaftarModalProps {
   nim: string;
   nama?: string;
   onKirimEmail: (email: string) => Promise<void>;
-  onLewati: () => void;
   isSending: boolean;
 }
 
@@ -18,7 +17,6 @@ export function EmailSetelahDaftarModal({
   nim,
   nama,
   onKirimEmail,
-  onLewati,
   isSending,
 }: EmailSetelahDaftarModalProps) {
   const [email, setEmail] = useState<string>(() => {
@@ -172,41 +170,24 @@ export function EmailSetelahDaftarModal({
             ⚠️ <strong>Perhatian:</strong> Wajib periksa folder <strong>SPAM</strong> atau <strong>PROMOSI</strong> pada aplikasi email Anda jika bukti pendaftaran tidak muncul di Kotak Masuk (Inbox).
           </div>
 
-          {/* Tombol Aksi */}
-          <div style={{ display: "flex", gap: "0.6rem", flexDirection: "column" }}>
+          {/* Tombol Aksi Wajib Kirim */}
+          <div>
             <button
               type="submit"
               className="btn btn-primary"
               disabled={isSending || !email.trim()}
               style={{
                 width: "100%",
-                padding: "0.8rem 1rem",
+                padding: "0.85rem 1rem",
                 fontWeight: 800,
-                fontSize: "0.925rem",
+                fontSize: "0.95rem",
                 backgroundColor: "#059669",
                 boxShadow: "0 4px 12px rgba(5, 150, 105, 0.25)",
                 justifyContent: "center",
-                minHeight: 46,
+                minHeight: 48,
               }}
             >
               {isSending ? "Mengirim ke Email..." : "✉️ Kirim Bukti ke Email & Buka Hasil"}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onLewati}
-              disabled={isSending}
-              style={{
-                width: "100%",
-                padding: "0.65rem 1rem",
-                fontWeight: 600,
-                fontSize: "0.85rem",
-                justifyContent: "center",
-                color: "#64748b",
-              }}
-            >
-              Lewati &amp; Langsung Buka Lembar Bukti →
             </button>
           </div>
         </form>

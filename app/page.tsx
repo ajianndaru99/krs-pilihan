@@ -902,12 +902,6 @@ export default function StudentPage() {
     }
   };
 
-  // Handler: Lewati Pengisian Email & Langsung Buka Tanda Bukti
-  const handleLewatiEmailSetelahDaftar = () => {
-    setShowEmailModal(false);
-    router.push(`/bukti?nim=${encodeURIComponent(nim.trim())}`);
-  };
-
   // Handler: Keluar / Logout dengan Konfirmasi & Bersihkan State Secara Tuntas
   const handleRequestExit = () => {
     showPopup(
@@ -1159,7 +1153,6 @@ export default function StudentPage() {
         nim={nim}
         nama={studentInfo?.nama_samar || registeredData?.nama || ""}
         onKirimEmail={handleKirimEmailSetelahDaftar}
-        onLewati={handleLewatiEmailSetelahDaftar}
         isSending={isSendingEmail}
       />
 
