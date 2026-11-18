@@ -123,8 +123,8 @@ export async function POST(req: NextRequest) {
 
   // 6. Kirim via Brevo REST API (native fetch, nol dependensi tambahan)
   const brevoApiKey = process.env.BREVO_API_KEY;
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? "no-reply@example.com";
-  const fromName = process.env.EMAIL_FROM_NAME ?? "KRS FAPERTA INSTIPER";
+  const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? "faperta@instiperjogja.ac.id";
+  const fromName = process.env.EMAIL_FROM_NAME ?? "Fakultas Pertanian INSTIPER";
 
   if (!brevoApiKey) {
     return NextResponse.json({ ok: false, error: "Konfigurasi email server belum siap." }, { status: 500 });
