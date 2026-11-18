@@ -2,7 +2,7 @@
 // Modal pop up pengisian email setelah pendaftaran mata kuliah resmi berhasil tersimpan di database
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface EmailSetelahDaftarModalProps {
   isOpen: boolean;
@@ -20,9 +20,20 @@ export function EmailSetelahDaftarModal({
   isSending,
 }: EmailSetelahDaftarModalProps) {
   const [email, setEmail] = useState<string>(() => {
-    return nim ? `${nim.trim()}@mhs.instiperjogja.ac.id` : "";
+    return nim ? `${nim.trim()}@gmail.com` : "";
   });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && nim) {
+      setEmail((prev) => {
+        if (!prev || prev.includes("@mhs.instiperjogja.ac.id")) {
+          return `${nim.trim()}@gmail.com`;
+        }
+        return prev;
+      });
+    }
+  }, [isOpen, nim]);
 
   if (!isOpen) return null;
 
@@ -77,40 +88,18 @@ export function EmailSetelahDaftarModal({
         }}
       >
         {/* Header Status Sukses */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              fontSize: "0.725rem",
-              fontWeight: 800,
-              padding: "4px 12px",
-              borderRadius: "var(--radius-full)",
-              backgroundColor: "#f0fdf4",
-              color: "#166534",
-              border: "1px solid #bbf7d0",
-              letterSpacing: "0.04em",
-            }}
-          >
-            ✓ DATA SUDAH MASUK &amp; RESMI TERSIMPAN
-          </span>
-        </div>
-
         <h3
           style={{
-            fontSize: "1.25rem",
+            fontSize: "1.15rem",
             fontWeight: 800,
             color: "#0f172a",
-            margin: "0 0 0.4rem 0",
-            lineHeight: 1.3,
+            margin: "0 0 1rem 0",
+            lineHeight: 1.4,
+            textAlign: "center",
           }}
         >
-          Kirim Arsip Bukti ke Email Anda
+          DATA SUDAH TERSIMPAN, berikan email anda untuk salinan bukti
         </h3>
-
-        <p style={{ fontSize: "0.85rem", color: "#475569", margin: "0 0 1.25rem 0", lineHeight: 1.5 }}>
-          Selamat <strong>{nama || nim}</strong>, pilihan mata kuliah Anda telah aman tersimpan di sistem. Masukkan email aktif Anda untuk menerima salinan bukti pendaftaran elektronik.
-        </p>
 
         {/* Form Input Email */}
         <form onSubmit={handleSubmit}>

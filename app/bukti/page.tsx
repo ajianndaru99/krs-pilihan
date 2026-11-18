@@ -80,6 +80,11 @@ export default function BuktiPage() {
   // State arsip email terkirim
   const [sentEmail] = useState<string>(() => {
     if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlEmail = params.get("email");
+      if (urlEmail && urlEmail.trim()) {
+        return urlEmail.trim();
+      }
       return sessionStorage.getItem("krs_sent_email") || "";
     }
     return "";
@@ -131,9 +136,12 @@ export default function BuktiPage() {
 
   useEffect(() => {
     let urlNim: string | null = null;
+    let isScan = false;
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       urlNim = params.get("nim");
+      // Banner Dokumen Terverifikasi Asli HANYA muncul jika dibuka via pemindaian QR Code (?scan=1)
+      isScan = params.get("scan") === "1" || params.get("verified") === "1";
     }
 
     const sessionNim = typeof window !== "undefined" ? sessionStorage.getItem("nim") : null;
@@ -143,9 +151,7 @@ export default function BuktiPage() {
     // Prioritas: URL param (mode scan QR ponsel dosen) > sessionStorage > localStorage
     const targetNim = (urlNim && urlNim.trim()) || sessionNim || localNim;
 
-    if (urlNim && urlNim.trim()) {
-      setIsVerifiedScan(true);
-    }
+    setIsVerifiedScan(isScan);
 
     if (!targetNim) {
       const timer = setTimeout(() => {
@@ -165,7 +171,7 @@ export default function BuktiPage() {
   useEffect(() => {
     if (typeof window !== "undefined" && data?.mahasiswa?.nim) {
       const origin = window.location.origin;
-      setQrUrl(`${origin}/bukti?nim=${encodeURIComponent(data.mahasiswa.nim)}`);
+      setQrUrl(`${origin}/bukti?nim=${encodeURIComponent(data.mahasiswa.nim)}&scan=1`);
     }
   }, [data?.mahasiswa?.nim]);
 
@@ -826,7 +832,7 @@ export default function BuktiPage() {
                   value={
                     qrUrl ||
                     (mahasiswa.nim
-                      ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}`
+                      ? `${typeof window !== "undefined" ? window.location.origin : ""}/bukti?nim=${encodeURIComponent(mahasiswa.nim)}&scan=1`
                       : "")
                   }
                   size={115}
@@ -879,27 +885,20 @@ export default function BuktiPage() {
           style={{
             marginTop: "1.25rem",
             marginBottom: "0.5rem",
-            padding: "1rem 1.25rem",
+            padding: "0.85rem 1.15rem",
             backgroundColor: "#fefce8",
             border: "1.5px solid #fef08a",
             borderRadius: "var(--radius-lg)",
             boxShadow: "0 2px 8px rgba(202, 138, 4, 0.08)",
+            textAlign: "center",
           }}
         >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-            <span style={{ fontSize: "1.4rem", lineHeight: 1 }}>📩</span>
-            <div style={{ flex: 1, fontSize: "0.85rem", color: "#854d0e", lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#713f12", marginBottom: "0.25rem" }}>
-                {sentEmail ? `Salinan Bukti Dikirim ke: ${sentEmail}` : "Pemberitahuan Arsip Email Bukti"}
-              </div>
-              <div>
-                Wajib periksa folder <strong>SPAM</strong> atau <strong>PROMOSI</strong> pada aplikasi email Anda jika ingin melihat arsip hasil pendaftaran dan tidak muncul di Kotak Masuk (Inbox).
-              </div>
-              {sentEmail && (
-                <div style={{ marginTop: "0.35rem", fontSize: "0.775rem", color: "#a16207" }}>
-                  ✓ Dokumen elektronik resmi telah dikirim oleh sistem.
-                </div>
-              )}
+          <div style={{ fontSize: "0.875rem", color: "#854d0e", lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#713f12", marginBottom: "0.25rem" }}>
+              Bukti sudah dikirim ke: {sentEmail || (mahasiswa.nim ? `${mahasiswa.nim}@gmail.com` : "email Anda")}
+            </div>
+            <div style={{ fontWeight: 600 }}>
+              Wajib cek <strong>SPAM/PROMOSI</strong> jika tidak ada di Kotak Masuk (Inbox) anda
             </div>
           </div>
         </div>

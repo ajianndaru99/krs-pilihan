@@ -898,7 +898,7 @@ export default function StudentPage() {
     } finally {
       setIsSendingEmail(false);
       setShowEmailModal(false);
-      router.push(`/bukti?nim=${encodeURIComponent(nim.trim())}`);
+      router.push(`/bukti?nim=${encodeURIComponent(nim.trim())}&email=${encodeURIComponent(emailTujuan)}`);
     }
   };
 
