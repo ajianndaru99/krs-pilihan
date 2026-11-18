@@ -62,6 +62,9 @@ function formatOfferingName(nama: string, kelas?: string): string {
   return clean;
 }
 
+// Tipe state pengiriman email
+type EmailState = "idle" | "sending" | "success" | "error" | "cooldown";
+
 export default function BuktiPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -76,6 +79,12 @@ export default function BuktiPage() {
   const [showLookupInput, setShowLookupInput] = useState(false);
   const [searchNim, setSearchNim] = useState("");
   const [searching, setSearching] = useState(false);
+
+  // State panel kirim email
+  const [emailInput, setEmailInput] = useState("");
+  const [emailState, setEmailState] = useState<EmailState>("idle");
+  const [emailFeedback, setEmailFeedback] = useState("");
+  const [cooldownSec, setCooldownSec] = useState(0);
 
   // Fungsi muat data bukti pendaftaran
   const fetchBuktiWithNim = useCallback(async (targetNim: string, targetToken?: string | null) => {
@@ -182,6 +191,47 @@ export default function BuktiPage() {
     if (!searchNim.trim()) return;
     setSearching(true);
     fetchBuktiWithNim(searchNim.trim());
+  };
+
+  // Kirim email bukti ke Brevo via Route Handler server-side
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailInput.trim() || !data?.mahasiswa?.nim) return;
+
+    setEmailState("sending");
+    setEmailFeedback("");
+
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nim: data.mahasiswa.nim, email_tujuan: emailInput.trim() }),
+      });
+      const json = (await res.json()) as { ok: boolean; email?: string; error?: string };
+
+      if (json.ok) {
+        setEmailState("success");
+        setEmailFeedback(`Bukti berhasil dikirim ke ${json.email ?? emailInput.trim()}.`);
+        // Cooldown 60 detik agar tidak spam
+        let sisa = 60;
+        setCooldownSec(sisa);
+        setEmailState("cooldown");
+        const interval = setInterval(() => {
+          sisa -= 1;
+          setCooldownSec(sisa);
+          if (sisa <= 0) {
+            clearInterval(interval);
+            setEmailState("success");
+          }
+        }, 1000);
+      } else {
+        setEmailState("error");
+        setEmailFeedback(json.error ?? "Pengiriman gagal. Silakan coba lagi.");
+      }
+    } catch {
+      setEmailState("error");
+      setEmailFeedback("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
+    }
   };
 
   if (loading) {
@@ -846,6 +896,114 @@ export default function BuktiPage() {
           </div>
         </div>
       </div>
+
+      {/* =========================================================================
+          PANEL KIRIM EMAIL BUKTI
+          ========================================================================= */}
+      {hasPilihan && (
+        <div
+          className="no-print"
+          style={{ marginTop: "1rem" }}
+        >
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "var(--radius-lg)",
+              padding: "1.25rem 1.5rem",
+              boxShadow: "var(--shadow-card)",
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "0.95rem",
+                color: "#0f172a",
+                marginBottom: "0.3rem",
+              }}
+            >
+              ✉️ Kirim Bukti ke Email
+            </div>
+            <p style={{ fontSize: "0.78rem", color: "#64748b", margin: "0 0 0.9rem 0", lineHeight: 1.5 }}>
+              Masukkan email aktif Anda untuk menerima salinan bukti pendaftaran resmi ini.
+            </p>
+
+            {(emailState === "success" || emailState === "cooldown") && (
+              <div
+                style={{
+                  backgroundColor: "#f0fdf4",
+                  border: "1px solid #22c55e",
+                  borderRadius: "var(--radius-md)",
+                  padding: "0.6rem 0.85rem",
+                  fontSize: "0.825rem",
+                  color: "#166534",
+                  fontWeight: 600,
+                  marginBottom: "0.75rem",
+                }}
+              >
+                ✓ {emailFeedback}
+                {emailState === "cooldown" && (
+                  <span style={{ fontWeight: 400, color: "#15803d" }}>
+                    {" "}(Kirim ulang dalam {cooldownSec}d)
+                  </span>
+                )}
+              </div>
+            )}
+
+            {emailState === "error" && (
+              <div
+                style={{
+                  backgroundColor: "#fef2f2",
+                  border: "1px solid #fca5a5",
+                  borderRadius: "var(--radius-md)",
+                  padding: "0.6rem 0.85rem",
+                  fontSize: "0.825rem",
+                  color: "#b91c1c",
+                  fontWeight: 600,
+                  marginBottom: "0.75rem",
+                }}
+              >
+                ⚠ {emailFeedback}
+              </div>
+            )}
+
+            <form onSubmit={handleSendEmail} style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+              <input
+                type="email"
+                className="input"
+                placeholder="contoh@gmail.com"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                disabled={emailState === "sending" || emailState === "cooldown"}
+                style={{ flex: 1, minWidth: 0, fontSize: "0.875rem" }}
+                required
+              />
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={emailState === "sending" || emailState === "cooldown" || !emailInput.trim()}
+                style={{
+                  fontWeight: 700,
+                  fontSize: "0.875rem",
+                  padding: "0 1.25rem",
+                  whiteSpace: "nowrap",
+                  minHeight: 42,
+                }}
+              >
+                {emailState === "sending"
+                  ? "Mengirim..."
+                  : emailState === "cooldown"
+                  ? `Tunggu ${cooldownSec}d`
+                  : "Kirim Bukti"}
+              </button>
+            </form>
+
+            <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: "0.6rem 0 0 0" }}>
+              Periksa folder <strong>Promosi</strong> atau <strong>Spam</strong> jika email tidak masuk dalam beberapa menit.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           TOMBOL NAVIGASI BAWAH
