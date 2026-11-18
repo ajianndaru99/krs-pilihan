@@ -12,7 +12,7 @@ import { QueueCard } from "@/components/student/QueueCard";
 import { OfferingSelector, getCourseBaseName } from "@/components/student/OfferingSelector";
 import { AjukanAksesModal } from "@/components/student/AjukanAksesModal";
 import { LaporKendalaModal } from "@/components/student/LaporKendalaModal";
-import { KonfirmasiDaftarModal } from "@/components/student/KonfirmasiDaftarModal";
+import { EmailSetelahDaftarModal } from "@/components/student/EmailSetelahDaftarModal";
 
 const QUEUE_POLL_INTERVAL_MS = 10000;
 
@@ -104,7 +104,8 @@ export default function StudentPage() {
     title: "",
     message: "",
   });
-  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
 
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionEndTimeRef = useRef<number | null>(null);
@@ -751,79 +752,108 @@ export default function StudentPage() {
     });
   };
 
-  // Handler: Buka Modal Konfirmasi & Input Email Mahasiswa
+  // Handler: Buka Modal Konfirmasi Pilihan & Langsung Simpan ke Database
   const handleSubmitSelection = () => {
     if (selectedIds.length < 1 || selectedIds.length > 4) {
       showPopup("warning", "Jumlah Pilihan Belum Sesuai", "Silakan pilih minimal 1 dan maksimal 4 mata kuliah.");
       return;
     }
-    setShowConfirmModal(true);
-  };
 
-  // Handler: Eksekusi Simpan Pilihan ke Database & Otomatis Kirim Bukti ke Email
-  const handleConfirmSubmitWithEmail = async (emailTujuan: string) => {
-    setIsSubmitting(true);
-    try {
-      const { data, error } = await supabase.rpc("daftar", {
-        p_nim: nim.trim(),
-        p_token: token.trim(),
-        p_offering_ids: selectedIds,
-      });
+    const selectedItems = offerings.filter((o) => selectedIds.includes(o.id));
+    const details = selectedItems.map((item, idx) => {
+      const scheduleText =
+        item.jadwal && item.jadwal.length > 0
+          ? item.jadwal
+              .map(
+                (j) =>
+                  `${j.hari}, ${j.jam_mulai.slice(0, 5)} - ${j.jam_selesai.slice(0, 5)}${
+                    j.ruang ? ` (${j.ruang})` : ""
+                  }`
+              )
+              .join("; ")
+          : "Jadwal belum ditentukan";
 
-      if (error) {
-        // Verifikasi apakah transaksi sebenarnya sudah berhasil tersimpan di server
+      return {
+        label: `Pilihan #${idx + 1} • ${item.jenis === "matkul" ? "Mata Kuliah" : "Proyek Terapan"} (Kelas ${item.kelas || "A"})`,
+        value: item.nama,
+        schedule: scheduleText,
+      };
+    });
+
+    showPopup(
+      "confirm",
+      "Konfirmasi Simpan Pilihan",
+      "Pastikan mata kuliah pilihan Anda sudah sesuai (minimal 1, maksimal 4). Pilihan tidak dapat diubah kembali setelah disimpan.",
+      details,
+      async () => {
+        setIsSubmitting(true);
         try {
-          const { data: checkData } = await supabase.rpc("hasil_saya", {
+          const { data, error } = await supabase.rpc("daftar", {
             p_nim: nim.trim(),
+            p_token: token.trim(),
+            p_offering_ids: selectedIds,
           });
-          const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
-          const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
-          if (hasPilihan) {
-            // Picu pengiriman email bukti pendaftaran
-            void fetch("/api/send-email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ nim: nim.trim(), email_tujuan: emailTujuan }),
-            }).catch(() => {});
 
+          if (error) {
+            // Verifikasi apakah transaksi sebenarnya sudah berhasil tersimpan di server
+            try {
+              const { data: checkData } = await supabase.rpc("hasil_saya", {
+                p_nim: nim.trim(),
+              });
+              const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
+              const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
+              if (hasPilihan) {
+                if (typeof window !== "undefined") {
+                  sessionStorage.removeItem("token");
+                  sessionStorage.removeItem("krs_selected_ids");
+                  localStorage.setItem("krs_saved_nim", nim.trim());
+                }
+                setShowEmailModal(true);
+                return;
+              }
+            } catch {
+              // Abaikan dan tampilkan pesan error asli
+            }
+
+            showPopup("danger", "Gagal Mendaftar", error.message);
+            return;
+          }
+
+          const res = (data as { ok?: boolean; error?: string }) || {};
+          if (res.ok) {
             if (typeof window !== "undefined") {
-              sessionStorage.setItem("krs_sent_email", emailTujuan);
               sessionStorage.removeItem("token");
               sessionStorage.removeItem("krs_selected_ids");
               localStorage.setItem("krs_saved_nim", nim.trim());
             }
-            setShowConfirmModal(false);
-            router.push("/bukti");
-            return;
+            // Data resmi tersimpan di database -> baru munculkan Pop Up Email
+            setShowEmailModal(true);
+          } else {
+            // Jika ditolak karena sudah pernah terdaftar, cek apakah bukti pendaftaran benar-benar ada
+            if (res.error && res.error.toLowerCase().includes("sudah pernah")) {
+              try {
+                const { data: checkData } = await supabase.rpc("hasil_saya", {
+                  p_nim: nim.trim(),
+                });
+                const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
+                const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
+                if (hasPilihan) {
+                  if (typeof window !== "undefined") {
+                    sessionStorage.removeItem("token");
+                    sessionStorage.removeItem("krs_selected_ids");
+                    localStorage.setItem("krs_saved_nim", nim.trim());
+                  }
+                  setShowEmailModal(true);
+                  return;
+                }
+              } catch {
+                // Lanjut ke popup error
+              }
+            }
+            showPopup("danger", "Pendaftaran Ditolak", res.error || "Gagal menyimpan pendaftaran.");
           }
-        } catch {
-          // Abaikan dan tampilkan pesan error asli
-        }
-
-        showPopup("danger", "Gagal Mendaftar", error.message);
-        return;
-      }
-
-      const res = (data as { ok?: boolean; error?: string }) || {};
-      if (res.ok) {
-        // Picu pengiriman email bukti pendaftaran di latar belakang
-        void fetch("/api/send-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nim: nim.trim(), email_tujuan: emailTujuan }),
-        }).catch(() => {});
-
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("krs_sent_email", emailTujuan);
-          sessionStorage.removeItem("token");
-          sessionStorage.removeItem("krs_selected_ids");
-          localStorage.setItem("krs_saved_nim", nim.trim());
-        }
-        setShowConfirmModal(false);
-        router.push("/bukti");
-      } else {
-        // Jika ditolak karena sudah pernah terdaftar, cek apakah bukti pendaftaran benar-benar ada
-        if (res.error && res.error.toLowerCase().includes("sudah pernah")) {
+        } catch (err: unknown) {
+          // Galat jaringan saat submit: verifikasi status akhir pendaftaran di server
           try {
             const { data: checkData } = await supabase.rpc("hasil_saya", {
               p_nim: nim.trim(),
@@ -831,62 +861,51 @@ export default function StudentPage() {
             const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
             const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
             if (hasPilihan) {
-              void fetch("/api/send-email", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nim: nim.trim(), email_tujuan: emailTujuan }),
-              }).catch(() => {});
-
               if (typeof window !== "undefined") {
-                sessionStorage.setItem("krs_sent_email", emailTujuan);
                 sessionStorage.removeItem("token");
                 sessionStorage.removeItem("krs_selected_ids");
                 localStorage.setItem("krs_saved_nim", nim.trim());
               }
-              setShowConfirmModal(false);
-              router.push("/bukti");
+              setShowEmailModal(true);
               return;
             }
           } catch {
-            // Lanjut ke popup error
+            // Fallback ke notifikasi retry aman
           }
-        }
-        showPopup("danger", "Pendaftaran Ditolak", res.error || "Gagal menyimpan pendaftaran.");
-      }
-    } catch (err: unknown) {
-      // Galat jaringan saat submit: verifikasi status akhir pendaftaran di server
-      try {
-        const { data: checkData } = await supabase.rpc("hasil_saya", {
-          p_nim: nim.trim(),
-        });
-        const checkRes = checkData as { ok?: boolean; pendaftaran?: { pilihan?: unknown[] } } | null;
-        const hasPilihan = Boolean(checkRes?.ok && checkRes?.pendaftaran?.pilihan && checkRes.pendaftaran.pilihan.length > 0);
-        if (hasPilihan) {
-          void fetch("/api/send-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ nim: nim.trim(), email_tujuan: emailTujuan }),
-          }).catch(() => {});
 
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem("krs_sent_email", emailTujuan);
-            sessionStorage.removeItem("token");
-            sessionStorage.removeItem("krs_selected_ids");
-            localStorage.setItem("krs_saved_nim", nim.trim());
-          }
-          setShowConfirmModal(false);
-          router.push("/bukti");
-          return;
+          const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
+          showPopup("danger", "Kesalahan Jaringan", `${msg}. Pilihan Anda tetap aman tersimpan, silakan periksa koneksi dan coba tekan Simpan kembali.`);
+        } finally {
+          setIsSubmitting(false);
         }
-      } catch {
-        // Fallback ke notifikasi retry aman
       }
+    );
+  };
 
-      const msg = err instanceof Error ? err.message : "Kesalahan koneksi.";
-      showPopup("danger", "Kesalahan Jaringan", `${msg}. Pilihan Anda tetap aman tersimpan, silakan periksa koneksi dan coba tekan Simpan kembali.`);
+  // Handler: Kirim Email Bukti setelah Pendaftaran Sukses
+  const handleKirimEmailSetelahDaftar = async (emailTujuan: string) => {
+    setIsSendingEmail(true);
+    try {
+      void fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nim: nim.trim(), email_tujuan: emailTujuan }),
+      }).catch(() => {});
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("krs_sent_email", emailTujuan);
+      }
     } finally {
-      setIsSubmitting(false);
+      setIsSendingEmail(false);
+      setShowEmailModal(false);
+      router.push(`/bukti?nim=${encodeURIComponent(nim.trim())}`);
     }
+  };
+
+  // Handler: Lewati Pengisian Email & Langsung Buka Tanda Bukti
+  const handleLewatiEmailSetelahDaftar = () => {
+    setShowEmailModal(false);
+    router.push(`/bukti?nim=${encodeURIComponent(nim.trim())}`);
   };
 
   // Handler: Keluar / Logout dengan Konfirmasi & Bersihkan State Secara Tuntas
@@ -1135,14 +1154,13 @@ export default function StudentPage() {
         />
       )}
 
-      <KonfirmasiDaftarModal
-        isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
+      <EmailSetelahDaftarModal
+        isOpen={showEmailModal}
         nim={nim}
         nama={studentInfo?.nama_samar || registeredData?.nama || ""}
-        selectedOfferings={offerings.filter((o) => selectedIds.includes(o.id))}
-        onConfirm={handleConfirmSubmitWithEmail}
-        isSubmitting={isSubmitting}
+        onKirimEmail={handleKirimEmailSetelahDaftar}
+        onLewati={handleLewatiEmailSetelahDaftar}
+        isSending={isSendingEmail}
       />
 
       <InteractiveModal dialog={modalDialog} onClose={closeModal} />
