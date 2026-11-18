@@ -75,6 +75,7 @@ export interface PendaftarStudentItem {
   nim: string;
   nama: string;
   kelas: string;
+  email?: string;
   registered_at?: string;
   pilihan: PendaftarOfferingItem[];
 }

@@ -25,6 +25,7 @@ interface BuktiData {
     nim: string;
     nama: string;
     kelas?: string;
+    email?: string;
   };
   pendaftaran: {
     waktu_daftar: string | null;
@@ -78,7 +79,7 @@ export default function BuktiPage() {
   const [searching, setSearching] = useState(false);
 
   // State arsip email terkirim
-  const [sentEmail] = useState<string>(() => {
+  const [sentEmail, setSentEmail] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const urlEmail = params.get("email");
@@ -123,6 +124,9 @@ export default function BuktiPage() {
       }
 
       setData(res);
+      if (res?.mahasiswa?.email) {
+        setSentEmail((prev) => prev || res.mahasiswa.email || "");
+      }
       setShowLookupInput(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data.";
@@ -687,10 +691,10 @@ export default function BuktiPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: "0.45rem 1.5rem",
-            marginBottom: "0.45rem",
+            gap: "0.5rem 1.5rem",
+            marginBottom: "0",
             fontSize: "0.85rem",
-            lineHeight: 1.4,
+            lineHeight: 1.5,
           }}
         >
           <div>
@@ -713,24 +717,27 @@ export default function BuktiPage() {
             <div style={{ gridColumn: "span 2" }}>
               <span style={{ color: "#64748b", display: "inline-block", width: 110 }}>Email Bukti:</span>
               <strong style={{ color: "#166534" }}>{sentEmail}</strong>
-              <span style={{ color: "#15803d", fontSize: "0.775rem", marginLeft: "0.5rem" }}>(Salinan resmi telah dikirim)</span>
             </div>
           )}
         </div>
 
+        {/* Baris Judul Mata Kuliah & Proyek Terpilih (Jarak simetris seragam dengan baris di atasnya) */}
+        <div
+          className="print-section-title"
+          style={{
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            color: "#1e293b",
+            lineHeight: 1.5,
+            paddingTop: "0.5rem",
+            paddingBottom: "0.5rem",
+          }}
+        >
+          Daftar Mata Kuliah &amp; Proyek Terpilih:
+        </div>
+
         {/* Tabel Mata Kuliah Terpilih */}
         <div style={{ marginBottom: "1rem" }}>
-          <h4
-            className="print-section-title"
-            style={{
-              fontSize: "0.85rem",
-              fontWeight: 700,
-              margin: "0.45rem 0",
-              color: "#1e293b",
-            }}
-          >
-            Daftar Mata Kuliah &amp; Proyek Terpilih:
-          </h4>
           <table
             style={{
               width: "100%",

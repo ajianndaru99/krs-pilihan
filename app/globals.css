@@ -824,14 +824,17 @@ body {
   .print-formal-sheet .student-info-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 6px 1.5rem !important;
-    margin-bottom: 6px !important;
+    gap: 7px 1.5rem !important;
+    margin-bottom: 0 !important;
   }
 
-  .print-formal-sheet h4.print-section-title {
+  .print-formal-sheet .print-section-title {
     font-size: 8.5pt !important;
-    margin-top: 6px !important;
-    margin-bottom: 6px !important;
+    font-weight: 700 !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+    margin: 0 !important;
+    line-height: 1.4 !important;
   }
 
   .print-formal-sheet p {

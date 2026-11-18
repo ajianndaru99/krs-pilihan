@@ -98,11 +98,14 @@ export function parseExportFallbackPendaftar(raw: unknown): PendaftarStudentItem
     const offJenis = String(r.jenis || r.Jenis || "matkul").trim();
     const offTopik = String(r.topik || r.Topik || "").trim();
 
+    const email = String(r.email || r.Email || "").trim();
+
     if (!map.has(nim)) {
       map.set(nim, {
         nim,
         nama,
         kelas,
+        email: email && email !== "-" ? email : undefined,
         registered_at,
         pilihan: [],
       });

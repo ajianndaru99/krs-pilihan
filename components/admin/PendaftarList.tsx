@@ -40,7 +40,8 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
     .filter((item) => {
       const matchSearch =
         item.nim.toLowerCase().includes(search.toLowerCase()) ||
-        item.nama.toLowerCase().includes(search.toLowerCase());
+        item.nama.toLowerCase().includes(search.toLowerCase()) ||
+        (item.email ? item.email.toLowerCase().includes(search.toLowerCase()) : false);
       const matchKelas = filterKelas === "all" || item.kelas === filterKelas;
       return matchSearch && matchKelas;
     })
@@ -82,6 +83,7 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
           NIM: p.nim,
           Nama: p.nama,
           "Kelas Tetap": p.kelas || "-",
+          Email: p.email || "-",
           "Pilihan Ke": oIdx + 1,
           "Mata Kuliah / Proyek": opt.nama,
           Jenis: opt.jenis,
@@ -188,6 +190,7 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
                   </span>
                 </div>
               </th>
+              <th style={{ padding: "8px 10px", minWidth: 160, whiteSpace: "nowrap" }}>Email Mahasiswa</th>
               <th style={{ padding: "8px 10px", minWidth: 200, whiteSpace: "nowrap" }}>Mata Kuliah / Proyek Terpilih</th>
               <th
                 onClick={() => handleSort("waktu")}
@@ -214,6 +217,13 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
                   </td>
                   <td style={{ padding: "7px 10px", fontWeight: 600 }}>{item.nama}</td>
                   <td style={{ padding: "7px 8px" }}>{item.kelas}</td>
+                  <td style={{ padding: "7px 10px", fontSize: "0.825rem", whiteSpace: "nowrap" }}>
+                    {item.email && item.email !== "-" ? (
+                      <span style={{ color: "#047857", fontWeight: 600 }}>{item.email}</span>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)" }}>-</span>
+                    )}
+                  </td>
                   <td style={{ padding: "7px 10px" }}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                       {item.pilihan.map((p, pIdx) => (

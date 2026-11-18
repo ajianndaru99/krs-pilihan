@@ -106,6 +106,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Data pendaftaran tidak lengkap." }, { status: 500 });
   }
 
+  // Simpan email mahasiswa ke database
+  try {
+    await supabase.rpc("simpan_email_mahasiswa", {
+      p_nim: nim,
+      p_email: emailTujuan,
+    });
+  } catch {
+    // Abaikan error jika RPC belum diterapkan di DB
+  }
+
   // 5. Siapkan data email
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers.get("host")}`;
   const buktiUrl = `${appUrl}/bukti?nim=${encodeURIComponent(nim)}`;

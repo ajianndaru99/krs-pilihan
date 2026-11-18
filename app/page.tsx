@@ -886,6 +886,12 @@ export default function StudentPage() {
   const handleKirimEmailSetelahDaftar = async (emailTujuan: string) => {
     setIsSendingEmail(true);
     try {
+      // Simpan email mahasiswa ke database
+      void supabase.rpc("simpan_email_mahasiswa", {
+        p_nim: nim.trim(),
+        p_email: emailTujuan.trim(),
+      });
+
       void fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
