@@ -117,8 +117,11 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Siapkan data email
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers.get("host")}`;
+  const host = req.headers.get("host") || "krs-pilihan.vercel.app";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
   const buktiUrl = `${appUrl}/bukti?nim=${encodeURIComponent(nim)}`;
+  const logoUrl = `${appUrl}/logo-instiper.png`;
 
   const emailData: BuktiEmailData = {
     nim: res.mahasiswa.nim,
@@ -127,6 +130,7 @@ export async function POST(req: NextRequest) {
     waktu_daftar: res.pendaftaran.waktu_daftar,
     pilihan: res.pendaftaran.pilihan,
     bukti_url: buktiUrl,
+    logo_url: logoUrl,
   };
 
   const htmlContent = generateKrsEmailHtml(emailData);

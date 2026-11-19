@@ -23,6 +23,7 @@ export interface BuktiEmailData {
   waktu_daftar: string | null;
   pilihan: PilihanEmailItem[];
   bukti_url: string;
+  logo_url?: string;
 }
 
 // Memotong detik dari format HH:MM:SS → HH:MM
@@ -46,7 +47,8 @@ function formatNama(nama: string, kelas?: string): string {
 }
 
 export function generateKrsEmailHtml(data: BuktiEmailData): string {
-  const { nim, nama, kelas, waktu_daftar, pilihan, bukti_url } = data;
+  const { nim, nama, kelas, waktu_daftar, pilihan, bukti_url, logo_url } = data;
+  const logoSrc = logo_url || "https://krs-pilihan.vercel.app/logo-instiper.png";
 
   const waktuFormatted = waktu_daftar
     ? new Date(waktu_daftar).toLocaleString("id-ID", {
@@ -98,7 +100,15 @@ export function generateKrsEmailHtml(data: BuktiEmailData): string {
 
           <!-- HEADER KOP SURAT -->
           <tr>
-            <td style="background-color:#14532d;padding:28px 32px 24px;text-align:center;">
+            <td style="background-color:#14532d;padding:26px 32px 22px;text-align:center;">
+              <!-- LOGO RESMI INSTIPER -->
+              <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px auto;">
+                <tr>
+                  <td align="center" style="background-color:#ffffff;padding:8px 10px;border-radius:12px;line-height:1;">
+                    <img src="${logoSrc}" alt="Logo INSTIPER" width="62" height="56" style="width:62px;height:56px;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
+                  </td>
+                </tr>
+              </table>
               <div style="font-size:11px;font-weight:600;color:#bbf7d0;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">Institut Pertanian Stiper Yogyakarta</div>
               <div style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 2px 0;letter-spacing:0.5px;">FAKULTAS PERTANIAN</div>
               <div style="font-size:12px;color:#a7f3d0;font-weight:500;">Portal KRS Mata Kuliah Pilihan</div>
