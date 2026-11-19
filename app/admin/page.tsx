@@ -1068,40 +1068,7 @@ export default function AdminPage() {
             className={`admin-nav-item ${activeTab === "email_monitor" ? "active" : ""}`}
             onClick={() => setActiveTab("email_monitor")}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "0.5rem" }}>
-              <span>Pantau Email</span>
-              {(emailRingkasan?.belum_terkirim ?? 0) > 0 ? (
-                <span
-                  style={{
-                    backgroundColor: "var(--warning)",
-                    color: "#ffffff",
-                    fontSize: "0.68rem",
-                    fontWeight: 800,
-                    padding: "1px 6px",
-                    borderRadius: "var(--radius-full)",
-                    flexShrink: 0,
-                  }}
-                  title={`${emailRingkasan?.belum_terkirim} email dalam antrian`}
-                >
-                  {emailRingkasan?.belum_terkirim} Antri
-                </span>
-              ) : (
-                <span
-                  style={{
-                    backgroundColor: "#16a34a",
-                    color: "#ffffff",
-                    fontSize: "0.68rem",
-                    fontWeight: 800,
-                    padding: "1px 6px",
-                    borderRadius: "var(--radius-full)",
-                    flexShrink: 0,
-                  }}
-                  title="Seluruh email terkirim"
-                >
-                  {emailRingkasan?.terkirim ?? 0}
-                </span>
-              )}
-            </div>
+            <span>Pantau Email</span>
           </button>
           <button
             type="button"

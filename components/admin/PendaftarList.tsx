@@ -222,12 +222,12 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                         <span style={{ color: "#047857", fontWeight: 600 }}>{item.email}</span>
                         {item.email_terkirim ? (
-                          <span style={{ fontSize: "0.7rem", color: "#15803d", fontWeight: 700 }}>
-                            ✓ Terkirim
+                          <span style={{ fontSize: "0.72rem", color: "#15803d", fontWeight: 700 }}>
+                            Terkirim
                           </span>
                         ) : (
-                          <span style={{ fontSize: "0.7rem", color: "#b45309", fontWeight: 700 }}>
-                            ⏳ Belum Terkirim
+                          <span style={{ fontSize: "0.72rem", color: "#b45309", fontWeight: 700 }}>
+                            Belum Terkirim
                           </span>
                         )}
                       </div>

@@ -130,7 +130,7 @@ export function EmailMonitorPanel({
       }
 
       setLastBatchResult({
-        pesan: `✓ Bukti KRS berhasil dikirimkan ke email ${nama} (${nim}).`,
+        pesan: `Bukti KRS berhasil dikirimkan ke email ${nama} (${nim}).`,
       });
       await onRefresh();
       await loadData();
@@ -152,7 +152,7 @@ export function EmailMonitorPanel({
       const { error } = await supabase.rpc("admin_tandai_email_terkirim", { p_nim: nim });
       if (error) throw error;
       setLastBatchResult({
-        pesan: `✓ Status email ${nama} (${nim}) berhasil ditandai sebagai SUDAH TERKIRIM.`,
+        pesan: `Status email ${nama} (${nim}) berhasil ditandai sebagai SUDAH TERKIRIM.`,
       });
       await onRefresh();
       await loadData();
@@ -171,7 +171,7 @@ export function EmailMonitorPanel({
     const belumCount = ringkasan?.belum_terkirim ?? 0;
     if (
       !confirm(
-        `Tandai seluruh ${belumCount} mahasiswa dalam antrian sebagai SUDAH TERKIRIM (tanpa mengirim email ke Brevo)?`
+        `Tandai seluruh ${belumCount} mahasiswa dalam antrian sebagai SUDAH TERKIRIM (tanpa mengirim email)?`
       )
     ) {
       return;
@@ -191,7 +191,7 @@ export function EmailMonitorPanel({
         }
       }
       setLastBatchResult({
-        pesan: "✓ Seluruh antrian email berhasil ditandai sebagai SUDAH TERKIRIM.",
+        pesan: "Seluruh antrian email berhasil ditandai sebagai SUDAH TERKIRIM.",
       });
       await onRefresh();
       await loadData();
@@ -245,22 +245,19 @@ export function EmailMonitorPanel({
       <div
         className="card"
         style={{
-          padding: "1.5rem",
+          padding: "1.65rem",
           borderRadius: "var(--radius-xl)",
           backgroundColor: "#ffffff",
           border: "1px solid var(--border-color)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1.25rem" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontSize: "1.5rem" }}>📧</span>
-              <h2 style={{ fontSize: "1.35rem", fontWeight: 800, margin: 0, color: "var(--text-color)" }}>
-                Pemantauan & Pengiriman Email Bukti KRS
-              </h2>
-            </div>
-            <p style={{ margin: "0.4rem 0 0 0", fontSize: "0.875rem", color: "var(--text-muted)", maxWidth: 750, lineHeight: 1.5 }}>
-              Pantau status pengiriman email bukti KRS seluruh mahasiswa. Anda dapat melihat siapa saja yang <strong>sudah menerima</strong>, yang <strong>masih dalam antrian</strong>, maupun yang <strong>tidak mengisi email</strong>. Pengiriman ulang juga dapat dilakukan per mahasiswa maupun batch.
+            <h2 style={{ fontSize: "1.45rem", fontWeight: 800, margin: 0, color: "var(--text-color)", letterSpacing: "-0.01em" }}>
+              Pemantauan & Pengiriman Email Bukti KRS
+            </h2>
+            <p style={{ margin: "0.45rem 0 0 0", fontSize: "0.925rem", color: "var(--text-muted)", maxWidth: 800, lineHeight: 1.55 }}>
+              Status pengiriman bukti KRS seluruh mahasiswa. Anda dapat memeriksa pendaftar yang sudah menerima email, yang masih dalam antrian, maupun yang tidak mengisi email.
             </p>
           </div>
 
@@ -270,9 +267,9 @@ export function EmailMonitorPanel({
               className="btn btn-secondary"
               onClick={handleManualRefresh}
               disabled={isSending || loading}
-              style={{ fontSize: "0.85rem", padding: "0.6rem 1rem", fontWeight: 600 }}
+              style={{ fontSize: "0.9rem", padding: "0.65rem 1.15rem", fontWeight: 700 }}
             >
-              🔄 Refresh Status
+              Refresh Status
             </button>
             <button
               type="button"
@@ -280,28 +277,17 @@ export function EmailMonitorPanel({
               onClick={handleKirimBatchClick}
               disabled={isSending || belumTerkirim === 0}
               style={{
-                fontSize: "0.85rem",
-                padding: "0.6rem 1.25rem",
+                fontSize: "0.9rem",
+                padding: "0.65rem 1.35rem",
                 fontWeight: 700,
                 backgroundColor: belumTerkirim === 0 ? "var(--text-light)" : "var(--primary)",
                 borderColor: belumTerkirim === 0 ? "var(--border-color)" : "var(--primary-dark)",
                 cursor: belumTerkirim === 0 ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
               }}
             >
-              {isSending ? (
-                <>
-                  <span className="spinner spinner-sm" style={{ borderTopColor: "#fff" }} />
-                  <span>Mengirim Batch (maks 50)...</span>
-                </>
-              ) : (
-                <>
-                  <span>🚀</span>
-                  <span>Kirim Ulang Antrian ({belumTerkirim > 50 ? "50 dari " + belumTerkirim : belumTerkirim})</span>
-                </>
-              )}
+              {isSending
+                ? "Mengirim Batch (maks 50)..."
+                : `Kirim Ulang Antrian (${belumTerkirim > 50 ? "50 dari " + belumTerkirim : belumTerkirim})`}
             </button>
           </div>
         </div>
@@ -310,13 +296,13 @@ export function EmailMonitorPanel({
         {lastBatchResult && (
           <div
             className={`alert ${lastBatchResult.isError ? "alert-danger" : "alert-success"}`}
-            style={{ marginTop: "1.25rem", marginBottom: 0, fontSize: "0.85rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            style={{ marginTop: "1.25rem", marginBottom: 0, fontSize: "0.9rem", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.85rem 1.15rem" }}
           >
-            <span>{lastBatchResult.pesan}</span>
+            <span style={{ fontWeight: 600 }}>{lastBatchResult.pesan}</span>
             <button
               type="button"
               onClick={() => setLastBatchResult(null)}
-              style={{ background: "none", border: "none", fontSize: "1rem", cursor: "pointer", color: "inherit", padding: "0 0.5rem" }}
+              style={{ background: "none", border: "none", fontSize: "1.1rem", cursor: "pointer", color: "inherit", padding: "0 0.5rem" }}
             >
               ✕
             </button>
@@ -324,11 +310,11 @@ export function EmailMonitorPanel({
         )}
       </div>
 
-      {/* 4 Kartu Statistik Interaktif (Bisa Diklik untuk Filter) */}
+      {/* 4 Kartu Statistik Interaktif (Besar, Jelas, Profesional) */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: "1rem",
         }}
       >
@@ -337,24 +323,24 @@ export function EmailMonitorPanel({
           onClick={() => setActiveFilter("all")}
           className="card"
           style={{
-            padding: "1.25rem",
+            padding: "1.35rem",
             borderRadius: "var(--radius-lg)",
             backgroundColor: "#ffffff",
-            border: activeFilter === "all" ? "2px solid var(--primary)" : "1px solid var(--border-color)",
-            boxShadow: activeFilter === "all" ? "0 4px 12px rgba(16, 185, 129, 0.15)" : "none",
+            border: activeFilter === "all" ? "2.5px solid var(--primary)" : "1px solid var(--border-color)",
+            boxShadow: activeFilter === "all" ? "0 4px 14px rgba(16, 185, 129, 0.18)" : "none",
             cursor: "pointer",
             transition: "all 0.15s ease",
           }}
-          title="Klik untuk melihat seluruh pendaftar"
+          title="Klik untuk menampilkan seluruh pendaftar"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ fontSize: "0.825rem", fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", justifyContent: "space-between" }}>
             <span>Total Terdaftar</span>
-            {activeFilter === "all" && <span style={{ color: "var(--primary)", fontWeight: 800 }}>● Aktif</span>}
+            {activeFilter === "all" && <span style={{ color: "var(--primary)", fontWeight: 800, textTransform: "none" }}>Aktif</span>}
           </div>
-          <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "var(--text-color)", marginTop: "0.35rem" }}>
+          <div style={{ fontSize: "2.35rem", fontWeight: 800, color: "var(--text-color)", marginTop: "0.4rem", lineHeight: 1.1 }}>
             {totalDaftar}
           </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+          <div style={{ fontSize: "0.825rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
             Seluruh mahasiswa yang telah mendaftar
           </div>
         </div>
@@ -364,27 +350,24 @@ export function EmailMonitorPanel({
           onClick={() => setActiveFilter("terkirim")}
           className="card"
           style={{
-            padding: "1.25rem",
+            padding: "1.35rem",
             borderRadius: "var(--radius-lg)",
             backgroundColor: activeFilter === "terkirim" ? "#dcfce7" : "#f0fdf4",
-            border: activeFilter === "terkirim" ? "2px solid #16a34a" : "1px solid #bbf7d0",
-            boxShadow: activeFilter === "terkirim" ? "0 4px 12px rgba(22, 163, 74, 0.2)" : "none",
+            border: activeFilter === "terkirim" ? "2.5px solid #16a34a" : "1px solid #bbf7d0",
+            boxShadow: activeFilter === "terkirim" ? "0 4px 14px rgba(22, 163, 74, 0.2)" : "none",
             cursor: "pointer",
             transition: "all 0.15s ease",
           }}
-          title="Klik untuk melihat mahasiswa yang emailnya SUDAH terkirim"
+          title="Klik untuk menampilkan mahasiswa yang emailnya sudah terkirim"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#166534", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-              <span>✅</span>
-              <span>Sudah Terkirim</span>
-            </span>
-            {activeFilter === "terkirim" && <span style={{ color: "#15803d", fontWeight: 800 }}>● Aktif</span>}
+          <div style={{ fontSize: "0.825rem", fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", justifyContent: "space-between" }}>
+            <span>Sudah Terkirim</span>
+            {activeFilter === "terkirim" && <span style={{ color: "#15803d", fontWeight: 800, textTransform: "none" }}>Aktif</span>}
           </div>
-          <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "#15803d", marginTop: "0.35rem" }}>
+          <div style={{ fontSize: "2.35rem", fontWeight: 800, color: "#15803d", marginTop: "0.4rem", lineHeight: 1.1 }}>
             {sudahTerkirim}
           </div>
-          <div style={{ fontSize: "0.78rem", color: "#166534", marginTop: "0.25rem" }}>
+          <div style={{ fontSize: "0.825rem", color: "#166534", marginTop: "0.35rem" }}>
             {totalDaftar > 0 ? Math.round((sudahTerkirim / totalDaftar) * 100) : 0}% dari seluruh pendaftar
           </div>
         </div>
@@ -394,28 +377,25 @@ export function EmailMonitorPanel({
           onClick={() => setActiveFilter("belum_terkirim")}
           className="card"
           style={{
-            padding: "1.25rem",
+            padding: "1.35rem",
             borderRadius: "var(--radius-lg)",
             backgroundColor: activeFilter === "belum_terkirim" ? "#fef3c7" : belumTerkirim > 0 ? "#fffbeb" : "#ffffff",
-            border: activeFilter === "belum_terkirim" ? "2px solid #d97706" : belumTerkirim > 0 ? "1px solid #fde68a" : "1px solid var(--border-color)",
-            boxShadow: activeFilter === "belum_terkirim" ? "0 4px 12px rgba(217, 119, 6, 0.2)" : "none",
+            border: activeFilter === "belum_terkirim" ? "2.5px solid #d97706" : belumTerkirim > 0 ? "1px solid #fde68a" : "1px solid var(--border-color)",
+            boxShadow: activeFilter === "belum_terkirim" ? "0 4px 14px rgba(217, 119, 6, 0.2)" : "none",
             cursor: "pointer",
             transition: "all 0.15s ease",
           }}
-          title="Klik untuk melihat mahasiswa yang emailnya BELUM terkirim"
+          title="Klik untuk menampilkan mahasiswa yang emailnya belum terkirim"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: belumTerkirim > 0 ? "#b45309" : "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-              <span>{belumTerkirim > 0 ? "⏳" : "👌"}</span>
-              <span>Belum Terkirim</span>
-            </span>
-            {activeFilter === "belum_terkirim" && <span style={{ color: "#d97706", fontWeight: 800 }}>● Aktif</span>}
+          <div style={{ fontSize: "0.825rem", fontWeight: 800, color: belumTerkirim > 0 ? "#b45309" : "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", justifyContent: "space-between" }}>
+            <span>Belum Terkirim</span>
+            {activeFilter === "belum_terkirim" && <span style={{ color: "#d97706", fontWeight: 800, textTransform: "none" }}>Aktif</span>}
           </div>
-          <div style={{ fontSize: "1.85rem", fontWeight: 800, color: belumTerkirim > 0 ? "#d97706" : "var(--text-color)", marginTop: "0.35rem" }}>
+          <div style={{ fontSize: "2.35rem", fontWeight: 800, color: belumTerkirim > 0 ? "#d97706" : "var(--text-color)", marginTop: "0.4rem", lineHeight: 1.1 }}>
             {belumTerkirim}
           </div>
-          <div style={{ fontSize: "0.78rem", color: belumTerkirim > 0 ? "#92400e" : "var(--text-muted)", marginTop: "0.25rem" }}>
-            {belumTerkirim > 0 ? "Menunggu giliran / siap kirim" : "Tidak ada antrian tertunda"}
+          <div style={{ fontSize: "0.825rem", color: belumTerkirim > 0 ? "#92400e" : "var(--text-muted)", marginTop: "0.35rem" }}>
+            {belumTerkirim > 0 ? "Menunggu kirim ulang" : "Tidak ada antrian tertunda"}
           </div>
         </div>
 
@@ -424,24 +404,24 @@ export function EmailMonitorPanel({
           onClick={() => setActiveFilter("tanpa_email")}
           className="card"
           style={{
-            padding: "1.25rem",
+            padding: "1.35rem",
             borderRadius: "var(--radius-lg)",
             backgroundColor: activeFilter === "tanpa_email" ? "#f1f5f9" : "#ffffff",
-            border: activeFilter === "tanpa_email" ? "2px solid #64748b" : "1px solid var(--border-color)",
-            boxShadow: activeFilter === "tanpa_email" ? "0 4px 12px rgba(100, 116, 139, 0.15)" : "none",
+            border: activeFilter === "tanpa_email" ? "2.5px solid #64748b" : "1px solid var(--border-color)",
+            boxShadow: activeFilter === "tanpa_email" ? "0 4px 14px rgba(100, 116, 139, 0.18)" : "none",
             cursor: "pointer",
             transition: "all 0.15s ease",
           }}
-          title="Klik untuk melihat mahasiswa yang tidak mengisi email"
+          title="Klik untuk menampilkan mahasiswa yang tidak mengisi email"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ fontSize: "0.825rem", fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", justifyContent: "space-between" }}>
             <span>Tidak Mengisi Email</span>
-            {activeFilter === "tanpa_email" && <span style={{ color: "#475569", fontWeight: 800 }}>● Aktif</span>}
+            {activeFilter === "tanpa_email" && <span style={{ color: "#475569", fontWeight: 800, textTransform: "none" }}>Aktif</span>}
           </div>
-          <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "var(--text-muted)", marginTop: "0.35rem" }}>
+          <div style={{ fontSize: "2.35rem", fontWeight: 800, color: "var(--text-muted)", marginTop: "0.4rem", lineHeight: 1.1 }}>
             {tanpaEmail}
           </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+          <div style={{ fontSize: "0.825rem", color: "var(--text-muted)", marginTop: "0.35rem" }}>
             Hanya mengunduh bukti PDF / QR
           </div>
         </div>
@@ -451,7 +431,7 @@ export function EmailMonitorPanel({
       <div
         className="card"
         style={{
-          padding: "1.5rem",
+          padding: "1.65rem",
           borderRadius: "var(--radius-xl)",
           backgroundColor: "#ffffff",
           border: "1px solid var(--border-color)",
@@ -465,18 +445,18 @@ export function EmailMonitorPanel({
             alignItems: "center",
             flexWrap: "wrap",
             gap: "1rem",
-            marginBottom: "1.25rem",
-            paddingBottom: "1.25rem",
+            marginBottom: "1.35rem",
+            paddingBottom: "1.35rem",
             borderBottom: "1px solid var(--border-color)",
           }}
         >
-          {/* Filter Pills */}
+          {/* Filter Tabs (Tanpa Icon, Tulisan Jelas & Lebih Besar) */}
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <button
               type="button"
               className={`btn ${activeFilter === "all" ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setActiveFilter("all")}
-              style={{ fontSize: "0.8rem", padding: "0.4rem 0.85rem", fontWeight: 600 }}
+              style={{ fontSize: "0.875rem", padding: "0.5rem 1rem", fontWeight: 700 }}
             >
               Semua Mahasiswa ({totalDaftar})
             </button>
@@ -485,40 +465,40 @@ export function EmailMonitorPanel({
               className={`btn ${activeFilter === "terkirim" ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setActiveFilter("terkirim")}
               style={{
-                fontSize: "0.8rem",
-                padding: "0.4rem 0.85rem",
-                fontWeight: 600,
+                fontSize: "0.875rem",
+                padding: "0.5rem 1rem",
+                fontWeight: 700,
                 backgroundColor: activeFilter === "terkirim" ? "#16a34a" : undefined,
                 borderColor: activeFilter === "terkirim" ? "#15803d" : undefined,
               }}
             >
-              ✅ Sudah Terkirim ({sudahTerkirim})
+              Sudah Terkirim ({sudahTerkirim})
             </button>
             <button
               type="button"
               className={`btn ${activeFilter === "belum_terkirim" ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setActiveFilter("belum_terkirim")}
               style={{
-                fontSize: "0.8rem",
-                padding: "0.4rem 0.85rem",
-                fontWeight: 600,
+                fontSize: "0.875rem",
+                padding: "0.5rem 1rem",
+                fontWeight: 700,
                 backgroundColor: activeFilter === "belum_terkirim" ? "#d97706" : undefined,
                 borderColor: activeFilter === "belum_terkirim" ? "#b45309" : undefined,
               }}
             >
-              ⏳ Belum Terkirim ({belumTerkirim})
+              Belum Terkirim ({belumTerkirim})
             </button>
             <button
               type="button"
               className={`btn ${activeFilter === "tanpa_email" ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setActiveFilter("tanpa_email")}
-              style={{ fontSize: "0.8rem", padding: "0.4rem 0.85rem", fontWeight: 600 }}
+              style={{ fontSize: "0.875rem", padding: "0.5rem 1rem", fontWeight: 700 }}
             >
-              ⚪ Tanpa Email ({tanpaEmail})
+              Tanpa Email ({tanpaEmail})
             </button>
           </div>
 
-          {/* Search Box & Tombol Aksi Massal */}
+          {/* Search Box & Tombol Tandai Semua */}
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
             {belumTerkirim > 0 && (
               <button
@@ -527,20 +507,20 @@ export function EmailMonitorPanel({
                 onClick={handleTandaiSemuaTerkirim}
                 disabled={isMarkingAll || isSending || loading}
                 style={{
-                  fontSize: "0.8rem",
-                  padding: "0.5rem 0.85rem",
-                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  padding: "0.55rem 0.95rem",
+                  fontWeight: 700,
                   whiteSpace: "nowrap",
                   backgroundColor: "#f8fafc",
                   borderColor: "var(--border-color)",
                 }}
                 title="Tandai seluruh mahasiswa yang belum terkirim sebagai sudah terkirim tanpa kirim email ke Brevo"
               >
-                {isMarkingAll ? "Memproses..." : "✅ Tandai Semua Sudah Terkirim"}
+                {isMarkingAll ? "Memproses..." : "Tandai Semua Sudah Terkirim"}
               </button>
             )}
 
-            <div style={{ width: "100%", maxWidth: 280 }}>
+            <div style={{ width: "100%", maxWidth: 300 }}>
               <input
                 type="text"
                 placeholder="Cari NIM, Nama, Email, Kelas..."
@@ -548,8 +528,8 @@ export function EmailMonitorPanel({
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "0.5rem 0.85rem",
-                  fontSize: "0.85rem",
+                  padding: "0.55rem 0.95rem",
+                  fontSize: "0.875rem",
                   borderRadius: "var(--radius-md)",
                   border: "1px solid var(--border-color)",
                   outline: "none",
@@ -561,43 +541,42 @@ export function EmailMonitorPanel({
 
         {/* Tabel Mahasiswa */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
+          <div style={{ textAlign: "center", padding: "3.5rem 1rem" }}>
             <div className="spinner spinner-primary spinner-md" style={{ marginBottom: "0.75rem" }} />
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Memuat data status email mahasiswa...</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Memuat data status email mahasiswa...</p>
           </div>
         ) : filteredStudents.length === 0 ? (
           <div
             style={{
               textAlign: "center",
-              padding: "3rem 1.5rem",
+              padding: "3.5rem 1.5rem",
               backgroundColor: "#f8fafc",
               borderRadius: "var(--radius-lg)",
               border: "1px dashed var(--border-color)",
             }}
           >
-            <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🔍</div>
-            <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--text-color)" }}>
+            <h4 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "var(--text-color)" }}>
               {search.trim() ? "Tidak ada mahasiswa yang cocok dengan pencarian." : "Tidak Ada Data pada Kategori Ini"}
             </h4>
-            <p style={{ margin: "0.35rem 0 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p style={{ margin: "0.4rem 0 0 0", fontSize: "0.9rem", color: "var(--text-muted)" }}>
               {search.trim()
-                ? "Coba gunakan kata kunci pencarian yang lain."
+                ? "Silakan coba kata kunci pencarian yang lain."
                 : `Tidak ditemukan mahasiswa dengan status "${activeFilter.replace("_", " ")}".`}
             </p>
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table className="table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+            <table className="table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>
-                  <th style={{ padding: "0.75rem 1rem", width: 50 }}>No</th>
-                  <th style={{ padding: "0.75rem 1rem" }}>NIM</th>
-                  <th style={{ padding: "0.75rem 1rem" }}>Nama Mahasiswa</th>
-                  <th style={{ padding: "0.75rem 1rem" }}>Kelas</th>
-                  <th style={{ padding: "0.75rem 1rem" }}>Email Tujuan</th>
-                  <th style={{ padding: "0.75rem 1rem" }}>Waktu Registrasi</th>
-                  <th style={{ padding: "0.75rem 1rem", textAlign: "center" }}>Status Email</th>
-                  <th style={{ padding: "0.75rem 1rem", textAlign: "center", minWidth: 160 }}>Aksi</th>
+                  <th style={{ padding: "0.85rem 1rem", width: 50 }}>No</th>
+                  <th style={{ padding: "0.85rem 1rem" }}>NIM</th>
+                  <th style={{ padding: "0.85rem 1rem" }}>Nama Mahasiswa</th>
+                  <th style={{ padding: "0.85rem 1rem" }}>Kelas</th>
+                  <th style={{ padding: "0.85rem 1rem" }}>Email Tujuan</th>
+                  <th style={{ padding: "0.85rem 1rem" }}>Waktu Registrasi</th>
+                  <th style={{ padding: "0.85rem 1rem", textAlign: "center" }}>Status Email</th>
+                  <th style={{ padding: "0.85rem 1rem", textAlign: "center", minWidth: 170 }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -614,64 +593,62 @@ export function EmailMonitorPanel({
                         backgroundColor: idx % 2 === 0 ? "#ffffff" : "#fdfefe",
                       }}
                     >
-                      <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{idx + 1}</td>
-                      <td style={{ padding: "0.75rem 1rem", fontWeight: 700, fontFamily: "monospace" }}>{item.nim}</td>
-                      <td style={{ padding: "0.75rem 1rem", fontWeight: 600 }}>{item.nama}</td>
-                      <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{item.kelas || "-"}</td>
-                      <td style={{ padding: "0.75rem 1rem" }}>
+                      <td style={{ padding: "0.85rem 1rem", color: "var(--text-muted)" }}>{idx + 1}</td>
+                      <td style={{ padding: "0.85rem 1rem", fontWeight: 700, fontFamily: "monospace", fontSize: "0.9rem" }}>{item.nim}</td>
+                      <td style={{ padding: "0.85rem 1rem", fontWeight: 600 }}>{item.nama}</td>
+                      <td style={{ padding: "0.85rem 1rem", color: "var(--text-muted)" }}>{item.kelas || "-"}</td>
+                      <td style={{ padding: "0.85rem 1rem" }}>
                         {hasEmail ? (
-                          <span style={{ color: "var(--primary-dark)", fontWeight: 500 }}>{item.email}</span>
+                          <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>{item.email}</span>
                         ) : (
                           <span style={{ color: "var(--text-light)" }}>-</span>
                         )}
                       </td>
-                      <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "0.85rem 1rem", color: "var(--text-muted)", fontSize: "0.825rem", whiteSpace: "nowrap" }}>
                         {item.registered_at || "-"}
                       </td>
-                      <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
+                      <td style={{ padding: "0.85rem 1rem", textAlign: "center" }}>
                         {isSent ? (
                           <span
                             className="badge badge-success"
-                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                            style={{ fontSize: "0.8rem", padding: "0.3rem 0.75rem", fontWeight: 700 }}
                           >
-                            <span>✓</span>
-                            <span>Sudah Terkirim</span>
+                            Sudah Terkirim
                           </span>
                         ) : hasEmail ? (
                           <span
                             className="badge badge-warning"
-                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                            style={{ fontSize: "0.8rem", padding: "0.3rem 0.75rem", fontWeight: 700 }}
                           >
-                            <span>⏳</span>
-                            <span>Belum Terkirim</span>
+                            Belum Terkirim
                           </span>
                         ) : (
                           <span
                             className="badge badge-secondary"
-                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem" }}
+                            style={{ fontSize: "0.8rem", padding: "0.3rem 0.75rem" }}
                           >
                             Tanpa Email
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
+                      <td style={{ padding: "0.85rem 1rem", textAlign: "center" }}>
                         {hasEmail ? (
-                          <div style={{ display: "flex", gap: "0.4rem", justifyContent: "center", flexWrap: "wrap" }}>
-                            {/* Tombol Kirim / Kirim Ulang via Brevo */}
+                          <div style={{ display: "flex", gap: "0.45rem", justifyContent: "center", flexWrap: "wrap" }}>
+                            {/* Tombol Kirim / Kirim Ulang */}
                             <button
                               type="button"
                               onClick={() => handleKirimSingle(item.nim, item.nama)}
                               disabled={isProcessingThis || isSending || isMarkingAll}
                               className="btn btn-secondary"
                               style={{
-                                fontSize: "0.75rem",
-                                padding: "0.25rem 0.6rem",
-                                fontWeight: 600,
+                                fontSize: "0.8rem",
+                                padding: "0.3rem 0.75rem",
+                                fontWeight: 700,
                                 whiteSpace: "nowrap",
                               }}
                               title={isSent ? "Kirim ulang bukti KRS ke email ini" : "Kirimkan bukti KRS sekarang"}
                             >
-                              {sendingSingleNim === item.nim ? "Mengirim..." : isSent ? "🔁 Kirim Ulang" : "🚀 Kirim"}
+                              {sendingSingleNim === item.nim ? "Mengirim..." : isSent ? "Kirim Ulang" : "Kirim Email"}
                             </button>
 
                             {/* Tombol Tandai Terkirim Manual jika belum */}
@@ -682,8 +659,8 @@ export function EmailMonitorPanel({
                                 disabled={isProcessingThis || isSending || isMarkingAll}
                                 className="btn btn-secondary"
                                 style={{
-                                  fontSize: "0.75rem",
-                                  padding: "0.25rem 0.6rem",
+                                  fontSize: "0.8rem",
+                                  padding: "0.3rem 0.75rem",
                                   backgroundColor: "#f0fdf4",
                                   borderColor: "#86efac",
                                   color: "#166534",
@@ -692,12 +669,12 @@ export function EmailMonitorPanel({
                                 }}
                                 title="Tandai status sebagai sudah terkirim tanpa mengirim email ke Brevo"
                               >
-                                {processingNim === item.nim ? "..." : "✅ Tandai"}
+                                {processingNim === item.nim ? "..." : "Tandai Terkirim"}
                               </button>
                             )}
                           </div>
                         ) : (
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-light)" }}>Tidak ada aksi</span>
+                          <span style={{ fontSize: "0.8rem", color: "var(--text-light)" }}>Tidak ada aksi</span>
                         )}
                       </td>
                     </tr>
