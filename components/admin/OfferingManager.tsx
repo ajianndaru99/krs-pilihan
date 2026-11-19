@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { Offering, OfferingSchedule } from "@/lib/types";
 
+// Helper: memotong detik :00 pada jam pertemuan (misal 08:00:00 -> 08:00)
+function formatJam(jam: string): string {
+  if (!jam) return "";
+  const parts = jam.trim().split(":");
+  if (parts.length >= 2) {
+    return `${parts[0]}:${parts[1]}`;
+  }
+  return jam;
+}
+
 interface OfferingManagerProps {
   offerings: Offering[];
   onUpdateKuota: (offeringId: number, newKuota: number) => Promise<void>;
@@ -349,7 +359,14 @@ export function OfferingManager({
                   {item.jenis === "matkul" ? "Mata Kuliah" : "Proyek"}
                 </span>
 
-                <span style={{ fontSize: "0.85rem", fontWeight: 700 }}>
+                <span
+                  style={{
+                    fontSize: "1.15rem",
+                    fontWeight: 800,
+                    color: item.terisi >= item.kuota ? "var(--danger)" : "var(--text-color)",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
                   Terisi: {item.terisi} / {item.kuota}
                 </span>
               </div>
@@ -378,7 +395,7 @@ export function OfferingManager({
                   backgroundColor: "var(--bg-subtle)",
                   padding: "0.5rem 0.75rem",
                   borderRadius: "var(--radius-sm)",
-                  fontSize: "0.8rem",
+                  fontSize: "0.85rem",
                   marginBottom: "1rem",
                 }}
               >
@@ -391,8 +408,8 @@ export function OfferingManager({
                       key={j.id ?? `${item.id}-${j.hari}-${j.jam_mulai}-${idx}`}
                       style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}
                     >
-                      <span>
-                        • {j.hari}, {j.jam_mulai} - {j.jam_selesai} {j.ruang ? `(${j.ruang})` : ""}
+                      <span style={{ fontWeight: 500 }}>
+                        • {j.hari}, {formatJam(j.jam_mulai)} - {formatJam(j.jam_selesai)} {j.ruang ? `(${j.ruang})` : ""}
                       </span>
                       {j.id && (
                         <button
