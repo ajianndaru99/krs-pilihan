@@ -177,10 +177,22 @@ export async function POST(req: NextRequest) {
   if (!brevoRes.ok) {
     const errText = await brevoRes.text().catch(() => "");
     console.error("[send-email] Brevo error:", brevoRes.status, errText);
-    return NextResponse.json(
-      { ok: false, error: "Pengiriman email gagal. Coba lagi sebentar lagi." },
-      { status: 502 }
-    );
+
+    // Email gagal terkirim → tetap simpan status gagal di DB (email_terkirim tetap FALSE)
+    // Admin bisa kirim ulang lewat dashboard panel "Pantau Email"
+    const isQuotaError = brevoRes.status === 429 || brevoRes.status === 402;
+    const pesanError = isQuotaError
+      ? "Kuota email harian habis. Email Anda sudah disimpan dan akan dikirim ulang oleh admin."
+      : "Pengiriman email gagal. Coba lagi sebentar lagi.";
+
+    return NextResponse.json({ ok: false, error: pesanError, quota_habis: isQuotaError }, { status: 502 });
+  }
+
+  // Brevo berhasil → tandai email_terkirim = true di database secara persisten
+  try {
+    await supabase.rpc("admin_tandai_email_terkirim", { p_nim: nim });
+  } catch {
+    // Abaikan — patch37 mungkin belum dieksekusi di DB; status email tidak kritis
   }
 
   return NextResponse.json({ ok: true, email: emailTujuan });

@@ -152,3 +152,19 @@ export interface AdminAlertItem {
   pesan: string;
 }
 
+export interface AdminEmailRingkasan {
+  total_daftar: number;
+  punya_email: number;
+  terkirim: number;
+  belum_terkirim: number;
+  tanpa_email: number;
+}
+
+export interface AdminEmailQueueItem {
+  nim: string;
+  nama: string;
+  kelas?: string;
+  email: string;
+  registered_at?: string;
+}
+

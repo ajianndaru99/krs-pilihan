@@ -11,6 +11,7 @@ import {
   StudentComplaintItem,
   SystemLogItem,
   AdminAlertItem,
+  AdminEmailRingkasan,
 } from "@/lib/types";
 import {
   normalizeAdminStatus,
@@ -35,11 +36,13 @@ import { AccessRequestsList } from "@/components/admin/AccessRequestsList";
 import { ComplaintManager } from "@/components/admin/ComplaintManager";
 import { ResetDataModal } from "@/components/admin/ResetDataModal";
 import { SystemLogsViewer } from "@/components/admin/SystemLogsViewer";
+import { EmailMonitorPanel } from "@/components/admin/EmailMonitorPanel";
 import { AdminModal, AdminModalState, AdminModalType } from "@/components/admin/AdminModal";
 
-const ADMIN_POLL_INTERVAL_MS = 10000;
+// Interval 25 detik — cukup fresh untuk monitoring hari H tanpa membebani DB
+const ADMIN_POLL_INTERVAL_MS = 25000;
 
-type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "complaints" | "logs" | "batal_reset";
+type AdminTab = "offerings" | "pendaftar" | "import_jadwal" | "import_mahasiswa" | "pengajuan" | "complaints" | "email_monitor" | "logs" | "batal_reset";
 
 interface SupabaseUserSession {
   email?: string;
@@ -68,6 +71,8 @@ export default function AdminPage() {
   const lastAlertIdRef = useRef<number | null>(null);
   const [incomingAlert, setIncomingAlert] = useState<AdminAlertItem | null>(null);
   const [kelasList, setKelasList] = useState<string[]>([]);
+  const [emailRingkasan, setEmailRingkasan] = useState<AdminEmailRingkasan | null>(null);
+  const [isSendingBatchEmail, setIsSendingBatchEmail] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
@@ -189,6 +194,25 @@ export default function AdminPage() {
         }
       } catch {
         // Fallback aman jika patch31 belum dieksekusi di database server
+      }
+
+      // 9. Ringkasan Status Email Mahasiswa (Patch 37)
+      try {
+        const { data: erData, error: erErr } = await supabase.rpc("admin_ringkasan_email");
+        if (!erErr && erData) {
+          const res = erData as { ok?: boolean } & AdminEmailRingkasan;
+          if (res.ok !== false) {
+            setEmailRingkasan({
+              total_daftar: res.total_daftar || 0,
+              punya_email: res.punya_email || 0,
+              terkirim: res.terkirim || 0,
+              belum_terkirim: res.belum_terkirim || 0,
+              tanpa_email: res.tanpa_email || 0,
+            });
+          }
+        }
+      } catch {
+        // Fallback aman jika patch37 belum dieksekusi di database server
       }
 
       setLastSyncTime(new Date().toLocaleTimeString("id-ID"));
@@ -836,6 +860,64 @@ export default function AdminPage() {
     );
   };
 
+  // Handler Kirim Ulang Email Secara Batch oleh Admin
+  const handleKirimUlangEmail = async () => {
+    setIsSendingBatchEmail(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error("Sesi admin tidak ditemukan. Silakan login kembali.");
+      }
+
+      const res = await fetch("/api/admin-kirim-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const json = (await res.json()) as {
+        ok?: boolean;
+        terkirim?: number;
+        gagal?: number;
+        pesan?: string;
+        error?: string;
+        sisa_antrian?: number;
+      };
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "Gagal mengirim batch email.");
+      }
+
+      await loadAdminData(true);
+
+      if ((json.terkirim ?? 0) > 0) {
+        showAdminPopup(
+          "success",
+          "Pengiriman Batch Selesai",
+          `Sebanyak ${json.terkirim} email berhasil dikirimkan ke mahasiswa.${
+            (json.gagal ?? 0) > 0 ? ` (${json.gagal} email gagal).` : ""
+          }${
+            (json.sisa_antrian ?? 0) > 0
+              ? ` Masih ada ${json.sisa_antrian} email dalam antrian.`
+              : " Seluruh antrian email telah tuntas!"
+          }`
+        );
+      } else {
+        showAdminPopup("info", "Hasil Pengiriman", json.pesan || "Tidak ada email yang terkirim.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Kesalahan pengiriman email.";
+      showAdminPopup("danger", "Gagal Mengirim Email", msg);
+    } finally {
+      setIsSendingBatchEmail(false);
+    }
+  };
+
   if (checkingAuth) {
     return (
       <div className="container" style={{ textAlign: "center", paddingTop: "5rem" }}>
@@ -983,6 +1065,46 @@ export default function AdminPage() {
           </div>
           <button
             type="button"
+            className={`admin-nav-item ${activeTab === "email_monitor" ? "active" : ""}`}
+            onClick={() => setActiveTab("email_monitor")}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "0.5rem" }}>
+              <span>Pantau Email</span>
+              {(emailRingkasan?.belum_terkirim ?? 0) > 0 ? (
+                <span
+                  style={{
+                    backgroundColor: "var(--warning)",
+                    color: "#ffffff",
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    padding: "1px 6px",
+                    borderRadius: "var(--radius-full)",
+                    flexShrink: 0,
+                  }}
+                  title={`${emailRingkasan?.belum_terkirim} email dalam antrian`}
+                >
+                  {emailRingkasan?.belum_terkirim} Antri
+                </span>
+              ) : (
+                <span
+                  style={{
+                    backgroundColor: "#16a34a",
+                    color: "#ffffff",
+                    fontSize: "0.68rem",
+                    fontWeight: 800,
+                    padding: "1px 6px",
+                    borderRadius: "var(--radius-full)",
+                    flexShrink: 0,
+                  }}
+                  title="Seluruh email terkirim"
+                >
+                  {emailRingkasan?.terkirim ?? 0}
+                </span>
+              )}
+            </div>
+          </button>
+          <button
+            type="button"
             className={`admin-nav-item ${activeTab === "logs" ? "active" : ""}`}
             onClick={() => setActiveTab("logs")}
           >
@@ -1107,6 +1229,15 @@ export default function AdminPage() {
               onReplyComplaint={handleReplyComplaint}
               onSuccess={(msg) => showAdminPopup("success", "Berhasil", msg)}
               onError={(err) => showAdminPopup("danger", "Gagal", err)}
+            />
+          )}
+
+          {activeTab === "email_monitor" && (
+            <EmailMonitorPanel
+              ringkasan={emailRingkasan}
+              isSending={isSendingBatchEmail}
+              onKirimUlang={handleKirimUlangEmail}
+              onRefresh={() => loadAdminData(false)}
             />
           )}
 
