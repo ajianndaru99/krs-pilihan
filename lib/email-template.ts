@@ -48,7 +48,10 @@ function formatNama(nama: string, kelas?: string): string {
 
 export function generateKrsEmailHtml(data: BuktiEmailData): string {
   const { nim, nama, kelas, waktu_daftar, pilihan, bukti_url, logo_url } = data;
-  const logoSrc = logo_url || "https://krs-pilihan.vercel.app/logo-instiper.png";
+  const logoSrc =
+    logo_url && !logo_url.includes("localhost") && !logo_url.includes("127.0.0.1")
+      ? logo_url
+      : "https://raw.githubusercontent.com/ajianndaru99/krs-pilihan/main/public/logo-instiper.png";
 
   const waktuFormatted = waktu_daftar
     ? new Date(waktu_daftar).toLocaleString("id-ID", {

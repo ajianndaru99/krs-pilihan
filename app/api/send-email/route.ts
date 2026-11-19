@@ -117,11 +117,25 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Siapkan data email
-  const host = req.headers.get("host") || "krs-pilihan.vercel.app";
-  const protocol = host.includes("localhost") ? "http" : "https";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const hostHeader = req.headers.get("host");
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+
+  let productionHost = "krs-pilihan.vercel.app";
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    productionHost = process.env.NEXT_PUBLIC_APP_URL.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  } else if (forwardedHost && !forwardedHost.includes("localhost") && !forwardedHost.includes("127.0.0.1")) {
+    productionHost = forwardedHost;
+  } else if (vercelUrl) {
+    productionHost = vercelUrl;
+  } else if (hostHeader && !hostHeader.includes("localhost") && !hostHeader.includes("127.0.0.1")) {
+    productionHost = hostHeader;
+  }
+
+  const appUrl = `https://${productionHost}`;
   const buktiUrl = `${appUrl}/bukti?nim=${encodeURIComponent(nim)}`;
-  const logoUrl = `${appUrl}/logo-instiper.png`;
+  // URL logo resmi INSTIPER berkecepatan tinggi yang di-host permanen di GitHub CDN
+  const logoUrl = "https://raw.githubusercontent.com/ajianndaru99/krs-pilihan/main/public/logo-instiper.png";
 
   const emailData: BuktiEmailData = {
     nim: res.mahasiswa.nim,

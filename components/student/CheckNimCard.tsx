@@ -247,14 +247,44 @@ export function CheckNimCard({
               </div>
             </div>
 
-            {/* Soft Notice Box — Identik Gambar 2 */}
-            <div className="notice-box-soft">
-              <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>
-                Petunjuk Pemilihan Mata Kuliah Pilihan
+            {/* Peringatan Waktu & Jadwal Merah Jelas (Sesuai Foto 2) */}
+            <div
+              style={{
+                backgroundColor: "#fef2f2",
+                border: "1.5px solid #ef4444",
+                borderRadius: "var(--radius-lg)",
+                padding: "0.85rem 1rem",
+                marginBottom: "1.25rem",
+                fontSize: "0.825rem",
+                color: "#991b1b",
+                lineHeight: 1.5,
+              }}
+            >
+              <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.35rem", color: "#dc2626" }}>
+                <span>⚠️</span>
+                <span>PERHATIAN!</span>
               </div>
               <div>
-                Pastikan menggunakan koneksi internet yang stabil. Sesi pemilihan Anda
-                dilindungi sistem antrian otomatis untuk keadilan alokasi kuota.
+                Dimohon tidak lama dalam memilih, jika sudah ada antrian sistem akan ada maksimal waktu 5 MENIT!, silakan cek{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    margin: 0,
+                    color: "#dc2626",
+                    fontWeight: 800,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    display: "inline",
+                    fontSize: "inherit",
+                  }}
+                >
+                  Jadwal &amp; Kuota
+                </button>{" "}
+                terlebih dahulu!
               </div>
             </div>
 
