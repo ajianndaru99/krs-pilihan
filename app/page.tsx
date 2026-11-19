@@ -1336,17 +1336,18 @@ export default function StudentPage() {
           style={{
             marginTop: "3rem",
             paddingTop: "1.5rem",
+            paddingBottom: "2rem",
             borderTop: "1px solid var(--border-color)",
             textAlign: "center",
-            fontSize: "0.8rem",
+            fontSize: "0.85rem",
             color: "var(--text-muted)",
           }}
         >
-          <p>
-            Institut Pertanian STIPER (INSTIPER) Yogyakarta — Fakultas Pertanian
+          <p style={{ margin: 0, fontWeight: 700, color: "var(--text-color)" }}>
+            INSTIPER Yogyakarta - Fakultas Pertanian
           </p>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-light)", marginTop: "0.25rem" }}>
-            Sistem Informasi Pemilihan Mata Kuliah Pilihan Semester Berjalan
+          <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "var(--text-light)" }}>
+            2026
           </p>
         </footer>
       )}

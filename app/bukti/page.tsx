@@ -918,7 +918,7 @@ export default function BuktiPage() {
               * Dokumen ini adalah bukti sah registrasi yang dicatat dan diterbitkan secara elektronik melalui Portal KRS Fakultas Pertanian INSTIPER Yogyakarta.
             </div>
             <div style={{ marginTop: "3px", fontSize: "0.65rem", color: "#94a3b8" }}>
-              Dicetak: {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} • Lembar 1/1
+              INSTIPER Yogyakarta - Fakultas Pertanian • 2026 • Dicetak: {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
             </div>
           </div>
         </div>
@@ -1084,6 +1084,27 @@ export default function BuktiPage() {
           setLaporNotice({ type: "error", message: err });
         }}
       />
+
+      {/* Footer Sederhana & Profesional */}
+      <footer
+        className="no-print"
+        style={{
+          marginTop: "2.5rem",
+          paddingTop: "1.25rem",
+          paddingBottom: "2.5rem",
+          borderTop: "1px solid var(--border-color)",
+          textAlign: "center",
+          fontSize: "0.85rem",
+          color: "var(--text-muted)",
+        }}
+      >
+        <p style={{ margin: 0, fontWeight: 700, color: "var(--text-color)" }}>
+          INSTIPER Yogyakarta - Fakultas Pertanian
+        </p>
+        <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "var(--text-light)" }}>
+          2026
+        </p>
+      </footer>
     </div>
   );
 }
