@@ -13,6 +13,10 @@
 
 BEGIN;
 
+-- Pastikan kedua kolom (nama_matkul dan matkul) ada di tabel class_schedules
+ALTER TABLE public.class_schedules ADD COLUMN IF NOT EXISTS nama_matkul TEXT;
+ALTER TABLE public.class_schedules ADD COLUMN IF NOT EXISTS matkul TEXT;
+
 -- 1. Helper function: normalisasi nama mata kuliah (membuang embel-embel kelas)
 CREATE OR REPLACE FUNCTION public.normalize_course_name(p_nama TEXT)
 RETURNS TEXT
