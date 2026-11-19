@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { AdminEmailRingkasan, AdminEmailQueueItem } from "@/lib/types";
+import { parsePendaftarData } from "@/lib/admin-adapter";
 import { supabase } from "@/lib/supabase";
+
+type EmailFilterTab = "all" | "terkirim" | "belum_terkirim" | "tanpa_email";
 
 interface EmailMonitorPanelProps {
   ringkasan: AdminEmailRingkasan | null;
@@ -17,44 +20,80 @@ export function EmailMonitorPanel({
   onKirimUlang,
   onRefresh,
 }: EmailMonitorPanelProps) {
-  const [queue, setQueue] = useState<AdminEmailQueueItem[]>([]);
-  const [loadingQueue, setLoadingQueue] = useState(false);
+  const [students, setStudents] = useState<AdminEmailQueueItem[]>([]);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<EmailFilterTab>("all");
   const [processingNim, setProcessingNim] = useState<string | null>(null);
+  const [sendingSingleNim, setSendingSingleNim] = useState<string | null>(null);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [lastBatchResult, setLastBatchResult] = useState<{
-    terkirim?: number;
-    gagal?: number;
-    pesan?: string;
+    pesan: string;
+    isError?: boolean;
   } | null>(null);
 
-  // Muat daftar detail mahasiswa yang belum menerima email
-  const loadQueue = useCallback(async () => {
-    setLoadingQueue(true);
+  // Muat data mahasiswa beserta status email
+  const loadData = useCallback(async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("admin_daftar_email_belum_terkirim");
+      // 1. Coba RPC admin_daftar_status_email (Patch 39)
+      const { data, error } = await supabase.rpc("admin_daftar_status_email", { p_filter: "all" });
       if (!error && data) {
-        const res = data as { ok?: boolean; antrian?: AdminEmailQueueItem[] };
-        if (res.ok && Array.isArray(res.antrian)) {
-          setQueue(res.antrian);
+        const res = data as { ok?: boolean; data?: AdminEmailQueueItem[] };
+        if (res.ok && Array.isArray(res.data)) {
+          setStudents(res.data);
+          return;
+        }
+      }
+
+      // 2. Fallback: ambil dari admin_list_pendaftar
+      const { data: pendData, error: pendErr } = await supabase.rpc("admin_list_pendaftar");
+      if (!pendErr && pendData) {
+        const pList = parsePendaftarData(pendData);
+        if (pList.length > 0) {
+          setStudents(
+            pList.map((p) => ({
+              nim: p.nim,
+              nama: p.nama,
+              kelas: p.kelas || "-",
+              email: p.email || "-",
+              email_terkirim: p.email_terkirim || false,
+              registered_at: p.registered_at || "-",
+            }))
+          );
+          return;
+        }
+      }
+
+      // 3. Fallback antrian email belum terkirim
+      const { data: qData } = await supabase.rpc("admin_daftar_email_belum_terkirim");
+      if (qData) {
+        const qRes = qData as { ok?: boolean; antrian?: AdminEmailQueueItem[] };
+        if (qRes.ok && Array.isArray(qRes.antrian)) {
+          setStudents(
+            qRes.antrian.map((item) => ({
+              ...item,
+              email_terkirim: false,
+            }))
+          );
         }
       }
     } catch {
       // Abaikan jika RPC belum dieksekusi di database
     } finally {
-      setLoadingQueue(false);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadQueue();
-  }, [loadQueue, ringkasan?.belum_terkirim]);
+    loadData();
+  }, [loadData, ringkasan?.belum_terkirim, ringkasan?.terkirim]);
 
-  const handleKirimUlangClick = async () => {
+  const handleKirimBatchClick = async () => {
     setLastBatchResult(null);
     try {
       await onKirimUlang();
-      await loadQueue();
+      await loadData();
     } catch {
       // Error ditangani oleh parent admin page popup
     }
@@ -62,9 +101,50 @@ export function EmailMonitorPanel({
 
   const handleManualRefresh = async () => {
     await onRefresh();
-    await loadQueue();
+    await loadData();
   };
 
+  // Kirim satu email spesifik (bisa untuk kirim pertama kali atau kirim ulang)
+  const handleKirimSingle = async (nim: string, nama: string) => {
+    setSendingSingleNim(nim);
+    setLastBatchResult(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Sesi admin tidak ditemukan. Silakan login kembali.");
+
+      const res = await fetch("/api/admin-kirim-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ target_nim: nim }),
+      });
+
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "Gagal mengirimkan email.");
+      }
+
+      setLastBatchResult({
+        pesan: `✓ Bukti KRS berhasil dikirimkan ke email ${nama} (${nim}).`,
+      });
+      await onRefresh();
+      await loadData();
+    } catch (err) {
+      setLastBatchResult({
+        pesan: err instanceof Error ? err.message : "Gagal mengirimkan email.",
+        isError: true,
+      });
+    } finally {
+      setSendingSingleNim(null);
+    }
+  };
+
+  // Tandai status sebagai sudah terkirim secara manual tanpa mengirim ke Brevo
   const handleTandaiTerkirim = async (nim: string, nama: string) => {
     setProcessingNim(nim);
     setLastBatchResult(null);
@@ -72,21 +152,26 @@ export function EmailMonitorPanel({
       const { error } = await supabase.rpc("admin_tandai_email_terkirim", { p_nim: nim });
       if (error) throw error;
       setLastBatchResult({
-        pesan: `Status email ${nama} (${nim}) berhasil ditandai sebagai SUDAH TERKIRIM.`,
+        pesan: `✓ Status email ${nama} (${nim}) berhasil ditandai sebagai SUDAH TERKIRIM.`,
       });
       await onRefresh();
-      await loadQueue();
+      await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menandai status email.");
+      setLastBatchResult({
+        pesan: err instanceof Error ? err.message : "Gagal menandai status email.",
+        isError: true,
+      });
     } finally {
       setProcessingNim(null);
     }
   };
 
+  // Tandai semua mahasiswa antrian sebagai sudah terkirim
   const handleTandaiSemuaTerkirim = async () => {
+    const belumCount = ringkasan?.belum_terkirim ?? 0;
     if (
       !confirm(
-        `Tandai seluruh ${queue.length} mahasiswa dalam antrian sebagai SUDAH TERKIRIM (tanpa mengirim ulang email)?`
+        `Tandai seluruh ${belumCount} mahasiswa dalam antrian sebagai SUDAH TERKIRIM (tanpa mengirim email ke Brevo)?`
       )
     ) {
       return;
@@ -97,32 +182,57 @@ export function EmailMonitorPanel({
       const { data, error } = await supabase.rpc("admin_tandai_semua_email_terkirim");
       const res = data as { ok?: boolean; updated?: number } | null;
       if (error || !res?.ok) {
-        // Fallback: tandai satu per satu
-        for (const item of queue) {
+        // Fallback: tandai satu per satu dari data lokal yang belum terkirim
+        const pendingItems = students.filter(
+          (s) => s.email && s.email !== "-" && !s.email_terkirim
+        );
+        for (const item of pendingItems) {
           await supabase.rpc("admin_tandai_email_terkirim", { p_nim: item.nim });
         }
       }
       setLastBatchResult({
-        pesan: "Seluruh antrian email berhasil ditandai sebagai SUDAH TERKIRIM.",
+        pesan: "✓ Seluruh antrian email berhasil ditandai sebagai SUDAH TERKIRIM.",
       });
       await onRefresh();
-      await loadQueue();
+      await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal memproses.");
+      setLastBatchResult({
+        pesan: err instanceof Error ? err.message : "Gagal menandai semua email.",
+        isError: true,
+      });
     } finally {
       setIsMarkingAll(false);
     }
   };
 
-  const filteredQueue = queue.filter((item) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase().trim();
-    return (
-      item.nim.toLowerCase().includes(q) ||
-      item.nama.toLowerCase().includes(q) ||
-      item.email.toLowerCase().includes(q)
-    );
-  });
+  // Filter data berdasarkan tab aktif & pencarian
+  const filteredStudents = useMemo(() => {
+    return students.filter((item) => {
+      const hasEmail = Boolean(item.email && item.email.trim() !== "" && item.email.trim() !== "-");
+      const isSent = Boolean(item.email_terkirim);
+
+      // Filter Tab
+      let matchTab = true;
+      if (activeFilter === "terkirim") {
+        matchTab = hasEmail && isSent;
+      } else if (activeFilter === "belum_terkirim") {
+        matchTab = hasEmail && !isSent;
+      } else if (activeFilter === "tanpa_email") {
+        matchTab = !hasEmail;
+      }
+
+      // Filter Search
+      const q = search.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        item.nim.toLowerCase().includes(q) ||
+        item.nama.toLowerCase().includes(q) ||
+        (item.email || "").toLowerCase().includes(q) ||
+        (item.kelas || "").toLowerCase().includes(q);
+
+      return matchTab && matchSearch;
+    });
+  }, [students, activeFilter, search]);
 
   const belumTerkirim = ringkasan?.belum_terkirim ?? 0;
   const sudahTerkirim = ringkasan?.terkirim ?? 0;
@@ -150,16 +260,16 @@ export function EmailMonitorPanel({
               </h2>
             </div>
             <p style={{ margin: "0.4rem 0 0 0", fontSize: "0.875rem", color: "var(--text-muted)", maxWidth: 750, lineHeight: 1.5 }}>
-              Status pengiriman bukti KRS ke email mahasiswa dipantau secara otomatis. Karena layanan email (Brevo) bersifat <strong>100% Gratis</strong> dengan batas kuota 300 email/hari, sistem menyimpan email mahasiswa secara aman. Jika kuota harian habis, Anda dapat mengirimkannya kembali secara bertahap (batch 50 email) di hari berikutnya tanpa biaya apa pun.
+              Pantau status pengiriman email bukti KRS seluruh mahasiswa. Anda dapat melihat siapa saja yang <strong>sudah menerima</strong>, yang <strong>masih dalam antrian</strong>, maupun yang <strong>tidak mengisi email</strong>. Pengiriman ulang juga dapat dilakukan per mahasiswa maupun batch.
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={handleManualRefresh}
-              disabled={isSending || loadingQueue}
+              disabled={isSending || loading}
               style={{ fontSize: "0.85rem", padding: "0.6rem 1rem", fontWeight: 600 }}
             >
               🔄 Refresh Status
@@ -167,7 +277,7 @@ export function EmailMonitorPanel({
             <button
               type="button"
               className="btn btn-primary"
-              onClick={handleKirimUlangClick}
+              onClick={handleKirimBatchClick}
               disabled={isSending || belumTerkirim === 0}
               style={{
                 fontSize: "0.85rem",
@@ -196,18 +306,25 @@ export function EmailMonitorPanel({
           </div>
         </div>
 
-        {/* Notifikasi Hasil Batch Terakhir */}
+        {/* Notifikasi Hasil Aksi Terakhir */}
         {lastBatchResult && (
           <div
-            className="alert alert-info"
-            style={{ marginTop: "1.25rem", marginBottom: 0, fontSize: "0.85rem" }}
+            className={`alert ${lastBatchResult.isError ? "alert-danger" : "alert-success"}`}
+            style={{ marginTop: "1.25rem", marginBottom: 0, fontSize: "0.85rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}
           >
             <span>{lastBatchResult.pesan}</span>
+            <button
+              type="button"
+              onClick={() => setLastBatchResult(null)}
+              style={{ background: "none", border: "none", fontSize: "1rem", cursor: "pointer", color: "inherit", padding: "0 0.5rem" }}
+            >
+              ✕
+            </button>
           </div>
         )}
       </div>
 
-      {/* 4 Kartu Statistik */}
+      {/* 4 Kartu Statistik Interaktif (Bisa Diklik untuk Filter) */}
       <div
         style={{
           display: "grid",
@@ -215,40 +332,54 @@ export function EmailMonitorPanel({
           gap: "1rem",
         }}
       >
-        {/* Total Terdaftar */}
+        {/* Card 1: Total Terdaftar */}
         <div
+          onClick={() => setActiveFilter("all")}
           className="card"
           style={{
             padding: "1.25rem",
             borderRadius: "var(--radius-lg)",
             backgroundColor: "#ffffff",
-            border: "1px solid var(--border-color)",
+            border: activeFilter === "all" ? "2px solid var(--primary)" : "1px solid var(--border-color)",
+            boxShadow: activeFilter === "all" ? "0 4px 12px rgba(16, 185, 129, 0.15)" : "none",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
           }}
+          title="Klik untuk melihat seluruh pendaftar"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Total Mahasiswa Terdaftar
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between" }}>
+            <span>Total Terdaftar</span>
+            {activeFilter === "all" && <span style={{ color: "var(--primary)", fontWeight: 800 }}>● Aktif</span>}
           </div>
           <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "var(--text-color)", marginTop: "0.35rem" }}>
             {totalDaftar}
           </div>
           <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
-            Telah menyelesaikan pemilihan KRS
+            Seluruh mahasiswa yang telah mendaftar
           </div>
         </div>
 
-        {/* Sudah Terkirim */}
+        {/* Card 2: Sudah Terkirim */}
         <div
+          onClick={() => setActiveFilter("terkirim")}
           className="card"
           style={{
             padding: "1.25rem",
             borderRadius: "var(--radius-lg)",
-            backgroundColor: "#f0fdf4",
-            border: "1px solid #bbf7d0",
+            backgroundColor: activeFilter === "terkirim" ? "#dcfce7" : "#f0fdf4",
+            border: activeFilter === "terkirim" ? "2px solid #16a34a" : "1px solid #bbf7d0",
+            boxShadow: activeFilter === "terkirim" ? "0 4px 12px rgba(22, 163, 74, 0.2)" : "none",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
           }}
+          title="Klik untuk melihat mahasiswa yang emailnya SUDAH terkirim"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#166534", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <span>✅</span>
-            <span>Email Berhasil Terkirim</span>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#166534", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <span>✅</span>
+              <span>Sudah Terkirim</span>
+            </span>
+            {activeFilter === "terkirim" && <span style={{ color: "#15803d", fontWeight: 800 }}>● Aktif</span>}
           </div>
           <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "#15803d", marginTop: "0.35rem" }}>
             {sudahTerkirim}
@@ -258,40 +389,54 @@ export function EmailMonitorPanel({
           </div>
         </div>
 
-        {/* Belum Terkirim (Pending) */}
+        {/* Card 3: Belum Terkirim / Antrian */}
         <div
+          onClick={() => setActiveFilter("belum_terkirim")}
           className="card"
           style={{
             padding: "1.25rem",
             borderRadius: "var(--radius-lg)",
-            backgroundColor: belumTerkirim > 0 ? "#fffbeb" : "#ffffff",
-            border: belumTerkirim > 0 ? "1px solid #fde68a" : "1px solid var(--border-color)",
+            backgroundColor: activeFilter === "belum_terkirim" ? "#fef3c7" : belumTerkirim > 0 ? "#fffbeb" : "#ffffff",
+            border: activeFilter === "belum_terkirim" ? "2px solid #d97706" : belumTerkirim > 0 ? "1px solid #fde68a" : "1px solid var(--border-color)",
+            boxShadow: activeFilter === "belum_terkirim" ? "0 4px 12px rgba(217, 119, 6, 0.2)" : "none",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
           }}
+          title="Klik untuk melihat mahasiswa yang emailnya BELUM terkirim"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: belumTerkirim > 0 ? "#b45309" : "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <span>{belumTerkirim > 0 ? "⏳" : "👌"}</span>
-            <span>Belum Terkirim / Antrian</span>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: belumTerkirim > 0 ? "#b45309" : "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <span>{belumTerkirim > 0 ? "⏳" : "👌"}</span>
+              <span>Belum Terkirim</span>
+            </span>
+            {activeFilter === "belum_terkirim" && <span style={{ color: "#d97706", fontWeight: 800 }}>● Aktif</span>}
           </div>
           <div style={{ fontSize: "1.85rem", fontWeight: 800, color: belumTerkirim > 0 ? "#d97706" : "var(--text-color)", marginTop: "0.35rem" }}>
             {belumTerkirim}
           </div>
           <div style={{ fontSize: "0.78rem", color: belumTerkirim > 0 ? "#92400e" : "var(--text-muted)", marginTop: "0.25rem" }}>
-            {belumTerkirim > 0 ? "Siap dikirim via tombol di atas" : "Tidak ada antrian tertunda"}
+            {belumTerkirim > 0 ? "Menunggu giliran / siap kirim" : "Tidak ada antrian tertunda"}
           </div>
         </div>
 
-        {/* Tanpa Email */}
+        {/* Card 4: Tanpa Email */}
         <div
+          onClick={() => setActiveFilter("tanpa_email")}
           className="card"
           style={{
             padding: "1.25rem",
             borderRadius: "var(--radius-lg)",
-            backgroundColor: "#ffffff",
-            border: "1px solid var(--border-color)",
+            backgroundColor: activeFilter === "tanpa_email" ? "#f1f5f9" : "#ffffff",
+            border: activeFilter === "tanpa_email" ? "2px solid #64748b" : "1px solid var(--border-color)",
+            boxShadow: activeFilter === "tanpa_email" ? "0 4px 12px rgba(100, 116, 139, 0.15)" : "none",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
           }}
+          title="Klik untuk melihat mahasiswa yang tidak mengisi email"
         >
-          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Tidak Mengisi Email
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-light)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", justifyContent: "space-between" }}>
+            <span>Tidak Mengisi Email</span>
+            {activeFilter === "tanpa_email" && <span style={{ color: "#475569", fontWeight: 800 }}>● Aktif</span>}
           </div>
           <div style={{ fontSize: "1.85rem", fontWeight: 800, color: "var(--text-muted)", marginTop: "0.35rem" }}>
             {tanpaEmail}
@@ -302,39 +447,7 @@ export function EmailMonitorPanel({
         </div>
       </div>
 
-      {/* Informasi Penting Kuota & Solusi Bebas Biaya */}
-      <div
-        style={{
-          backgroundColor: "#eff6ff",
-          border: "1px solid #bfdbfe",
-          borderRadius: "var(--radius-lg)",
-          padding: "1.25rem 1.5rem",
-          display: "flex",
-          gap: "1rem",
-          alignItems: "flex-start",
-        }}
-      >
-        <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>💡</span>
-        <div style={{ fontSize: "0.85rem", color: "#1e40af", lineHeight: 1.6 }}>
-          <strong>Panduan Pengoperasian Hemat & Bebas Biaya (Tanpa Upgrade Berbayar):</strong>
-          <ul style={{ margin: "0.4rem 0 0 1.25rem", padding: 0 }}>
-            <li>
-              <strong>Batas Kuota Gratis:</strong> Akun Brevo Free memberikan jatah <strong>300 email per hari</strong> (reset otomatis setiap pukul 07.00 WIB / 00.00 UTC).
-            </li>
-            <li>
-              <strong>Jika Mahasiswa 300–450 Orang:</strong> Mahasiswa ke-301 dan seterusnya tetap sukses mendaftar dan bukti KRS tersimpan di sistem serta dapat dicetak langsung.
-            </li>
-            <li>
-              <strong>Kirim Ulang Keesokan Hari:</strong> Alamat email mahasiswa yang belum terkirim otomatis masuk antrian di atas. Cukup klik tombol <strong>"Kirim Ulang Antrian"</strong> keesokan paginya setelah pukul 07.00 WIB untuk mengirimkan sisa bukti KRS secara gratis.
-            </li>
-            <li>
-              <strong>Pencarian Data:</strong> Anda dapat memeriksa apakah email mahasiswa tertentu sudah terkirim atau masih berada dalam antrian pada daftar di bawah.
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Daftar Antrian Mahasiswa Belum Terkirim */}
+      {/* Tabel Data Mahasiswa & Status Pengiriman Email */}
       <div
         className="card"
         style={{
@@ -344,6 +457,7 @@ export function EmailMonitorPanel({
           border: "1px solid var(--border-color)",
         }}
       >
+        {/* Toolbar Atas: Filter Tabs + Search + Tombol Batch Tandai */}
         <div
           style={{
             display: "flex",
@@ -352,24 +466,66 @@ export function EmailMonitorPanel({
             flexWrap: "wrap",
             gap: "1rem",
             marginBottom: "1.25rem",
+            paddingBottom: "1.25rem",
+            borderBottom: "1px solid var(--border-color)",
           }}
         >
-          <div>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-color)" }}>
-              Daftar Antrian Email Belum Terkirim ({queue.length})
-            </h3>
-            <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Mahasiswa yang telah mendaftar namun bukti emailnya belum terkirim karena kuota harian habis.
-            </p>
+          {/* Filter Pills */}
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className={`btn ${activeFilter === "all" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setActiveFilter("all")}
+              style={{ fontSize: "0.8rem", padding: "0.4rem 0.85rem", fontWeight: 600 }}
+            >
+              Semua Mahasiswa ({totalDaftar})
+            </button>
+            <button
+              type="button"
+              className={`btn ${activeFilter === "terkirim" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setActiveFilter("terkirim")}
+              style={{
+                fontSize: "0.8rem",
+                padding: "0.4rem 0.85rem",
+                fontWeight: 600,
+                backgroundColor: activeFilter === "terkirim" ? "#16a34a" : undefined,
+                borderColor: activeFilter === "terkirim" ? "#15803d" : undefined,
+              }}
+            >
+              ✅ Sudah Terkirim ({sudahTerkirim})
+            </button>
+            <button
+              type="button"
+              className={`btn ${activeFilter === "belum_terkirim" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setActiveFilter("belum_terkirim")}
+              style={{
+                fontSize: "0.8rem",
+                padding: "0.4rem 0.85rem",
+                fontWeight: 600,
+                backgroundColor: activeFilter === "belum_terkirim" ? "#d97706" : undefined,
+                borderColor: activeFilter === "belum_terkirim" ? "#b45309" : undefined,
+              }}
+            >
+              ⏳ Belum Terkirim ({belumTerkirim})
+            </button>
+            <button
+              type="button"
+              className={`btn ${activeFilter === "tanpa_email" ? "btn-primary" : "btn-secondary"}`}
+              onClick={() => setActiveFilter("tanpa_email")}
+              style={{ fontSize: "0.8rem", padding: "0.4rem 0.85rem", fontWeight: 600 }}
+            >
+              ⚪ Tanpa Email ({tanpaEmail})
+            </button>
           </div>
 
+          {/* Search Box & Tombol Aksi Massal */}
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-            {queue.length > 0 && (
+            {belumTerkirim > 0 && (
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={handleTandaiSemuaTerkirim}
-                disabled={isMarkingAll || isSending || loadingQueue}
+                disabled={isMarkingAll || isSending || loading}
                 style={{
                   fontSize: "0.8rem",
                   padding: "0.5rem 0.85rem",
@@ -378,7 +534,7 @@ export function EmailMonitorPanel({
                   backgroundColor: "#f8fafc",
                   borderColor: "var(--border-color)",
                 }}
-                title="Tandai seluruh mahasiswa di antrian sebagai sudah terkirim tanpa kirim email ke Brevo"
+                title="Tandai seluruh mahasiswa yang belum terkirim sebagai sudah terkirim tanpa kirim email ke Brevo"
               >
                 {isMarkingAll ? "Memproses..." : "✅ Tandai Semua Sudah Terkirim"}
               </button>
@@ -387,7 +543,7 @@ export function EmailMonitorPanel({
             <div style={{ width: "100%", maxWidth: 280 }}>
               <input
                 type="text"
-                placeholder="Cari NIM, Nama, atau Email..."
+                placeholder="Cari NIM, Nama, Email, Kelas..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
@@ -403,12 +559,13 @@ export function EmailMonitorPanel({
           </div>
         </div>
 
-        {loadingQueue ? (
-          <div style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
+        {/* Tabel Mahasiswa */}
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
             <div className="spinner spinner-primary spinner-md" style={{ marginBottom: "0.75rem" }} />
-            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Memuat daftar antrian email...</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Memuat data status email mahasiswa...</p>
           </div>
-        ) : filteredQueue.length === 0 ? (
+        ) : filteredStudents.length === 0 ? (
           <div
             style={{
               textAlign: "center",
@@ -418,14 +575,14 @@ export function EmailMonitorPanel({
               border: "1px dashed var(--border-color)",
             }}
           >
-            <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🎉</div>
+            <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🔍</div>
             <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--text-color)" }}>
-              {search.trim() ? "Tidak ada mahasiswa yang cocok dengan pencarian." : "Tidak Ada Antrian Email Tertunda"}
+              {search.trim() ? "Tidak ada mahasiswa yang cocok dengan pencarian." : "Tidak Ada Data pada Kategori Ini"}
             </h4>
             <p style={{ margin: "0.35rem 0 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
               {search.trim()
                 ? "Coba gunakan kata kunci pencarian yang lain."
-                : "Semua pendaftar yang mencantumkan email telah berhasil menerima bukti pemilihan KRS."}
+                : `Tidak ditemukan mahasiswa dengan status "${activeFilter.replace("_", " ")}".`}
             </p>
           </div>
         ) : (
@@ -439,60 +596,113 @@ export function EmailMonitorPanel({
                   <th style={{ padding: "0.75rem 1rem" }}>Kelas</th>
                   <th style={{ padding: "0.75rem 1rem" }}>Email Tujuan</th>
                   <th style={{ padding: "0.75rem 1rem" }}>Waktu Registrasi</th>
-                  <th style={{ padding: "0.75rem 1rem", textAlign: "center" }}>Status</th>
-                  <th style={{ padding: "0.75rem 1rem", textAlign: "center", width: 150 }}>Aksi</th>
+                  <th style={{ padding: "0.75rem 1rem", textAlign: "center" }}>Status Email</th>
+                  <th style={{ padding: "0.75rem 1rem", textAlign: "center", minWidth: 160 }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredQueue.map((item, idx) => (
-                  <tr
-                    key={item.nim}
-                    style={{
-                      borderBottom: "1px solid var(--border-color)",
-                      backgroundColor: idx % 2 === 0 ? "#ffffff" : "#fdfefe",
-                    }}
-                  >
-                    <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{idx + 1}</td>
-                    <td style={{ padding: "0.75rem 1rem", fontWeight: 700, fontFamily: "monospace" }}>{item.nim}</td>
-                    <td style={{ padding: "0.75rem 1rem", fontWeight: 600 }}>{item.nama}</td>
-                    <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{item.kelas || "-"}</td>
-                    <td style={{ padding: "0.75rem 1rem", color: "var(--primary-dark)", fontWeight: 500 }}>
-                      {item.email}
-                    </td>
-                    <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)", fontSize: "0.8rem" }}>
-                      {item.registered_at || "-"}
-                    </td>
-                    <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
-                      <span
-                        className="badge badge-warning"
-                        style={{ fontSize: "0.75rem", padding: "0.2rem 0.6rem" }}
-                      >
-                        Pending Kirim Ulang
-                      </span>
-                    </td>
-                    <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleTandaiTerkirim(item.nim, item.nama)}
-                        disabled={processingNim === item.nim || isMarkingAll || isSending}
-                        className="btn btn-secondary"
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.25rem 0.65rem",
-                          backgroundColor: "#f0fdf4",
-                          borderColor: "#86efac",
-                          color: "#166534",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                        }}
-                        title="Tandai status sebagai sudah terkirim tanpa kirim ulang email"
-                      >
-                        {processingNim === item.nim ? "..." : "✅ Tandai Terkirim"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredStudents.map((item, idx) => {
+                  const hasEmail = Boolean(item.email && item.email.trim() !== "" && item.email.trim() !== "-");
+                  const isSent = Boolean(item.email_terkirim);
+                  const isProcessingThis = processingNim === item.nim || sendingSingleNim === item.nim;
+
+                  return (
+                    <tr
+                      key={item.nim}
+                      style={{
+                        borderBottom: "1px solid var(--border-color)",
+                        backgroundColor: idx % 2 === 0 ? "#ffffff" : "#fdfefe",
+                      }}
+                    >
+                      <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{idx + 1}</td>
+                      <td style={{ padding: "0.75rem 1rem", fontWeight: 700, fontFamily: "monospace" }}>{item.nim}</td>
+                      <td style={{ padding: "0.75rem 1rem", fontWeight: 600 }}>{item.nama}</td>
+                      <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{item.kelas || "-"}</td>
+                      <td style={{ padding: "0.75rem 1rem" }}>
+                        {hasEmail ? (
+                          <span style={{ color: "var(--primary-dark)", fontWeight: 500 }}>{item.email}</span>
+                        ) : (
+                          <span style={{ color: "var(--text-light)" }}>-</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
+                        {item.registered_at || "-"}
+                      </td>
+                      <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
+                        {isSent ? (
+                          <span
+                            className="badge badge-success"
+                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                          >
+                            <span>✓</span>
+                            <span>Sudah Terkirim</span>
+                          </span>
+                        ) : hasEmail ? (
+                          <span
+                            className="badge badge-warning"
+                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                          >
+                            <span>⏳</span>
+                            <span>Belum Terkirim</span>
+                          </span>
+                        ) : (
+                          <span
+                            className="badge badge-secondary"
+                            style={{ fontSize: "0.75rem", padding: "0.25rem 0.65rem" }}
+                          >
+                            Tanpa Email
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
+                        {hasEmail ? (
+                          <div style={{ display: "flex", gap: "0.4rem", justifyContent: "center", flexWrap: "wrap" }}>
+                            {/* Tombol Kirim / Kirim Ulang via Brevo */}
+                            <button
+                              type="button"
+                              onClick={() => handleKirimSingle(item.nim, item.nama)}
+                              disabled={isProcessingThis || isSending || isMarkingAll}
+                              className="btn btn-secondary"
+                              style={{
+                                fontSize: "0.75rem",
+                                padding: "0.25rem 0.6rem",
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                              }}
+                              title={isSent ? "Kirim ulang bukti KRS ke email ini" : "Kirimkan bukti KRS sekarang"}
+                            >
+                              {sendingSingleNim === item.nim ? "Mengirim..." : isSent ? "🔁 Kirim Ulang" : "🚀 Kirim"}
+                            </button>
+
+                            {/* Tombol Tandai Terkirim Manual jika belum */}
+                            {!isSent && (
+                              <button
+                                type="button"
+                                onClick={() => handleTandaiTerkirim(item.nim, item.nama)}
+                                disabled={isProcessingThis || isSending || isMarkingAll}
+                                className="btn btn-secondary"
+                                style={{
+                                  fontSize: "0.75rem",
+                                  padding: "0.25rem 0.6rem",
+                                  backgroundColor: "#f0fdf4",
+                                  borderColor: "#86efac",
+                                  color: "#166534",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}
+                                title="Tandai status sebagai sudah terkirim tanpa mengirim email ke Brevo"
+                              >
+                                {processingNim === item.nim ? "..." : "✅ Tandai"}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-light)" }}>Tidak ada aksi</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

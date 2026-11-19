@@ -76,6 +76,7 @@ export interface PendaftarStudentItem {
   nama: string;
   kelas: string;
   email?: string;
+  email_terkirim?: boolean;
   registered_at?: string;
   pilihan: PendaftarOfferingItem[];
 }
@@ -165,6 +166,7 @@ export interface AdminEmailQueueItem {
   nama: string;
   kelas?: string;
   email: string;
+  email_terkirim?: boolean;
   registered_at?: string;
 }
 

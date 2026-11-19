@@ -55,21 +55,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Sesi admin tidak valid." }, { status: 401 });
   }
 
-  // 3. Ambil antrian email belum terkirim (maks BATCH_MAX)
-  const { data: antrianData, error: antrianError } = await supabaseAdmin.rpc(
-    "admin_ambil_antrian_email",
-    { p_batas: BATCH_MAX }
-  );
-
-  if (antrianError) {
-    return NextResponse.json({ ok: false, error: "Gagal mengambil antrian email." }, { status: 500 });
+  // 3. Cek apakah ada target_nim spesifik dari body request
+  let targetNim: string | null = null;
+  try {
+    const body = await req.json();
+    if (body && typeof body.target_nim === "string") {
+      targetNim = body.target_nim.trim();
+    }
+  } catch {
+    // Body kosong atau bukan JSON (normal saat klik tombol batch antrian)
   }
 
-  const resAntrian = antrianData as { ok: boolean; antrian: { nim: string; nama: string; email: string }[] } | null;
-  const antrian = resAntrian?.antrian ?? [];
+  let antrian: { nim: string; nama: string; email: string }[] = [];
 
-  if (antrian.length === 0) {
-    return NextResponse.json({ ok: true, terkirim: 0, gagal: 0, pesan: "Tidak ada email dalam antrian." });
+  if (targetNim) {
+    // Ambil data satu mahasiswa target via hasil_saya
+    const { data: buktiData, error: buktiErr } = await supabaseAdmin.rpc("hasil_saya", {
+      p_nim: targetNim,
+      p_token: null,
+    });
+    const res = buktiData as {
+      ok?: boolean;
+      mahasiswa?: { nim: string; nama: string; email?: string };
+    } | null;
+
+    if (buktiErr || !res?.ok || !res.mahasiswa || !res.mahasiswa.email) {
+      return NextResponse.json(
+        { ok: false, error: "Data mahasiswa tidak ditemukan atau belum mengisi email." },
+        { status: 404 }
+      );
+    }
+
+    antrian = [{ nim: res.mahasiswa.nim, nama: res.mahasiswa.nama, email: res.mahasiswa.email }];
+  } else {
+    // Ambil antrian batch email belum terkirim (maks BATCH_MAX)
+    const { data: antrianData, error: antrianError } = await supabaseAdmin.rpc(
+      "admin_ambil_antrian_email",
+      { p_batas: BATCH_MAX }
+    );
+
+    if (antrianError) {
+      return NextResponse.json({ ok: false, error: "Gagal mengambil antrian email." }, { status: 500 });
+    }
+
+    const resAntrian = antrianData as { ok: boolean; antrian: { nim: string; nama: string; email: string }[] } | null;
+    antrian = resAntrian?.antrian ?? [];
+
+    if (antrian.length === 0) {
+      return NextResponse.json({ ok: true, terkirim: 0, gagal: 0, pesan: "Tidak ada email dalam antrian." });
+    }
   }
 
   // 4. Kirim satu per satu, catat hasil
