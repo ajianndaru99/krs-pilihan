@@ -717,6 +717,16 @@ export default function StudentPage() {
       return;
     }
 
+    // Proteksi: Mata kuliah sudah terdaftar sebagai matkul wajib di jadwal kelas mahasiswa
+    if (offering.sudah_di_kelas) {
+      showPopup(
+        "danger",
+        "Mata Kuliah Wajib Kelas",
+        `Mata kuliah "${offering.nama}" tidak dapat dipilih karena sudah menjadi mata kuliah wajib pada jadwal kelas Anda.`
+      );
+      return;
+    }
+
     // Anti-duplikasi kelas untuk mata kuliah yang sama
     const offeringBase = getCourseBaseName(offering.nama);
     const isDuplicateCourse = selectedItems.some((item) => getCourseBaseName(item.nama) === offeringBase);

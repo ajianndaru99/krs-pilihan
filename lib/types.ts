@@ -21,6 +21,7 @@ export interface Offering {
   sisa: number;
   bentrok?: boolean;
   bentrok_kelas?: boolean;
+  sudah_di_kelas?: boolean;
   jadwal: OfferingSchedule[];
 }
 

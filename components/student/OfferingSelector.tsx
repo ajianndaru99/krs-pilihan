@@ -22,6 +22,7 @@ export interface GroupedCourse {
   totalKuota: number;
   totalSisa: number;
   hasAvailableClass: boolean;
+  isClassRequired?: boolean;
 }
 
 interface OfferingSelectorProps {
@@ -69,6 +70,7 @@ export function OfferingSelector({
         existing.totalKuota += off.kuota;
         existing.totalSisa += off.sisa;
         if (off.sisa > 0) existing.hasAvailableClass = true;
+        if (off.sudah_di_kelas) existing.isClassRequired = true;
         if (selectedIds.includes(off.id)) {
           existing.selectedOffering = off;
         }
@@ -83,6 +85,7 @@ export function OfferingSelector({
           totalKuota: off.kuota,
           totalSisa: off.sisa,
           hasAvailableClass: off.sisa > 0,
+          isClassRequired: Boolean(off.sudah_di_kelas),
         });
       }
     });
@@ -134,6 +137,11 @@ export function OfferingSelector({
 
   // Handler klik pada baris mata kuliah
   const handleCourseRowClick = (course: GroupedCourse) => {
+    // Jika matkul ini adalah mata kuliah wajib kelas mahasiswa
+    if (course.isClassRequired) {
+      return;
+    }
+
     // Jika matkul ini sudah memiliki kelas terpilih, buka bottom sheet untuk memungkinkan ganti kelas
     if (course.selectedOffering) {
       setSheetCourse(course);
@@ -158,6 +166,10 @@ export function OfferingSelector({
   // Handler klik tombol centang [✓]
   const handleCheckboxClick = (e: React.MouseEvent, course: GroupedCourse) => {
     e.stopPropagation();
+    if (course.isClassRequired) {
+      return;
+    }
+
     if (course.selectedOffering) {
       // Batalkan pilihan kelas saat ini
       onToggleOffering(course.selectedOffering);
@@ -176,7 +188,7 @@ export function OfferingSelector({
 
   // Handler pemilihan kelas dari bottom sheet
   const handleSelectClassFromSheet = (cls: Offering) => {
-    if (cls.sisa <= 0) return; // Kuota penuh
+    if (cls.sisa <= 0 || cls.sudah_di_kelas) return; // Kuota penuh atau wajib kelas
 
     const currentSelected = sheetCourse?.selectedOffering;
     if (currentSelected?.id === cls.id) {
@@ -518,9 +530,10 @@ export function OfferingSelector({
         ) : (
           filteredCourses.map((course) => {
             const isSelected = Boolean(course.selectedOffering);
+            const isClassRequired = Boolean(course.isClassRequired);
             const isFull = !course.hasAvailableClass;
             const isMaxReached = !isSelected && selectedIds.length >= 4;
-            const isDisabled = (isFull && !isSelected) || isMaxReached;
+            const isDisabled = (isFull && !isSelected) || isMaxReached || isClassRequired;
 
             // Keterangan jadwal ringkas
             let scheduleText = "";
@@ -562,6 +575,8 @@ export function OfferingSelector({
                   borderRadius: "var(--radius-md)",
                   border: isSelected
                     ? "2px solid #059669"
+                    : isClassRequired
+                    ? "1.5px solid #fca5a5"
                     : hasClashWithClass
                     ? "1.5px solid #fecaca"
                     : isFull
@@ -569,13 +584,15 @@ export function OfferingSelector({
                     : "1px solid var(--border-color)",
                   backgroundColor: isSelected
                     ? "#ecfdf5"
+                    : isClassRequired
+                    ? "#fef2f2"
                     : hasClashWithClass
                     ? "#fff5f5"
                     : isFull
                     ? "#fffbeb"
                     : "#ffffff",
                   cursor: isDisabled && !isSelected ? "not-allowed" : "pointer",
-                  opacity: isDisabled && !isSelected ? 0.6 : 1,
+                  opacity: isDisabled && !isSelected ? 0.65 : 1,
                   transition: "all 0.12s ease",
                   userSelect: "none",
                 }}
@@ -590,22 +607,34 @@ export function OfferingSelector({
                     borderRadius: 6,
                     border: isSelected
                       ? "2px solid #059669"
+                      : isClassRequired
+                      ? "1.5px solid #fca5a5"
                       : isDisabled
                       ? "1.5px solid #cbd5e1"
                       : "2px solid #94a3b8",
-                    backgroundColor: isSelected ? "#059669" : "#ffffff",
+                    backgroundColor: isSelected
+                      ? "#059669"
+                      : isClassRequired
+                      ? "#fee2e2"
+                      : "#ffffff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#ffffff",
+                    color: isClassRequired ? "#ef4444" : "#ffffff",
                     fontSize: "0.95rem",
                     fontWeight: 900,
                     boxShadow: isSelected ? "0 2px 4px rgba(5, 150, 105, 0.25)" : "none",
                     transition: "all 0.12s ease",
                   }}
-                  title={isSelected ? "Klik untuk membatalkan" : "Klik untuk memilih"}
+                  title={
+                    isClassRequired
+                      ? "Mata kuliah wajib kelas Anda (tidak dapat dipilih)"
+                      : isSelected
+                      ? "Klik untuk membatalkan"
+                      : "Klik untuk memilih"
+                  }
                 >
-                  {isSelected ? "✓" : ""}
+                  {isSelected ? "✓" : isClassRequired ? "✕" : ""}
                 </div>
 
                 {/* Kolom 2: Nama Mata Kuliah & Jadwal / Opsi Kelas */}
@@ -627,7 +656,9 @@ export function OfferingSelector({
                   <div
                     style={{
                       fontSize: "0.68rem",
-                      color: hasClashWithClass
+                      color: isClassRequired
+                        ? "#dc2626"
+                        : hasClashWithClass
                         ? "#dc2626"
                         : isSelected
                         ? "#047857"
@@ -636,9 +667,14 @@ export function OfferingSelector({
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       marginTop: "1px",
+                      fontWeight: isClassRequired ? 700 : 500,
                     }}
                   >
-                    {hasClashWithClass ? "⚠️ Bentrok jadwal kelas" : `🕒 ${scheduleText}`}
+                    {isClassRequired
+                      ? "⛔ Sudah ada di jadwal kelas Anda (Mata Kuliah Wajib)"
+                      : hasClashWithClass
+                      ? "⚠️ Bentrok jadwal kelas"
+                      : `🕒 ${scheduleText}`}
                   </div>
                 </div>
 
@@ -711,22 +747,36 @@ export function OfferingSelector({
                       fontWeight: 800,
                       padding: "2px 4px",
                       borderRadius: "4px",
-                      backgroundColor: isFull
+                      backgroundColor: isClassRequired
+                        ? "#fee2e2"
+                        : isFull
                         ? "#fef2f2"
                         : isSelected
                         ? "#ecfdf5"
                         : "#f0fdf4",
-                      color: isFull
+                      color: isClassRequired
+                        ? "#b91c1c"
+                        : isFull
                         ? "#dc2626"
                         : isSelected
                         ? "#047857"
                         : "#059669",
-                      border: `1px solid ${isFull ? "#fecaca" : "#a7f3d0"}`,
+                      border: `1px solid ${
+                        isClassRequired
+                          ? "#fca5a5"
+                          : isFull
+                          ? "#fecaca"
+                          : isSelected
+                          ? "#a7f3d0"
+                          : "#a7f3d0"
+                      }`,
                       whiteSpace: "nowrap",
                       display: "inline-block",
                     }}
                   >
-                    {isFull
+                    {isClassRequired
+                      ? "Wajib"
+                      : isFull
                       ? "Penuh"
                       : isSelected && course.selectedOffering
                       ? `${course.selectedOffering.sisa}/${course.selectedOffering.kuota}`
@@ -859,6 +909,7 @@ export function OfferingSelector({
             >
               {sheetCourse.classes.map((cls) => {
                 const isCurrentActive = sheetCourse.selectedOffering?.id === cls.id;
+                const isRequiredClass = Boolean(cls.sudah_di_kelas);
                 const isFull = cls.sisa <= 0;
                 const hasClash = Boolean(cls.bentrok_kelas);
                 const schedule =
@@ -877,13 +928,15 @@ export function OfferingSelector({
                   <div
                     key={cls.id}
                     onClick={() => {
-                      if (!isFull) handleSelectClassFromSheet(cls);
+                      if (!isFull && !isRequiredClass) handleSelectClassFromSheet(cls);
                     }}
                     style={{
                       padding: "0.75rem 0.85rem",
                       borderRadius: "var(--radius-md)",
                       border: isCurrentActive
                         ? "2px solid #059669"
+                        : isRequiredClass
+                        ? "1.5px solid #fca5a5"
                         : hasClash
                         ? "1.5px solid #fecaca"
                         : isFull
@@ -891,13 +944,15 @@ export function OfferingSelector({
                         : "1.5px solid var(--border-color)",
                       backgroundColor: isCurrentActive
                         ? "#ecfdf5"
+                        : isRequiredClass
+                        ? "#fef2f2"
                         : hasClash
                         ? "#fff5f5"
                         : isFull
                         ? "#f8fafc"
                         : "#ffffff",
-                      cursor: isFull ? "not-allowed" : "pointer",
-                      opacity: isFull && !isCurrentActive ? 0.6 : 1,
+                      cursor: (isFull || isRequiredClass) && !isCurrentActive ? "not-allowed" : "pointer",
+                      opacity: (isFull || isRequiredClass) && !isCurrentActive ? 0.65 : 1,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
@@ -934,7 +989,21 @@ export function OfferingSelector({
                           {isFull ? `🚫 Penuh (0/${cls.kuota})` : `Sisa ${cls.sisa} dari ${cls.kuota} Kursi`}
                         </span>
 
-                        {hasClash && (
+                        {isRequiredClass ? (
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: 800,
+                              padding: "2px 6px",
+                              borderRadius: "var(--radius-sm)",
+                              backgroundColor: "#fee2e2",
+                              color: "#b91c1c",
+                              border: "1px solid #fca5a5",
+                            }}
+                          >
+                            Mata Kuliah Wajib Kelas Anda
+                          </span>
+                        ) : hasClash ? (
                           <span
                             style={{
                               fontSize: "0.68rem",
@@ -947,7 +1016,7 @@ export function OfferingSelector({
                           >
                             Bentrok Jadwal Kelas
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       <div style={{ fontSize: "0.75rem", color: "var(--text-main)", fontWeight: 600 }}>
@@ -958,7 +1027,7 @@ export function OfferingSelector({
                     <div style={{ flexShrink: 0 }}>
                       <button
                         type="button"
-                        disabled={isFull && !isCurrentActive}
+                        disabled={(isFull || isRequiredClass) && !isCurrentActive}
                         style={{
                           padding: "0.4rem 0.75rem",
                           fontSize: "0.75rem",
@@ -966,21 +1035,33 @@ export function OfferingSelector({
                           borderRadius: "var(--radius-sm)",
                           border: isCurrentActive
                             ? "1.5px solid #059669"
+                            : isRequiredClass
+                            ? "1.5px solid #fca5a5"
                             : "1.5px solid var(--border-color)",
                           backgroundColor: isCurrentActive
                             ? "#059669"
+                            : isRequiredClass
+                            ? "#fee2e2"
                             : isFull
                             ? "#e2e8f0"
                             : "#ffffff",
                           color: isCurrentActive
                             ? "#ffffff"
+                            : isRequiredClass
+                            ? "#b91c1c"
                             : isFull
                             ? "#94a3b8"
                             : "var(--primary)",
-                          cursor: isFull && !isCurrentActive ? "not-allowed" : "pointer",
+                          cursor: (isFull || isRequiredClass) && !isCurrentActive ? "not-allowed" : "pointer",
                         }}
                       >
-                        {isCurrentActive ? "✓ Terpilih" : isFull ? "Penuh" : "Pilih"}
+                        {isCurrentActive
+                          ? "✓ Terpilih"
+                          : isRequiredClass
+                          ? "Wajib Kelas"
+                          : isFull
+                          ? "Penuh"
+                          : "Pilih"}
                       </button>
                     </div>
                   </div>
