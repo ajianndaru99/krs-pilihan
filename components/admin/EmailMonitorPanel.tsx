@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { AdminEmailRingkasan, AdminEmailQueueItem } from "@/lib/types";
 import { parsePendaftarData } from "@/lib/admin-adapter";
 import { supabase } from "@/lib/supabase";
+import { EditEmailModal } from "./EditEmailModal";
 
 type EmailFilterTab = "all" | "terkirim" | "belum_terkirim" | "tanpa_email";
 
@@ -27,10 +28,37 @@ export function EmailMonitorPanel({
   const [processingNim, setProcessingNim] = useState<string | null>(null);
   const [sendingSingleNim, setSendingSingleNim] = useState<string | null>(null);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<AdminEmailQueueItem | null>(null);
   const [lastBatchResult, setLastBatchResult] = useState<{
     pesan: string;
     isError?: boolean;
   } | null>(null);
+
+  // Callback setelah admin berhasil mengedit email mahasiswa
+  const handleEditSuccess = (newEmail: string, emailTerkirim: boolean) => {
+    if (!editingStudent) return;
+    const targetNim = editingStudent.nim;
+    const targetNama = editingStudent.nama;
+
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.nim === targetNim
+          ? {
+              ...s,
+              email: newEmail,
+              email_terkirim: emailTerkirim,
+            }
+          : s
+      )
+    );
+
+    setLastBatchResult({
+      pesan: `Alamat email mahasiswa ${targetNama} (${targetNim}) berhasil diperbarui menjadi "${newEmail}".`,
+      isError: false,
+    });
+
+    onRefresh();
+  };
 
   // Muat data mahasiswa beserta status email
   const loadData = useCallback(async () => {
@@ -598,11 +626,27 @@ export function EmailMonitorPanel({
                       <td style={{ padding: "0.85rem 1rem", fontWeight: 600 }}>{item.nama}</td>
                       <td style={{ padding: "0.85rem 1rem", color: "var(--text-muted)" }}>{item.kelas || "-"}</td>
                       <td style={{ padding: "0.85rem 1rem" }}>
-                        {hasEmail ? (
-                          <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>{item.email}</span>
-                        ) : (
-                          <span style={{ color: "var(--text-light)" }}>-</span>
-                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          {hasEmail ? (
+                            <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>{item.email}</span>
+                          ) : (
+                            <span style={{ color: "var(--text-light)", fontStyle: "italic" }}>Tidak ada email</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setEditingStudent(item)}
+                            className="btn btn-secondary"
+                            style={{
+                              fontSize: "0.75rem",
+                              padding: "0.2rem 0.55rem",
+                              fontWeight: 700,
+                              lineHeight: 1.1,
+                            }}
+                            title="Edit alamat email mahasiswa ini"
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                       <td style={{ padding: "0.85rem 1rem", color: "var(--text-muted)", fontSize: "0.825rem", whiteSpace: "nowrap" }}>
                         {item.registered_at || "-"}
@@ -632,12 +676,53 @@ export function EmailMonitorPanel({
                         )}
                       </td>
                       <td style={{ padding: "0.85rem 1rem", textAlign: "center" }}>
-                        {hasEmail ? (
-                          <div style={{ display: "flex", gap: "0.45rem", justifyContent: "center", flexWrap: "wrap" }}>
-                            {/* Tombol Kirim / Kirim Ulang */}
+                        <div style={{ display: "flex", gap: "0.45rem", justifyContent: "center", flexWrap: "wrap" }}>
+                          {hasEmail ? (
+                            <>
+                              {/* Tombol Kirim / Kirim Ulang */}
+                              <button
+                                type="button"
+                                onClick={() => handleKirimSingle(item.nim, item.nama)}
+                                disabled={isProcessingThis || isSending || isMarkingAll}
+                                className="btn btn-secondary"
+                                style={{
+                                  fontSize: "0.8rem",
+                                  padding: "0.3rem 0.75rem",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}
+                                title={isSent ? "Kirim ulang bukti KRS ke email ini" : "Kirimkan bukti KRS sekarang"}
+                              >
+                                {sendingSingleNim === item.nim ? "Mengirim..." : isSent ? "Kirim Ulang" : "Kirim Email"}
+                              </button>
+
+                              {/* Tombol Tandai Terkirim Manual jika belum */}
+                              {!isSent && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleTandaiTerkirim(item.nim, item.nama)}
+                                  disabled={isProcessingThis || isSending || isMarkingAll}
+                                  className="btn btn-secondary"
+                                  style={{
+                                    fontSize: "0.8rem",
+                                    padding: "0.3rem 0.75rem",
+                                    backgroundColor: "#f0fdf4",
+                                    borderColor: "#86efac",
+                                    color: "#166534",
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title="Tandai status sebagai sudah terkirim tanpa mengirim email ke Brevo"
+                                >
+                                  {processingNim === item.nim ? "..." : "Tandai Terkirim"}
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            /* Tombol Input Email jika mahasiswa belum mengisi email */
                             <button
                               type="button"
-                              onClick={() => handleKirimSingle(item.nim, item.nama)}
+                              onClick={() => setEditingStudent(item)}
                               disabled={isProcessingThis || isSending || isMarkingAll}
                               className="btn btn-secondary"
                               style={{
@@ -646,36 +731,12 @@ export function EmailMonitorPanel({
                                 fontWeight: 700,
                                 whiteSpace: "nowrap",
                               }}
-                              title={isSent ? "Kirim ulang bukti KRS ke email ini" : "Kirimkan bukti KRS sekarang"}
+                              title="Masukkan email untuk mahasiswa ini agar bukti KRS dapat dikirimkan"
                             >
-                              {sendingSingleNim === item.nim ? "Mengirim..." : isSent ? "Kirim Ulang" : "Kirim Email"}
+                              Input Email
                             </button>
-
-                            {/* Tombol Tandai Terkirim Manual jika belum */}
-                            {!isSent && (
-                              <button
-                                type="button"
-                                onClick={() => handleTandaiTerkirim(item.nim, item.nama)}
-                                disabled={isProcessingThis || isSending || isMarkingAll}
-                                className="btn btn-secondary"
-                                style={{
-                                  fontSize: "0.8rem",
-                                  padding: "0.3rem 0.75rem",
-                                  backgroundColor: "#f0fdf4",
-                                  borderColor: "#86efac",
-                                  color: "#166534",
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                }}
-                                title="Tandai status sebagai sudah terkirim tanpa mengirim email ke Brevo"
-                              >
-                                {processingNim === item.nim ? "..." : "Tandai Terkirim"}
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: "0.8rem", color: "var(--text-light)" }}>Tidak ada aksi</span>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -685,6 +746,19 @@ export function EmailMonitorPanel({
           </div>
         )}
       </div>
+
+      {/* Modal Edit Email Mahasiswa */}
+      {editingStudent && (
+        <EditEmailModal
+          isOpen={Boolean(editingStudent)}
+          onClose={() => setEditingStudent(null)}
+          nim={editingStudent.nim}
+          nama={editingStudent.nama}
+          kelas={editingStudent.kelas}
+          currentEmail={editingStudent.email}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }

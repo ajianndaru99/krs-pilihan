@@ -5,21 +5,24 @@ import * as XLSX from "xlsx";
 import { PendaftarStudentItem } from "@/lib/types";
 import { formatWIBDateTime } from "@/lib/admin-adapter";
 import { AdminModal, AdminModalState } from "@/components/admin/AdminModal";
+import { EditEmailModal } from "./EditEmailModal";
 
 interface PendaftarListProps {
   pendaftar: PendaftarStudentItem[];
   kelasList: string[];
   onBatalDaftar?: (nim: string) => Promise<void>;
+  onRefresh?: () => Promise<void>;
 }
 
 type SortField = "nim" | "nama" | "kelas" | "waktu";
 type SortOrder = "asc" | "desc";
 
-export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: PendaftarListProps) {
+export function PendaftarList({ pendaftar, kelasList, onBatalDaftar, onRefresh }: PendaftarListProps) {
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
   const [sortField, setSortField] = useState<SortField>("waktu");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [editingStudent, setEditingStudent] = useState<PendaftarStudentItem | null>(null);
   const [modal, setModal] = useState<AdminModalState>({
     isOpen: false,
     type: "info",
@@ -218,22 +221,42 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
                   <td style={{ padding: "7px 10px", fontWeight: 600 }}>{item.nama}</td>
                   <td style={{ padding: "7px 8px" }}>{item.kelas}</td>
                   <td style={{ padding: "7px 10px", fontSize: "0.825rem", whiteSpace: "nowrap" }}>
-                    {item.email && item.email !== "-" ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                        <span style={{ color: "#047857", fontWeight: 600 }}>{item.email}</span>
-                        {item.email_terkirim ? (
-                          <span style={{ fontSize: "0.72rem", color: "#15803d", fontWeight: 700 }}>
-                            Terkirim
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: "0.72rem", color: "#b45309", fontWeight: 700 }}>
-                            Belum Terkirim
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)" }}>-</span>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {item.email && item.email !== "-" ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ color: "#047857", fontWeight: 600 }}>{item.email}</span>
+                          {item.email_terkirim ? (
+                            <span style={{ fontSize: "0.72rem", color: "#15803d", fontWeight: 700 }}>
+                              Terkirim
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: "0.72rem", color: "#b45309", fontWeight: 700 }}>
+                              Belum Terkirim
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Tidak ada email</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditingStudent(item)}
+                        style={{
+                          fontSize: "0.725rem",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid var(--border-color)",
+                          backgroundColor: "#f8fafc",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          color: "var(--text-color)",
+                          lineHeight: 1.1,
+                        }}
+                        title="Edit alamat email mahasiswa ini"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </td>
                   <td style={{ padding: "7px 10px" }}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
@@ -308,6 +331,28 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar }: Pendaftar
         modal={modal}
         onClose={() => setModal((prev) => ({ ...prev, isOpen: false }))}
       />
+
+      {editingStudent && (
+        <EditEmailModal
+          isOpen={Boolean(editingStudent)}
+          onClose={() => setEditingStudent(null)}
+          nim={editingStudent.nim}
+          nama={editingStudent.nama}
+          kelas={editingStudent.kelas}
+          currentEmail={editingStudent.email}
+          onSuccess={(newEmail, emailTerkirim) => {
+            editingStudent.email = newEmail;
+            editingStudent.email_terkirim = emailTerkirim;
+            onRefresh?.();
+            setModal({
+              isOpen: true,
+              type: "success",
+              title: "Email Berhasil Diperbarui",
+              message: `Email mahasiswa ${editingStudent.nama} (${editingStudent.nim}) berhasil diperbarui menjadi "${newEmail}".`,
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1127,6 +1127,9 @@ export default function AdminPage() {
               pendaftar={pendaftar}
               kelasList={kelasList}
               onBatalDaftar={handleBatalDaftar}
+              onRefresh={async () => {
+                await loadAdminData(true);
+              }}
             />
           )}
 
