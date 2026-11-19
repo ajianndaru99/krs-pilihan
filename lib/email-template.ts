@@ -102,10 +102,10 @@ export function generateKrsEmailHtml(data: BuktiEmailData): string {
           <tr>
             <td style="background-color:#14532d;padding:26px 32px 22px;text-align:center;">
               <!-- LOGO RESMI INSTIPER -->
-              <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px auto;">
+              <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 12px auto;">
                 <tr>
-                  <td align="center" style="background-color:#ffffff;padding:8px 10px;border-radius:12px;line-height:1;">
-                    <img src="${logoSrc}" alt="Logo INSTIPER" width="62" height="56" style="width:62px;height:56px;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
+                  <td align="center" style="line-height:1;">
+                    <img src="${logoSrc}" alt="Logo INSTIPER" width="68" height="61" style="width:68px;height:61px;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
                   </td>
                 </tr>
               </table>
