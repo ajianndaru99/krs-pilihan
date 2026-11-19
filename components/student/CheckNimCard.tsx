@@ -498,11 +498,6 @@ export function CheckNimCard({
               </div>
             )}
 
-            <ScheduleOverviewModal
-              isOpen={showScheduleModal}
-              onClose={() => setShowScheduleModal(false)}
-            />
-
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
               <button
                 type="button"
@@ -532,6 +527,12 @@ export function CheckNimCard({
           </form>
         )}
       </div>
+
+      {/* Modal Jadwal & Kuota Terbuka untuk Semua Mahasiswa (Sebelum & Sesudah Verifikasi NIM) */}
+      <ScheduleOverviewModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+      />
 
       {/* Footer Text — Identik Gambar 2 */}
       <div

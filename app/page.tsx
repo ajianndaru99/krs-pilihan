@@ -1220,7 +1220,7 @@ export default function StudentPage() {
                     localStorage.setItem("krs_saved_nim", registeredData.nim);
                   }
                   setShowRegisteredModal(false);
-                  router.push("/bukti");
+                  router.push(`/bukti?nim=${encodeURIComponent(registeredData.nim)}`);
                 }}
                 style={{ padding: "0.85rem", fontSize: "0.95rem" }}
               >

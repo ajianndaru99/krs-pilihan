@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { QrCode } from "@/lib/qr-generator";
+import { LaporKendalaModal } from "@/components/student/LaporKendalaModal";
 
 interface PilihanItem {
   id: number;
@@ -77,6 +78,10 @@ export default function BuktiPage() {
   const [showLookupInput, setShowLookupInput] = useState(false);
   const [searchNim, setSearchNim] = useState("");
   const [searching, setSearching] = useState(false);
+
+  // State pelaporan kendala / permohonan reset
+  const [showLaporModal, setShowLaporModal] = useState(false);
+  const [laporNotice, setLaporNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // State arsip email terkirim
   const [sentEmail, setSentEmail] = useState<string>(() => {
@@ -620,6 +625,39 @@ export default function BuktiPage() {
       </div>
 
       {/* =========================================================================
+          TOOLBAR AKSI DESKTOP (no-print)
+          ========================================================================= */}
+      {hasPilihan && (
+        <div
+          className="no-print desktop-formal-preview"
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            marginBottom: "0.85rem",
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handlePrint}
+            style={{
+              fontWeight: 700,
+              padding: "0.6rem 1.35rem",
+              fontSize: "0.875rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.45rem",
+              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
+            }}
+          >
+            <span>🖨️</span>
+            <span>Cetak Bukti (A4 / PDF)</span>
+          </button>
+        </div>
+      )}
+
+      {/* =========================================================================
           LEMBAR FORMAL A4 (Desktop Preview & Khusus Cetak Print PDF)
           ========================================================================= */}
       <div
@@ -943,18 +981,76 @@ export default function BuktiPage() {
       )}
 
       {/* =========================================================================
+          NOTIFIKASI STATUS LAPORAN KENDALA (Jika Baru Diajukan)
+          ========================================================================= */}
+      {laporNotice && (
+        <div
+          className="no-print"
+          style={{
+            marginTop: "1rem",
+            marginBottom: "0.5rem",
+            padding: "0.85rem 1.15rem",
+            borderRadius: "var(--radius-lg)",
+            backgroundColor: laporNotice.type === "success" ? "#ecfdf5" : "#fef2f2",
+            border: `1.5px solid ${laporNotice.type === "success" ? "#6ee7b7" : "#f87171"}`,
+            color: laporNotice.type === "success" ? "#065f46" : "#991b1b",
+            fontSize: "0.85rem",
+            lineHeight: 1.45,
+            textAlign: "center",
+            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)",
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: "0.2rem" }}>
+            {laporNotice.type === "success" ? "✅ Laporan Berhasil Dikirim" : "⛔ Gagal Mengirim Laporan"}
+          </div>
+          <div>{laporNotice.message}</div>
+        </div>
+      )}
+
+      {/* =========================================================================
           TOMBOL NAVIGASI BAWAH
           ========================================================================= */}
       <div
         className="no-print"
         style={{
           marginTop: "1.25rem",
-          marginBottom: "0.5rem",
+          marginBottom: "1.5rem",
           display: "flex",
-          justifyContent: "center",
+          flexDirection: "column",
           alignItems: "center",
+          gap: "0.75rem",
+          width: "100%",
         }}
       >
+        {/* Tombol Laporkan Kendala / Ajukan Permohonan Reset (Sesuai Foto 2 & Foto 3) */}
+        {hasPilihan && (
+          <button
+            type="button"
+            onClick={() => setShowLaporModal(true)}
+            style={{
+              padding: "0.75rem 1.25rem",
+              borderRadius: "var(--radius-lg)",
+              border: "1.5px solid #fde68a",
+              color: "#b45309",
+              backgroundColor: "#fffbeb",
+              fontWeight: 800,
+              fontSize: "0.875rem",
+              cursor: "pointer",
+              width: "100%",
+              maxWidth: 380,
+              minHeight: 46,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+              boxShadow: "0 1px 3px rgba(180, 83, 9, 0.08)",
+            }}
+          >
+            <span>⚠️</span>
+            <span>Laporkan Kendala / Ajukan Permohonan Reset</span>
+          </button>
+        )}
+
         <button
           type="button"
           className="btn btn-secondary"
@@ -965,13 +1061,29 @@ export default function BuktiPage() {
             minHeight: 46,
             fontSize: "0.9rem",
             width: "100%",
-            maxWidth: 280,
+            maxWidth: 380,
             justifyContent: "center",
           }}
         >
           Kembali ke Halaman Utama
         </button>
       </div>
+
+      {/* Modal Pengajuan Kendala / Permohonan Reset */}
+      <LaporKendalaModal
+        isOpen={showLaporModal}
+        nim={mahasiswa.nim !== "-" ? mahasiswa.nim : ""}
+        nama={mahasiswa.nama !== "-" ? mahasiswa.nama : ""}
+        onClose={() => setShowLaporModal(false)}
+        onSuccess={(msg) => {
+          setShowLaporModal(false);
+          setLaporNotice({ type: "success", message: msg });
+        }}
+        onError={(err) => {
+          setShowLaporModal(false);
+          setLaporNotice({ type: "error", message: err });
+        }}
+      />
     </div>
   );
 }

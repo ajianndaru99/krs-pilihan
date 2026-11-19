@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 interface LaporKendalaModalProps {
@@ -25,6 +25,12 @@ export function LaporKendalaModal({
   const [alasan, setAlasan] = useState("");
   const [kontak, setKontak] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (nama) {
+      setStudentNama(nama);
+    }
+  }, [nama, isOpen]);
 
   if (!isOpen) return null;
 
