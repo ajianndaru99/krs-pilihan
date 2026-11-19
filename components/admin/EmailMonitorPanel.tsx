@@ -20,6 +20,8 @@ export function EmailMonitorPanel({
   const [queue, setQueue] = useState<AdminEmailQueueItem[]>([]);
   const [loadingQueue, setLoadingQueue] = useState(false);
   const [search, setSearch] = useState("");
+  const [processingNim, setProcessingNim] = useState<string | null>(null);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [lastBatchResult, setLastBatchResult] = useState<{
     terkirim?: number;
     gagal?: number;
@@ -61,6 +63,55 @@ export function EmailMonitorPanel({
   const handleManualRefresh = async () => {
     await onRefresh();
     await loadQueue();
+  };
+
+  const handleTandaiTerkirim = async (nim: string, nama: string) => {
+    setProcessingNim(nim);
+    setLastBatchResult(null);
+    try {
+      const { error } = await supabase.rpc("admin_tandai_email_terkirim", { p_nim: nim });
+      if (error) throw error;
+      setLastBatchResult({
+        pesan: `Status email ${nama} (${nim}) berhasil ditandai sebagai SUDAH TERKIRIM.`,
+      });
+      await onRefresh();
+      await loadQueue();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal menandai status email.");
+    } finally {
+      setProcessingNim(null);
+    }
+  };
+
+  const handleTandaiSemuaTerkirim = async () => {
+    if (
+      !confirm(
+        `Tandai seluruh ${queue.length} mahasiswa dalam antrian sebagai SUDAH TERKIRIM (tanpa mengirim ulang email)?`
+      )
+    ) {
+      return;
+    }
+    setIsMarkingAll(true);
+    setLastBatchResult(null);
+    try {
+      const { data, error } = await supabase.rpc("admin_tandai_semua_email_terkirim");
+      const res = data as { ok?: boolean; updated?: number } | null;
+      if (error || !res?.ok) {
+        // Fallback: tandai satu per satu
+        for (const item of queue) {
+          await supabase.rpc("admin_tandai_email_terkirim", { p_nim: item.nim });
+        }
+      }
+      setLastBatchResult({
+        pesan: "Seluruh antrian email berhasil ditandai sebagai SUDAH TERKIRIM.",
+      });
+      await onRefresh();
+      await loadQueue();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal memproses.");
+    } finally {
+      setIsMarkingAll(false);
+    }
   };
 
   const filteredQueue = queue.filter((item) => {
@@ -312,21 +363,43 @@ export function EmailMonitorPanel({
             </p>
           </div>
 
-          <div style={{ width: "100%", maxWidth: 300 }}>
-            <input
-              type="text"
-              placeholder="Cari NIM, Nama, atau Email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "0.5rem 0.85rem",
-                fontSize: "0.85rem",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--border-color)",
-                outline: "none",
-              }}
-            />
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+            {queue.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleTandaiSemuaTerkirim}
+                disabled={isMarkingAll || isSending || loadingQueue}
+                style={{
+                  fontSize: "0.8rem",
+                  padding: "0.5rem 0.85rem",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  backgroundColor: "#f8fafc",
+                  borderColor: "var(--border-color)",
+                }}
+                title="Tandai seluruh mahasiswa di antrian sebagai sudah terkirim tanpa kirim email ke Brevo"
+              >
+                {isMarkingAll ? "Memproses..." : "✅ Tandai Semua Sudah Terkirim"}
+              </button>
+            )}
+
+            <div style={{ width: "100%", maxWidth: 280 }}>
+              <input
+                type="text"
+                placeholder="Cari NIM, Nama, atau Email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.85rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border-color)",
+                  outline: "none",
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -367,6 +440,7 @@ export function EmailMonitorPanel({
                   <th style={{ padding: "0.75rem 1rem" }}>Email Tujuan</th>
                   <th style={{ padding: "0.75rem 1rem" }}>Waktu Registrasi</th>
                   <th style={{ padding: "0.75rem 1rem", textAlign: "center" }}>Status</th>
+                  <th style={{ padding: "0.75rem 1rem", textAlign: "center", width: 150 }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -395,6 +469,27 @@ export function EmailMonitorPanel({
                       >
                         Pending Kirim Ulang
                       </span>
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleTandaiTerkirim(item.nim, item.nama)}
+                        disabled={processingNim === item.nim || isMarkingAll || isSending}
+                        className="btn btn-secondary"
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "0.25rem 0.65rem",
+                          backgroundColor: "#f0fdf4",
+                          borderColor: "#86efac",
+                          color: "#166534",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                        title="Tandai status sebagai sudah terkirim tanpa kirim ulang email"
+                      >
+                        {processingNim === item.nim ? "..." : "✅ Tandai Terkirim"}
+                      </button>
                     </td>
                   </tr>
                 ))}
