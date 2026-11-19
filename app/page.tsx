@@ -1300,14 +1300,24 @@ export default function StudentPage() {
                     setShowLaporModal(true);
                   }}
                   style={{
-                    padding: "0.75rem",
+                    padding: "0.85rem 1.25rem",
                     fontSize: "0.875rem",
                     borderColor: "var(--warning-border)",
                     color: "var(--warning)",
                     backgroundColor: "var(--warning-light)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.35rem",
+                    textAlign: "center",
+                    fontWeight: 800,
                   }}
                 >
-                  ⚠️ Laporkan Kendala / Ajukan Permohonan Reset
+                  <span style={{ fontSize: "1.35rem", lineHeight: 1 }}>⚠️</span>
+                  <span style={{ lineHeight: 1.35 }}>
+                    Laporkan Kendala / Ajukan Permohonan Reset
+                  </span>
                 </button>
               )}
 

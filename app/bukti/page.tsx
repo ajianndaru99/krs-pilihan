@@ -1022,13 +1022,13 @@ export default function BuktiPage() {
           width: "100%",
         }}
       >
-        {/* Tombol Laporkan Kendala / Ajukan Permohonan Reset (Sesuai Foto 2 & Foto 3) */}
+        {/* Tombol Laporkan Kendala / Ajukan Permohonan Reset */}
         {hasPilihan && (
           <button
             type="button"
             onClick={() => setShowLaporModal(true)}
             style={{
-              padding: "0.75rem 1.25rem",
+              padding: "0.85rem 1.25rem",
               borderRadius: "var(--radius-lg)",
               border: "1.5px solid #fde68a",
               color: "#b45309",
@@ -1038,16 +1038,20 @@ export default function BuktiPage() {
               cursor: "pointer",
               width: "100%",
               maxWidth: 380,
-              minHeight: 46,
+              minHeight: 58,
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: "0.5rem",
+              gap: "0.35rem",
               boxShadow: "0 1px 3px rgba(180, 83, 9, 0.08)",
+              textAlign: "center",
             }}
           >
-            <span>⚠️</span>
-            <span>Laporkan Kendala / Ajukan Permohonan Reset</span>
+            <span style={{ fontSize: "1.35rem", lineHeight: 1 }}>⚠️</span>
+            <span style={{ lineHeight: 1.35 }}>
+              Laporkan Kendala / Ajukan Permohonan Reset
+            </span>
           </button>
         )}
 
