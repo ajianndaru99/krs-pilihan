@@ -680,6 +680,21 @@ export default function AdminPage() {
     showAdminPopup("success", "Pendaftaran Dibatalkan", `Pendaftaran untuk NIM ${nim} berhasil dibatalkan dan kuota dikembalikan.`);
   };
 
+  // Handler update email mahasiswa di state lokal pendaftar
+  const handleEmailUpdated = (nim: string, newEmail: string, emailTerkirim: boolean) => {
+    setPendaftar((prev) =>
+      prev.map((item) =>
+        item.nim === nim
+          ? {
+              ...item,
+              email: newEmail && newEmail !== "-" ? newEmail : undefined,
+              email_terkirim: emailTerkirim,
+            }
+          : item
+      )
+    );
+  };
+
   // Handler Batal Daftar dari Tabel Mahasiswa (dengan konfirmasi dialog)
   const handleBatalDaftarWithConfirm = async (nim: string, nama: string) => {
     showAdminPopup(
@@ -1127,6 +1142,7 @@ export default function AdminPage() {
               pendaftar={pendaftar}
               kelasList={kelasList}
               onBatalDaftar={handleBatalDaftar}
+              onEmailUpdated={handleEmailUpdated}
               onRefresh={async () => {
                 await loadAdminData(true);
               }}

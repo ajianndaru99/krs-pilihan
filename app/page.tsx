@@ -895,26 +895,45 @@ export default function StudentPage() {
   // Handler: Kirim Email Bukti setelah Pendaftaran Sukses
   const handleKirimEmailSetelahDaftar = async (emailTujuan: string) => {
     setIsSendingEmail(true);
+    const cleanNim = nim.trim();
+    const cleanEmail = emailTujuan.trim();
+
     try {
-      // Simpan email mahasiswa ke database
-      void supabase.rpc("simpan_email_mahasiswa", {
-        p_nim: nim.trim(),
-        p_email: emailTujuan.trim(),
+      // 1. Simpan email mahasiswa ke database dan pastikan selesai (await)
+      const { error: rpcErr } = await supabase.rpc("simpan_email_mahasiswa", {
+        p_nim: cleanNim,
+        p_email: cleanEmail,
       });
 
-      void fetch("/api/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nim: nim.trim(), email_tujuan: emailTujuan }),
-      }).catch(() => {});
-
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("krs_sent_email", emailTujuan);
+      if (rpcErr) {
+        console.error("Gagal simpan email mahasiswa via RPC:", rpcErr);
       }
+
+      // 2. Simpan di sessionStorage
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("krs_sent_email", cleanEmail);
+      }
+
+      // 3. Panggil API kirim email bukti via Brevo dengan keepalive
+      try {
+        void fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nim: cleanNim, email_tujuan: cleanEmail }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {
+        // Abaikan galat fetch background
+      }
+
+      setShowEmailModal(false);
+      router.push(`/bukti?nim=${encodeURIComponent(cleanNim)}&email=${encodeURIComponent(cleanEmail)}`);
+    } catch (err: unknown) {
+      console.error("Kesalahan proses simpan email:", err);
+      setShowEmailModal(false);
+      router.push(`/bukti?nim=${encodeURIComponent(cleanNim)}&email=${encodeURIComponent(cleanEmail)}`);
     } finally {
       setIsSendingEmail(false);
-      setShowEmailModal(false);
-      router.push(`/bukti?nim=${encodeURIComponent(nim.trim())}&email=${encodeURIComponent(emailTujuan)}`);
     }
   };
 

@@ -12,12 +12,13 @@ interface PendaftarListProps {
   kelasList: string[];
   onBatalDaftar?: (nim: string) => Promise<void>;
   onRefresh?: () => Promise<void>;
+  onEmailUpdated?: (nim: string, newEmail: string, emailTerkirim: boolean) => void;
 }
 
 type SortField = "nim" | "nama" | "kelas" | "waktu";
 type SortOrder = "asc" | "desc";
 
-export function PendaftarList({ pendaftar, kelasList, onBatalDaftar, onRefresh }: PendaftarListProps) {
+export function PendaftarList({ pendaftar, kelasList, onBatalDaftar, onRefresh, onEmailUpdated }: PendaftarListProps) {
   const [search, setSearch] = useState("");
   const [filterKelas, setFilterKelas] = useState("all");
   const [sortField, setSortField] = useState<SortField>("waktu");
@@ -343,6 +344,7 @@ export function PendaftarList({ pendaftar, kelasList, onBatalDaftar, onRefresh }
           onSuccess={(newEmail, emailTerkirim) => {
             editingStudent.email = newEmail;
             editingStudent.email_terkirim = emailTerkirim;
+            onEmailUpdated?.(editingStudent.nim, newEmail, emailTerkirim);
             onRefresh?.();
             setModal({
               isOpen: true,

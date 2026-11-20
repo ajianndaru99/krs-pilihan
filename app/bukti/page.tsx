@@ -129,8 +129,24 @@ export default function BuktiPage() {
       }
 
       setData(res);
-      if (res?.mahasiswa?.email) {
-        setSentEmail((prev) => prev || res.mahasiswa.email || "");
+      const dbEmail = res?.mahasiswa?.email?.trim() || "";
+      if (dbEmail) {
+        setSentEmail(dbEmail);
+      } else {
+        // Fallback auto-sync: jika di database belum ada email, namun ada email yang dibawa
+        // dari parameter URL atau sessionStorage, sinkronkan otomatis ke database agar data admin selalu lengkap.
+        const candidateEmail =
+          (typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("email") || sessionStorage.getItem("krs_sent_email")
+            : null) || "";
+        const cleanCandidate = candidateEmail.trim();
+        if (cleanCandidate && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanCandidate)) {
+          setSentEmail(cleanCandidate);
+          void supabase.rpc("simpan_email_mahasiswa", {
+            p_nim: targetNim.trim(),
+            p_email: cleanCandidate,
+          });
+        }
       }
       setShowLookupInput(false);
     } catch (err: unknown) {
