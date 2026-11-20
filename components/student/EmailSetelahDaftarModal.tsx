@@ -102,22 +102,34 @@ export function EmailSetelahDaftarModal({
               gap: "0.45rem",
             }}
           >
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                backgroundColor: "#22c55e",
-                color: "#ffffff",
-                fontSize: "0.85rem",
-                fontWeight: 900,
-              }}
+            <svg
+              viewBox="0 0 24 24"
+              width={26}
+              height={26}
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ flexShrink: 0 }}
+              aria-hidden="true"
             >
-              ✓
-            </span>
+              <path
+                d="M12 2L4 5.5V11.5C4 16.5 7.4 21.1 12 22.5C16.6 21.1 20 16.5 20 11.5V5.5L12 2Z"
+                fill="#15803d"
+                stroke="#166534"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 3.8L5.8 6.5V11.5C5.8 15.5 8.4 19.3 12 20.6C15.6 19.3 18.2 15.5 18.2 11.5V6.5L12 3.8Z"
+                fill="#16a34a"
+              />
+              <path
+                d="M9.2 11.8L11 13.6L15 9.4"
+                stroke="#ffffff"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             <span>DATA SUDAH TERSIMPAN</span>
           </h3>
           <p

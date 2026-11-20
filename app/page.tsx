@@ -194,7 +194,7 @@ export default function StudentPage() {
         details,
         actionLink,
         onConfirm,
-        confirmText: type === "confirm" ? "Ya, Lanjutkan" : undefined,
+        confirmText: type === "confirm" ? "Kirim" : undefined,
         cancelText: type === "confirm" ? "Batal" : undefined,
       });
     },

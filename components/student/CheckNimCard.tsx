@@ -262,10 +262,10 @@ export function CheckNimCard({
             >
               <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.35rem", color: "#dc2626" }}>
                 <span>⚠️</span>
-                <span>PERHATIAN!</span>
+                <span>PERHATIAN</span>
               </div>
               <div>
-                Dimohon tidak lama dalam memilih, jika sudah ada antrian sistem akan ada maksimal waktu 5 MENIT!, silakan cek{" "}
+                Waktu pemilihan dibatasi maksimal 5 menit apabila antrean aktif. Silakan cermati{" "}
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(true)}
@@ -284,7 +284,7 @@ export function CheckNimCard({
                 >
                   Jadwal &amp; Kuota
                 </button>{" "}
-                terlebih dahulu!
+                terlebih dahulu agar proses pemilihan berjalan cepat dan lancar.
               </div>
             </div>
 
@@ -376,10 +376,10 @@ export function CheckNimCard({
             >
               <div style={{ fontWeight: 800, marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.35rem", color: "#dc2626" }}>
                 <span>⚠️</span>
-                <span>PERHATIAN!</span>
+                <span>PERHATIAN</span>
               </div>
               <div>
-                Dimohon tidak lama dalam memilih, jika sudah ada antrian sistem akan ada maksimal waktu 5 MENIT!, silakan cek{" "}
+                Waktu pemilihan dibatasi maksimal 5 menit apabila antrean aktif. Silakan cermati{" "}
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(true)}
@@ -398,7 +398,7 @@ export function CheckNimCard({
                 >
                   Jadwal & Kuota
                 </button>{" "}
-                terlebih dahulu!
+                terlebih dahulu agar proses pemilihan berjalan cepat dan lancar.
               </div>
             </div>
 

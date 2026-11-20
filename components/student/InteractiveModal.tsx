@@ -212,9 +212,31 @@ export function InteractiveModal({ dialog, onClose }: InteractiveModalProps) {
                   onClose();
                   dialog.onConfirm?.();
                 }}
-                style={{ padding: "0.75rem 1.35rem" }}
+                style={{
+                  padding: "0.75rem 1.45rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.45rem",
+                  fontWeight: 800,
+                  fontSize: "0.925rem",
+                }}
               >
-                {dialog.confirmText || "Konfirmasi"}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor" fillOpacity="0.25" />
+                </svg>
+                <span>{dialog.confirmText || "Kirim"}</span>
               </button>
             </>
           ) : dialog.actionLink ? (
