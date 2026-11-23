@@ -114,21 +114,41 @@ export default function AdminPage() {
   const loadAdminData = useCallback(async (isSilent = false) => {
     if (!isSilent) setIsRefreshing(true);
     try {
+      // Jalankan 9 RPC admin secara paralel dengan Promise.all untuk memangkas waktu tunggu & koneksi pooler
+      const [
+        stRes,
+        offRes,
+        pendRes,
+        studRes,
+        reqRes,
+        kRes,
+        compRes,
+        logRes,
+        erRes,
+      ] = await Promise.all([
+        supabase.rpc("admin_status"),
+        supabase.rpc("admin_list_offerings"),
+        supabase.rpc("admin_list_pendaftar"),
+        supabase.rpc("admin_list_students"),
+        supabase.rpc("admin_list_pengajuan"),
+        supabase.rpc("daftar_kelas"),
+        supabase.rpc("admin_list_complaints").then((r) => r, () => ({ data: null, error: null })),
+        supabase.rpc("admin_list_logs", { p_limit: 50 }).then((r) => r, () => ({ data: null, error: null })),
+        supabase.rpc("admin_ringkasan_email").then((r) => r, () => ({ data: null, error: null })),
+      ]);
+
       // 1. Status sistem
-      const { data: stData } = await supabase.rpc("admin_status");
-      const normalizedStatus = normalizeAdminStatus(stData);
+      const normalizedStatus = normalizeAdminStatus(stRes.data);
       if (normalizedStatus) {
         setStatus(normalizedStatus);
         setPortalOpen(normalizedStatus.portal_open);
       }
 
       // 2. Offerings
-      const { data: offData } = await supabase.rpc("admin_list_offerings");
-      setOfferings(parseOfferingsData(offData));
+      setOfferings(parseOfferingsData(offRes.data));
 
       // 3. Pendaftar
-      const { data: pendData } = await supabase.rpc("admin_list_pendaftar");
-      let pendaftarList = parsePendaftarData(pendData);
+      let pendaftarList = parsePendaftarData(pendRes.data);
       if (pendaftarList.length === 0) {
         const { data: expData } = await supabase.rpc("admin_export_pendaftaran");
         pendaftarList = parseExportFallbackPendaftar(expData);
@@ -150,8 +170,7 @@ export default function AdminPage() {
       }
 
       // 4. Master Mahasiswa (RPC admin_list_students dengan fallback)
-      const { data: studData } = await supabase.rpc("admin_list_students");
-      let parsedStudents = parseMasterStudentsData(studData);
+      let parsedStudents = parseMasterStudentsData(studRes.data);
       if (parsedStudents.length === 0 && pendaftarList.length > 0) {
         parsedStudents = pendaftarList.map((p) => ({
           nim: p.nim,
@@ -164,55 +183,38 @@ export default function AdminPage() {
       setStudents(parsedStudents);
 
       // 5. Pengajuan Akses
-      const { data: reqData } = await supabase.rpc("admin_list_pengajuan");
-      setRequests(parsePengajuanData(reqData));
+      setRequests(parsePengajuanData(reqRes.data));
 
       // 6. Daftar Kelas
-      const { data: kData } = await supabase.rpc("daftar_kelas");
-      setKelasList(parseKelasData(kData));
+      setKelasList(parseKelasData(kRes.data));
 
       // 7. Laporan Kendala Mahasiswa (Complaints)
-      try {
-        const { data: compData, error: compErr } = await supabase.rpc("admin_list_complaints");
-        if (!compErr) {
-          setComplaints(parseComplaintsData(compData));
-        }
-      } catch {
-        // Fallback aman jika patch13 belum dieksekusi di database server
+      if (compRes && !compRes.error && compRes.data) {
+        setComplaints(parseComplaintsData(compRes.data));
       }
 
-      // 8. Log Aktivitas Database & Sistem
-      try {
-        const { data: logData, error: logErr } = await supabase.rpc("admin_list_logs", { p_limit: 100 });
-        if (!logErr) {
-          const parsedLogs = parseLogsData(logData);
-          setLogs(parsedLogs);
-          if (lastAlertIdRef.current === null) {
-            const maxLogId = parsedLogs.reduce((max, item) => (item.id > max ? item.id : max), 0);
-            lastAlertIdRef.current = maxLogId;
-          }
+      // 8. Log Aktivitas Database & Sistem (p_limit: 50)
+      if (logRes && !logRes.error && logRes.data) {
+        const parsedLogs = parseLogsData(logRes.data);
+        setLogs(parsedLogs);
+        if (lastAlertIdRef.current === null) {
+          const maxLogId = parsedLogs.reduce((max, item) => (item.id > max ? item.id : max), 0);
+          lastAlertIdRef.current = maxLogId;
         }
-      } catch {
-        // Fallback aman jika patch31 belum dieksekusi di database server
       }
 
       // 9. Ringkasan Status Email Mahasiswa (Patch 37)
-      try {
-        const { data: erData, error: erErr } = await supabase.rpc("admin_ringkasan_email");
-        if (!erErr && erData) {
-          const res = erData as { ok?: boolean } & AdminEmailRingkasan;
-          if (res.ok !== false) {
-            setEmailRingkasan({
-              total_daftar: res.total_daftar || 0,
-              punya_email: res.punya_email || 0,
-              terkirim: res.terkirim || 0,
-              belum_terkirim: res.belum_terkirim || 0,
-              tanpa_email: res.tanpa_email || 0,
-            });
-          }
+      if (erRes && !erRes.error && erRes.data) {
+        const res = erRes.data as { ok?: boolean } & AdminEmailRingkasan;
+        if (res.ok !== false) {
+          setEmailRingkasan({
+            total_daftar: res.total_daftar || 0,
+            punya_email: res.punya_email || 0,
+            terkirim: res.terkirim || 0,
+            belum_terkirim: res.belum_terkirim || 0,
+            tanpa_email: res.tanpa_email || 0,
+          });
         }
-      } catch {
-        // Fallback aman jika patch37 belum dieksekusi di database server
       }
 
       setLastSyncTime(new Date().toLocaleTimeString("id-ID"));

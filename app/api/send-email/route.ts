@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   const res = rpcData as {
     ok?: boolean;
     error?: string;
-    mahasiswa?: { nim: string; nama: string; kelas?: string };
+    mahasiswa?: { nim: string; nama: string; kelas?: string; email?: string };
     pendaftaran?: {
       waktu_daftar: string | null;
       pilihan: BuktiEmailData["pilihan"];
@@ -106,14 +106,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Data pendaftaran tidak lengkap." }, { status: 500 });
   }
 
-  // Simpan email mahasiswa ke database
-  try {
-    await supabase.rpc("simpan_email_mahasiswa", {
-      p_nim: nim,
-      p_email: emailTujuan,
-    });
-  } catch {
-    // Abaikan error jika RPC belum diterapkan di DB
+  // Fallback: simpan email mahasiswa hanya jika di database belum ada (menghindari write ganda)
+  if (!res.mahasiswa.email || res.mahasiswa.email.trim() === "") {
+    try {
+      await supabase.rpc("simpan_email_mahasiswa", {
+        p_nim: nim,
+        p_email: emailTujuan,
+      });
+    } catch {
+      // Abaikan jika RPC mengalami kendala sementara
+    }
   }
 
   // 5. Siapkan data email
