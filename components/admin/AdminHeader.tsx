@@ -10,6 +10,7 @@ interface AdminHeaderProps {
   onLogout: () => void;
   onRefresh?: () => void;
   onSapuSesi?: () => void;
+  onAturJadwal?: () => void;
   isRefreshing?: boolean;
   lastSyncTime?: string;
 }
@@ -21,6 +22,7 @@ export function AdminHeader({
   onLogout,
   onRefresh,
   onSapuSesi,
+  onAturJadwal,
   isRefreshing,
   lastSyncTime,
 }: AdminHeaderProps) {
@@ -76,6 +78,21 @@ export function AdminHeader({
               >
                 {portalOpen ? "● PORTAL DIBUKA" : "○ PORTAL DITUTUP"}
               </span>
+              {status?.portal_mode && (
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    padding: "3px 9px",
+                    borderRadius: "var(--radius-full)",
+                    backgroundColor: status.portal_mode === "scheduled" ? "#eff6ff" : "#f8fafc",
+                    color: status.portal_mode === "scheduled" ? "#1d4ed8" : "#475569",
+                    border: `1px solid ${status.portal_mode === "scheduled" ? "#bfdbfe" : "#e2e8f0"}`,
+                  }}
+                >
+                  {status.portal_mode === "scheduled" ? "🗓 TERJADWAL" : "🔧 MANUAL"}
+                </span>
+              )}
               <span
                 style={{
                   fontSize: "0.75rem",
@@ -125,7 +142,7 @@ export function AdminHeader({
               borderRadius: "var(--radius-full)",
               backgroundColor: "var(--bg-subtle)",
             }}
-            title="Dashboard melakukan sinkronisasi otomatis ke database Supabase setiap 10 detik"
+            title="Dashboard melakukan sinkronisasi otomatis ke database Supabase setiap 25 detik"
           >
             <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--success)" }} />
             {lastSyncTime ? `Live ${lastSyncTime}` : "Sinkron..."}
@@ -148,6 +165,18 @@ export function AdminHeader({
               ) : (
                 <span>Refresh Data</span>
               )}
+            </button>
+          )}
+
+          {onAturJadwal && (
+            <button
+              type="button"
+              onClick={onAturJadwal}
+              className="btn btn-secondary"
+              style={{ fontSize: "0.85rem", padding: "0.6rem 1rem" }}
+              title="Atur mode manual atau jadwal buka/tutup otomatis (WIB)"
+            >
+              🗓 Atur Jadwal Portal
             </button>
           )}
 

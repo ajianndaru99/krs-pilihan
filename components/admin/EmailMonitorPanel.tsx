@@ -115,7 +115,7 @@ export function EmailMonitorPanel({
 
   useEffect(() => {
     loadData();
-  }, [loadData, ringkasan?.belum_terkirim, ringkasan?.terkirim]);
+  }, [loadData]);
 
   const handleKirimBatchClick = async () => {
     setLastBatchResult(null);

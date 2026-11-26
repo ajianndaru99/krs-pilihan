@@ -95,8 +95,26 @@ export interface AdminPengajuanItem {
   resolved_at?: string | null;
 }
 
+export interface PortalPublicStatus {
+  ok: boolean;
+  server_now: string;
+  portal_open: boolean;
+  portal_mode: "manual" | "scheduled";
+  portal_phase: "upcoming" | "open" | "closed";
+  scheduled_open_at: string | null;
+  scheduled_close_at: string | null;
+  portal_note: string;
+  seconds_remaining: number | null;
+  error?: string;
+}
+
 export interface AdminSystemStatus {
   portal_open: boolean;
+  portal_mode?: "manual" | "scheduled";
+  scheduled_open_at?: string | null;
+  scheduled_close_at?: string | null;
+  portal_note?: string;
+  server_now?: string;
   need_matkul: number;
   need_proyek: number;
   session_duration_minutes: number;

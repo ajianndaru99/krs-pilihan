@@ -7,8 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generateKrsEmailHtml, BuktiEmailData } from "@/lib/email-template";
 
-// Batas maksimal email per sekali klik tombol (hemat kuota Brevo gratis 300/hari)
-const BATCH_MAX = 50;
+// Batas maksimal email per sekali klik (aman di bawah batas 10 detik Vercel Hobby)
+const BATCH_MAX = 15;
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());

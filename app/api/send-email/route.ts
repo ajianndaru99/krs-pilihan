@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
 
   // Brevo berhasil → tandai email_terkirim = true di database secara persisten
   try {
-    await supabase.rpc("admin_tandai_email_terkirim", { p_nim: nim });
+    await supabase.rpc("tandai_email_terkirim_bukti", { p_nim: nim });
   } catch {
     // Abaikan — patch37 mungkin belum dieksekusi di DB; status email tidak kritis
   }

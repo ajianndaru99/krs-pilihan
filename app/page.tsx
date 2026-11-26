@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { Offering, StudentInfo, ModalDialogState, ModalDetailItem, ModalActionLink } from "@/lib/types";
+import { Offering, StudentInfo, ModalDialogState, ModalDetailItem, ModalActionLink, PortalPublicStatus } from "@/lib/types";
 import { findClashBetweenOfferings } from "@/lib/schedule-conflict";
 import { InteractiveModal } from "@/components/student/InteractiveModal";
 import { CheckNimCard } from "@/components/student/CheckNimCard";
@@ -115,6 +115,82 @@ export default function StudentPage() {
   const [isServerBusy, setIsServerBusy] = useState(false);
   const [hasQueue, setHasQueue] = useState(false);
   const hasShownQueueAlertRef = useRef(false);
+
+  // State portal status & countdown untuk fase login
+  const [portalStatus, setPortalStatus] = useState<PortalPublicStatus | null>(null);
+  const [portalCountdownSeconds, setPortalCountdownSeconds] = useState<number | null>(null);
+  const portalServerOffsetMsRef = useRef<number>(0);
+  const portalCountdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPortalSyncTimeRef = useRef<number>(0);
+
+  // Ambil status portal satu kali saat mount di fase login, lalu jalankan countdown lokal
+  const fetchPortalStatus = useCallback(async () => {
+    const now = Date.now();
+    // Throttle: jangan sync ulang jika baru dilakukan < 60 detik yang lalu
+    if (now - lastPortalSyncTimeRef.current < 60000 && lastPortalSyncTimeRef.current > 0) return;
+
+    try {
+      const { data } = await supabase.rpc("portal_status_publik");
+      const res = data as PortalPublicStatus | null;
+      if (!res || !res.ok) return;
+
+      const serverNow = Date.parse(res.server_now);
+      portalServerOffsetMsRef.current = serverNow - Date.now();
+      lastPortalSyncTimeRef.current = Date.now();
+
+      setPortalStatus(res);
+
+      // Hitung sisa detik awal berdasarkan fase
+      if (res.portal_phase === "upcoming" && res.scheduled_open_at) {
+        const diff = Math.max(0, Math.floor((Date.parse(res.scheduled_open_at) - serverNow) / 1000));
+        setPortalCountdownSeconds(diff);
+      } else if (res.portal_phase === "open" && res.scheduled_close_at) {
+        const diff = Math.max(0, Math.floor((Date.parse(res.scheduled_close_at) - serverNow) / 1000));
+        setPortalCountdownSeconds(diff);
+      } else {
+        setPortalCountdownSeconds(null);
+      }
+    } catch {
+      // Abaikan jika RPC belum aktif (sebelum patch 46 dijalankan)
+    }
+  }, []);
+
+  // Setup interval countdown lokal 1 detik (nol request server)
+  useEffect(() => {
+    if (phase !== "login") return;
+
+    // Muat status portal pertama kali
+    void fetchPortalStatus();
+
+    // Tick countdown lokal setiap detik
+    const tick = setInterval(() => {
+      setPortalCountdownSeconds((prev) => {
+        if (prev === null || prev <= 0) return prev;
+        const next = prev - 1;
+
+        // Ketika upcoming habis → update status portal menjadi open tanpa request server
+        if (next <= 0 && portalStatus?.portal_phase === "upcoming") {
+          setPortalStatus((p) => p ? { ...p, portal_open: true, portal_phase: "open" } : p);
+        }
+        return next;
+      });
+    }, 1000);
+
+    portalCountdownTimerRef.current = tick;
+
+    // Sinkronisasi ulang saat tab aktif kembali (cooldown 60 detik)
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchPortalStatus();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(tick);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [phase, fetchPortalStatus, portalStatus?.portal_phase]);
 
   // Simpan selectedIds ke sessionStorage agar pilihan tidak hilang saat refresh
   useEffect(() => {
@@ -1108,6 +1184,9 @@ export default function StudentPage() {
           setNim={setNim}
           studentInfo={studentInfo}
           loading={loading}
+          portalStatus={portalStatus}
+          countdownSeconds={portalCountdownSeconds}
+          onRefreshPortal={fetchPortalStatus}
           adminNotice={adminNotice}
           onClearNotice={() => setAdminNotice(null)}
           onCheckNim={handleCheckNim}

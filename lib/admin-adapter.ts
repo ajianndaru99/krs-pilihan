@@ -19,6 +19,11 @@ export function normalizeAdminStatus(raw: unknown): AdminSystemStatus | null {
   const sudahDaftar = st.sudah_daftar ?? st.total_registered ?? 0;
   return {
     portal_open: Boolean(st.portal_open),
+    portal_mode: st.portal_mode ?? undefined,
+    scheduled_open_at: st.scheduled_open_at ?? null,
+    scheduled_close_at: st.scheduled_close_at ?? null,
+    portal_note: st.portal_note ?? undefined,
+    server_now: st.server_now ?? undefined,
     need_matkul: st.need_matkul ?? 3,
     need_proyek: st.need_proyek ?? 1,
     session_duration_minutes: st.session_duration_minutes ?? 5,

@@ -1,0 +1,188 @@
+function doGet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetPengaturan = ss.getSheetByName("Pengaturan");
+  
+  // Membaca status portal dari sheet Pengaturan sel B1
+  var statusPortal = "BUKA"; 
+  if (sheetPengaturan) {
+    statusPortal = sheetPengaturan.getRange("B1").getValue().toString().trim().toUpperCase();
+  }
+  
+  // Jika statusnya TUTUP, tampilkan halaman pemberitahuan
+  if (statusPortal === "TUTUP") {
+    var htmlTutup = "<div style='font-family: Arial, sans-serif; text-align: center; margin-top: 50px; padding: 20px;'>" +
+                    "<h2 style='color: #d32f2f;'>PORTAL DITUTUP</h2>" +
+                    "<p>Maaf, waktu pemilihan Mata Kuliah & Proyek FAPERTA saat ini sudah ditutup.</p>" +
+                    "<p>Silakan hubungi bagian administrasi untuk informasi lebih lanjut.</p>" +
+                    "</div>";
+    return HtmlService.createHtmlOutput(htmlTutup)
+        .setTitle('Portal Ditutup')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+  }
+
+  // Jika statusnya BUKA, tampilkan halaman form
+  return HtmlService.createTemplateFromFile('Index')
+      .evaluate()
+      .setTitle('Portal Pemilihan FAPERTA')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+}
+
+function getPilihanTersedia() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Pilihan');
+  var lastRow = sheet.getLastRow();
+  
+  if (lastRow <= 1) return { matkul: [], proyek: [] };
+  
+  var rows = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+  var matkulList = [];
+  var proyekList = [];
+  
+  for (var i = 0; i < rows.length; i++) {
+    var nama = rows[i][0];
+    var sisa = parseInt(rows[i][3], 10);
+    var jenis = rows[i][4].toString().toLowerCase().trim();
+    
+    if (!isNaN(sisa) && sisa > 0) {
+      if (jenis === 'matkul') {
+        matkulList.push({ nama: nama, sisa: sisa });
+      } else if (jenis === 'proyek') {
+        proyekList.push({ nama: nama, sisa: sisa });
+      }
+    }
+  }
+  return { matkul: matkulList, proyek: proyekList };
+}
+
+function simpanRespon(dataUser) {
+  var lock = LockService.getScriptLock();
+  
+  try {
+    lock.waitLock(30000); 
+  } catch (e) {
+    throw new Error("Sistem sedang sibuk memproses antrean pengguna lain. Silakan coba beberapa saat lagi.");
+  }
+
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // 1. Cek Status Portal
+    var sheetPengaturan = ss.getSheetByName("Pengaturan");
+    if (sheetPengaturan) {
+      var status = sheetPengaturan.getRange("B1").getValue().toString().trim().toUpperCase();
+      if (status === "TUTUP") {
+        throw new Error("Portal sudah ditutup. Pengisian tidak dapat diproses.");
+      }
+    }
+
+    var sheetRespon = ss.getSheetByName("Respon");
+    var sheetPilihan = ss.getSheetByName("Pilihan");
+    
+    // 2. Membersihkan dan memvalidasi input dasar
+    var nama = dataUser.nama.toString().trim();
+    var nim = dataUser.nim.toString().trim();
+    var kelas = dataUser.kelas.toString().trim();
+    var whatsapp = dataUser.whatsapp.toString().trim();
+
+    if (!/^\d+$/.test(nim)) throw new Error("Format tidak valid: NIM harus berupa angka.");
+    if (!/^\d+$/.test(whatsapp)) throw new Error("Format tidak valid: WhatsApp harus berupa angka.");
+    
+    var kelasValid = [
+      "SPKS A", "SPKS B", "SPKS C", "SPKS D", "SPKS E", 
+      "SPKS F", "SPKS G", "SPKS H", "SPKS I", "SPKS J", 
+      "ANTAN A", "ANTAN B"
+    ];
+    if (kelasValid.indexOf(kelas) === -1) {
+      throw new Error("Format tidak valid: Kelas tidak terdaftar di sistem.");
+    }
+    
+    var nimDitemukan = sheetRespon.getRange("C:C").createTextFinder(nim).matchEntireCell(true).findNext();
+    if (nimDitemukan) {
+      throw new Error("NIM " + nim + " sudah terdaftar. Anda hanya dapat mengisi form satu kali.");
+    }
+
+    // PERBAIKAN BACKEND: Validasi Kuota dan Tipe Kategori
+    var opsiDenganTipe = [];
+    if (dataUser.pilihan1 && dataUser.pilihan1.toString().trim() !== "") 
+      opsiDenganTipe.push({nilai: dataUser.pilihan1.toString().trim(), tipe: 'matkul'});
+    if (dataUser.pilihan2 && dataUser.pilihan2.toString().trim() !== "") 
+      opsiDenganTipe.push({nilai: dataUser.pilihan2.toString().trim(), tipe: 'matkul'});
+    if (dataUser.pilihan3 && dataUser.pilihan3.toString().trim() !== "") 
+      opsiDenganTipe.push({nilai: dataUser.pilihan3.toString().trim(), tipe: 'matkul'});
+    if (dataUser.proyek && dataUser.proyek.toString().trim() !== "") 
+      opsiDenganTipe.push({nilai: dataUser.proyek.toString().trim(), tipe: 'proyek'});
+    
+    var opsiUnik = new Set(opsiDenganTipe.map(function(o){ return o.nilai; }));
+    if (opsiUnik.size !== opsiDenganTipe.length) {
+      throw new Error("Pilihan tidak boleh ada yang sama.");
+    }
+
+    var lastRowPilihan = sheetPilihan.getLastRow();
+    if (lastRowPilihan < 2) throw new Error("Data pilihan belum tersedia di sistem.");
+    
+    // Ambil kolom A-E (Kolom E = Jenis)
+    var rowsPilihan = sheetPilihan.getRange(2, 1, lastRowPilihan - 1, 5).getValues(); 
+    var rowIndexTerpakai = [];
+
+    // Validasi lintas tipe (Mencegah nama matkul diisi di slot proyek atau sebaliknya)
+    for (var j = 0; j < opsiDenganTipe.length; j++) {
+      var ditemukan = false;
+      for (var i = 0; i < rowsPilihan.length; i++) {
+        var namaBaris = rowsPilihan[i][0].toString().trim();
+        var jenisBaris = rowsPilihan[i][4].toString().toLowerCase().trim();
+        if (namaBaris === opsiDenganTipe[j].nilai && jenisBaris === opsiDenganTipe[j].tipe) {
+          if (rowsPilihan[i][3] > 0) {
+            ditemukan = true;
+            rowIndexTerpakai.push(i + 2);
+          }
+          break;
+        }
+      }
+      if (!ditemukan) {
+        throw new Error("Maaf, '" + opsiDenganTipe[j].nilai + "' tidak valid atau kuotanya baru saja habis. Silahkan refresh dan pilih opsi lain!");
+      }
+    }
+
+    var timestamp = new Date();
+    
+    // 3. Menyimpan Data ke Sheet Respon
+    sheetRespon.appendRow([
+      timestamp,          
+      nama,               
+      nim,                
+      kelas,              
+      whatsapp,           
+      dataUser.pilihan1,  
+      dataUser.pilihan2,  
+      dataUser.pilihan3,  
+      dataUser.proyek     
+    ]);
+
+    // 4. Memperbarui Kuota
+    rowIndexTerpakai.forEach(function(rowNum) {
+      var cellTerisi = sheetPilihan.getRange(rowNum, 3);
+      cellTerisi.setValue(cellTerisi.getValue() + 1);
+
+      var cellSisa = sheetPilihan.getRange(rowNum, 4); 
+      cellSisa.setValue(cellSisa.getValue() - 1);
+    });
+    
+    return {
+      status: "SUKSES",
+      nim: nim,
+      nama: nama,
+      kelas: kelas,
+      whatsapp: whatsapp,
+      pilihan1: dataUser.pilihan1,
+      pilihan2: dataUser.pilihan2,
+      pilihan3: dataUser.pilihan3,
+      proyek: dataUser.proyek,
+      waktu: Utilities.formatDate(timestamp, "GMT+0700", "dd/MM/yyyy HH:mm:ss")
+    };
+
+  } catch (error) {
+    throw new Error(error.message);
+  } finally {
+    lock.releaseLock();
+  }
+}

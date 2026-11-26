@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { StudentInfo } from "@/lib/types";
+import { StudentInfo, PortalPublicStatus } from "@/lib/types";
 import { ScheduleOverviewModal } from "./ScheduleOverviewModal";
+import { PortalStatusBanner } from "./PortalStatusBanner";
+import { formatCountdown } from "@/lib/portal-schedule";
 
 export interface AdminNotice {
   type: "pending" | "rejected" | "info";
@@ -17,6 +19,9 @@ interface CheckNimCardProps {
   setNim: (val: string) => void;
   studentInfo: StudentInfo | null;
   loading: boolean;
+  portalStatus?: PortalPublicStatus | null;
+  countdownSeconds?: number | null;
+  onRefreshPortal?: () => void;
   adminNotice?: AdminNotice | null;
   onClearNotice?: () => void;
   onCheckNim: (e: React.FormEvent) => void;
@@ -30,6 +35,9 @@ export function CheckNimCard({
   setNim,
   studentInfo,
   loading,
+  portalStatus,
+  countdownSeconds,
+  onRefreshPortal,
   adminNotice,
   onClearNotice,
   onCheckNim,
@@ -38,6 +46,10 @@ export function CheckNimCard({
   onOpenAjukanModal,
 }: CheckNimCardProps) {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  const isUpcoming = portalStatus?.portal_phase === "upcoming";
+  const isClosed = portalStatus?.portal_phase === "closed";
+  const upcomingCountdown = formatCountdown(countdownSeconds ?? 0).formatted;
 
   return (
     <div style={{ maxWidth: 460, margin: "1rem auto 1.5rem auto" }}>
@@ -105,6 +117,13 @@ export function CheckNimCard({
           Faperta INSTIPER Yogyakarta
         </p>
       </div>
+
+      {/* Banner Countdown & Status Buka/Tutup Portal */}
+      <PortalStatusBanner
+        portalStatus={portalStatus ?? null}
+        countdownSeconds={countdownSeconds ?? null}
+        onRefresh={onRefreshPortal}
+      />
 
       {/* Main Card — Soft Rounded 24px */}
       <div
@@ -512,18 +531,35 @@ export function CheckNimCard({
                 type="submit"
                 className="btn btn-primary"
                 style={{ flex: 1, padding: "0.85rem", fontSize: "0.95rem", minHeight: 48 }}
-                disabled={loading}
+                disabled={loading || isUpcoming || isClosed}
               >
                 {loading ? (
                   <>
                     <span className="spinner" style={{ width: 14, height: 14 }} />
                     <span>Menghubungkan ke Antrian...</span>
                   </>
+                ) : isUpcoming ? (
+                  <span>Menunggu Dibuka ({upcomingCountdown})</span>
+                ) : isClosed ? (
+                  <span>Portal Ditutup</span>
                 ) : (
                   <span>Masuk Antrian</span>
                 )}
               </button>
             </div>
+            {isUpcoming && (
+              <div
+                style={{
+                  textAlign: "center",
+                  fontSize: "0.75rem",
+                  color: "#64748b",
+                  marginTop: "0.6rem",
+                  fontWeight: 500,
+                }}
+              >
+                Tombol Masuk Antrian akan aktif otomatis saat hitung mundur selesai.
+              </div>
+            )}
           </form>
         )}
       </div>

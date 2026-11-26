@@ -38,6 +38,7 @@ import { ResetDataModal } from "@/components/admin/ResetDataModal";
 import { SystemLogsViewer } from "@/components/admin/SystemLogsViewer";
 import { EmailMonitorPanel } from "@/components/admin/EmailMonitorPanel";
 import { AdminModal, AdminModalState, AdminModalType } from "@/components/admin/AdminModal";
+import { PortalSettingsModal } from "@/components/admin/PortalSettingsModal";
 
 // Interval 25 detik — cukup fresh untuk monitoring hari H tanpa membebani DB
 const ADMIN_POLL_INTERVAL_MS = 25000;
@@ -75,6 +76,9 @@ export default function AdminPage() {
   const [isSendingBatchEmail, setIsSendingBatchEmail] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>("");
+  const [showPortalSettingsModal, setShowPortalSettingsModal] = useState(false);
+  const isAdminPollInFlightRef = useRef(false);
+  const isInitialLoadDoneRef = useRef(false);
 
   // Modal Dialog Interaktif Admin
   const [adminModal, setAdminModal] = useState<AdminModalState>({
@@ -110,18 +114,31 @@ export default function AdminPage() {
     []
   );
 
-  // Muat data dashboard admin
+  // Muat data statis (master mahasiswa & daftar kelas) hanya saat mount atau setelah perubahan master
+  const loadStaticData = useCallback(async () => {
+    try {
+      const [studRes, kRes] = await Promise.all([
+        supabase.rpc("admin_list_students"),
+        supabase.rpc("daftar_kelas"),
+      ]);
+
+      const parsedStudents = parseMasterStudentsData(studRes.data);
+      setStudents(parsedStudents);
+      setKelasList(parseKelasData(kRes.data));
+    } catch {
+      // Abaikan jika gagal memuat data statis; dapat di-refresh manual
+    }
+  }, []);
+
+  // Muat data dinamis dashboard admin (tanpa data statis master mahasiswa & kelas)
   const loadAdminData = useCallback(async (isSilent = false) => {
     if (!isSilent) setIsRefreshing(true);
     try {
-      // Jalankan 9 RPC admin secara paralel dengan Promise.all untuk memangkas waktu tunggu & koneksi pooler
       const [
         stRes,
         offRes,
         pendRes,
-        studRes,
         reqRes,
-        kRes,
         compRes,
         logRes,
         erRes,
@@ -129,9 +146,7 @@ export default function AdminPage() {
         supabase.rpc("admin_status"),
         supabase.rpc("admin_list_offerings"),
         supabase.rpc("admin_list_pendaftar"),
-        supabase.rpc("admin_list_students"),
         supabase.rpc("admin_list_pengajuan"),
-        supabase.rpc("daftar_kelas"),
         supabase.rpc("admin_list_complaints").then((r) => r, () => ({ data: null, error: null })),
         supabase.rpc("admin_list_logs", { p_limit: 50 }).then((r) => r, () => ({ data: null, error: null })),
         supabase.rpc("admin_ringkasan_email").then((r) => r, () => ({ data: null, error: null })),
@@ -147,9 +162,9 @@ export default function AdminPage() {
       // 2. Offerings
       setOfferings(parseOfferingsData(offRes.data));
 
-      // 3. Pendaftar
+      // 3. Pendaftar (fallback ke admin_export_pendaftaran hanya bila RPC utama error)
       let pendaftarList = parsePendaftarData(pendRes.data);
-      if (pendaftarList.length === 0) {
+      if (pendRes.error && pendaftarList.length === 0) {
         const { data: expData } = await supabase.rpc("admin_export_pendaftaran");
         pendaftarList = parseExportFallbackPendaftar(expData);
       }
@@ -169,31 +184,15 @@ export default function AdminPage() {
         });
       }
 
-      // 4. Master Mahasiswa (RPC admin_list_students dengan fallback)
-      let parsedStudents = parseMasterStudentsData(studRes.data);
-      if (parsedStudents.length === 0 && pendaftarList.length > 0) {
-        parsedStudents = pendaftarList.map((p) => ({
-          nim: p.nim,
-          nama: p.nama,
-          kelas: p.kelas || "-",
-          registered_at: p.registered_at || null,
-          has_registered: true,
-        }));
-      }
-      setStudents(parsedStudents);
-
-      // 5. Pengajuan Akses
+      // 4. Pengajuan Akses
       setRequests(parsePengajuanData(reqRes.data));
 
-      // 6. Daftar Kelas
-      setKelasList(parseKelasData(kRes.data));
-
-      // 7. Laporan Kendala Mahasiswa (Complaints)
+      // 5. Laporan Kendala Mahasiswa (Complaints)
       if (compRes && !compRes.error && compRes.data) {
         setComplaints(parseComplaintsData(compRes.data));
       }
 
-      // 8. Log Aktivitas Database & Sistem (p_limit: 50)
+      // 6. Log Aktivitas Database & Sistem (p_limit: 50)
       if (logRes && !logRes.error && logRes.data) {
         const parsedLogs = parseLogsData(logRes.data);
         setLogs(parsedLogs);
@@ -203,7 +202,7 @@ export default function AdminPage() {
         }
       }
 
-      // 9. Ringkasan Status Email Mahasiswa (Patch 37)
+      // 7. Ringkasan Status Email Mahasiswa (Patch 37)
       if (erRes && !erRes.error && erRes.data) {
         const res = erRes.data as { ok?: boolean } & AdminEmailRingkasan;
         if (res.ok !== false) {
@@ -226,12 +225,14 @@ export default function AdminPage() {
     }
   }, []);
 
-  // Cek sesi Auth Supabase saat mount
+  // Cek sesi Auth Supabase saat mount (hindari double-fetch antara getSession & onAuthStateChange)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSessionUser(session?.user || null);
       setCheckingAuth(false);
-      if (session?.user) {
+      if (session?.user && !isInitialLoadDoneRef.current) {
+        isInitialLoadDoneRef.current = true;
+        loadStaticData();
         loadAdminData();
       }
     });
@@ -241,56 +242,68 @@ export default function AdminPage() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSessionUser(session?.user || null);
       if (session?.user) {
-        loadAdminData();
+        if (!isInitialLoadDoneRef.current) {
+          isInitialLoadDoneRef.current = true;
+          loadStaticData();
+          loadAdminData();
+        }
+      } else {
+        isInitialLoadDoneRef.current = false;
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [loadAdminData]);
+  }, [loadAdminData, loadStaticData]);
 
-  // Polling data admin & notifikasi log sistem (tunggal & terkoordinasi setiap 10 detik)
+  // Polling data admin & notifikasi log sistem (tunggal & terkoordinasi setiap 25 detik)
   useEffect(() => {
     if (!sessionUser) return;
 
     const pollAlertsAndData = async () => {
-      // 1. Cek notifikasi peringatan log mental / error terkini
+      if (isAdminPollInFlightRef.current) return;
+      isAdminPollInFlightRef.current = true;
       try {
-        const isFirstCursorSync = lastAlertIdRef.current === null;
-        const cursorId = lastAlertIdRef.current ?? 0;
+        // 1. Cek notifikasi peringatan log mental / error terkini
+        try {
+          const isFirstCursorSync = lastAlertIdRef.current === null;
+          const cursorId = lastAlertIdRef.current ?? 0;
 
-        const { data: alertRes, error: alertErr } = await supabase.rpc("admin_get_latest_alerts", {
-          p_after_id: cursorId,
-        });
+          const { data: alertRes, error: alertErr } = await supabase.rpc("admin_get_latest_alerts", {
+            p_after_id: cursorId,
+          });
 
-        if (!alertErr) {
-          const resObj = alertRes as { ok?: boolean; latest_id?: number } | null;
-          if (resObj && resObj.ok !== false) {
-            if (typeof resObj.latest_id === "number" && resObj.latest_id > cursorId) {
-              lastAlertIdRef.current = resObj.latest_id;
-            } else if (isFirstCursorSync) {
-              lastAlertIdRef.current = typeof resObj.latest_id === "number" ? resObj.latest_id : 0;
-            }
+          if (!alertErr) {
+            const resObj = alertRes as { ok?: boolean; latest_id?: number } | null;
+            if (resObj && resObj.ok !== false) {
+              if (typeof resObj.latest_id === "number" && resObj.latest_id > cursorId) {
+                lastAlertIdRef.current = resObj.latest_id;
+              } else if (isFirstCursorSync) {
+                lastAlertIdRef.current = typeof resObj.latest_id === "number" ? resObj.latest_id : 0;
+              }
 
-            // Pop-up hanya untuk event baru setelah sinkronisasi cursor pertama
-            if (!isFirstCursorSync) {
-              const parsedAlerts = parseAlertsData(alertRes);
-              if (parsedAlerts.length > 0) {
-                const firstError = parsedAlerts.find((a) => a.level === "error" || a.level === "warning");
-                if (firstError) {
-                  setIncomingAlert(firstError);
+              // Pop-up hanya untuk event baru setelah sinkronisasi cursor pertama
+              if (!isFirstCursorSync) {
+                const parsedAlerts = parseAlertsData(alertRes);
+                if (parsedAlerts.length > 0) {
+                  const firstError = parsedAlerts.find((a) => a.level === "error" || a.level === "warning");
+                  if (firstError) {
+                    setIncomingAlert(firstError);
+                  }
                 }
               }
             }
           }
+        } catch {
+          // Abaikan jika RPC alerts belum aktif
         }
-      } catch {
-        // Abaikan jika RPC alerts belum aktif
-      }
 
-      // 2. Muat data master admin (silent refresh)
-      await loadAdminData(true);
+        // 2. Muat data dinamis admin (silent refresh)
+        await loadAdminData(true);
+      } finally {
+        isAdminPollInFlightRef.current = false;
+      }
     };
 
     const timer = setInterval(() => {
@@ -729,6 +742,7 @@ export default function AdminPage() {
       }
     }
 
+    loadStaticData();
     loadAdminData();
     showAdminPopup("success", "Berhasil", `Data mahasiswa ${nama} (${nim}) berhasil disimpan.`);
   };
@@ -740,6 +754,7 @@ export default function AdminPage() {
       showAdminPopup("danger", "Gagal Menghapus Mahasiswa", error.message);
       throw error;
     }
+    loadStaticData();
     loadAdminData();
     showAdminPopup("success", "Berhasil", `Mahasiswa dengan NIM ${nim} berhasil dihapus.`);
   };
@@ -965,8 +980,12 @@ export default function AdminPage() {
         status={status}
         onTogglePortal={handleTogglePortal}
         onLogout={handleLogout}
-        onRefresh={loadAdminData}
+        onRefresh={() => {
+          loadStaticData();
+          loadAdminData();
+        }}
         onSapuSesi={handleSapuSesi}
+        onAturJadwal={() => setShowPortalSettingsModal(true)}
         isRefreshing={isRefreshing}
         lastSyncTime={lastSyncTime}
       />
@@ -1187,6 +1206,7 @@ export default function AdminPage() {
                 if (res && res.ok === false) {
                   throw new Error(res.error || "Gagal memproses data mahasiswa.");
                 }
+                loadStaticData();
                 loadAdminData();
                 return { inserted: res?.inserted || 0, updated: res?.updated || 0 };
               }}
@@ -1249,6 +1269,13 @@ export default function AdminPage() {
       </div>
 
       <AdminModal modal={adminModal} onClose={closeModal} />
+
+      <PortalSettingsModal
+        isOpen={showPortalSettingsModal}
+        onClose={() => setShowPortalSettingsModal(false)}
+        currentStatus={status}
+        onSuccess={() => loadAdminData()}
+      />
 
       {/* POP-UP PERINGATAN DATA PENDAFTARAN MENTAL (Otomatis & Real-time) */}
       {incomingAlert && (

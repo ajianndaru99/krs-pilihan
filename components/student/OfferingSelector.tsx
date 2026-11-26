@@ -3,9 +3,20 @@
 import { useState, useMemo } from "react";
 import { Offering } from "@/lib/types";
 
-// Helper pembersihan nama matkul dari sufiks kelas (misal: "Literasi Digital A" -> "Literasi Digital")
+// Helper pembersihan nama matkul dari sufiks kelas (diselaraskan dengan fungsi normalize_course_name di PostgreSQL)
 export const cleanCourseName = (nama: string): string => {
-  const cleaned = nama.trim().replace(/(\s+|-|\/)+[A-Za-z]$/, "");
+  if (!nama) return "";
+  let cleaned = nama.trim();
+  // 1. Hapus kurung di akhir seperti (SPKS A), (A), (KLS B), (SPKS-A)
+  cleaned = cleaned.replace(/\s*\((kelas|kls)?\s*(spks|antan)?[a-z0-9\s\-_]+\)$/i, "");
+  // 2. Hapus pola kelas panjang di akhir: " SPKS A", " ANTAN B", " KELAS A", " KLS 1", dll
+  cleaned = cleaned.replace(/(\s+|[-–/])(kelas|kls|spks|antan)\s*[a-z0-9]+$/i, "");
+  // 3. Hapus kata spks/antan/kelas/kls jika berdiri sendiri di akhir
+  cleaned = cleaned.replace(/(\s+|[-–/])(kelas|kls|spks|antan)$/i, "");
+  // 4. Hapus huruf/angka kelas tunggal di akhir misal " a", " b", "- c"
+  cleaned = cleaned.replace(/(\s+|[-–/])[a-z0-9]$/i, "");
+  // 5. Hapus pemisah sisa di akhir
+  cleaned = cleaned.replace(/[\s\-/–]+$/, "");
   return cleaned.trim() || nama.trim();
 };
 
